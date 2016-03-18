@@ -3,18 +3,19 @@
     <modelVersion>4.0.0</modelVersion>
 
 	<groupId>org.librairy</groupId>
-    <artifactId>librairy-modeler-lda</artifactId>
+    <artifactId>modeler-lda</artifactId>
     <version>0.2</version>
     <packaging>war</packaging>
     <name>librairy modeler lda</name>
     <description>librairy modeler lda</description>
 
 	<properties>
+        <docker.image.prefix>librairy</docker.image.prefix>
+
         <!-- Project Details -->
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.java.version>1.8</project.java.version>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-        <docker.image.prefix>cbadenes</docker.image.prefix>
 
         <!-- Maven Plugins -->
         <maven.appassembler.plugin.version>1.9</maven.appassembler.plugin.version>
@@ -1098,23 +1099,39 @@
                     <systemProperties>
                         <systemProperty>
                             <name>LIBRAIRY_HOME</name>
-                            <value>src/test/resources</value>
+                            <value>.</value>
                         </systemProperty>
                         <systemProperty>
                             <name>COLUMN_DB_HOST</name>
                             <value>wiig.dia.fi.upm.es</value>
                         </systemProperty>
                         <systemProperty>
+                            <name>COLUMN_DB_PORT</name>
+                            <value>5011</value>
+                        </systemProperty>
+                        <systemProperty>
                             <name>DOCUMENT_DB_HOST</name>
                             <value>wiig.dia.fi.upm.es</value>
+                        </systemProperty>
+                        <systemProperty>
+                            <name>DOCUMENT_DB_PORT</name>
+                            <value>5021</value>
                         </systemProperty>
                         <systemProperty>
                             <name>GRAPH_DB_HOST</name>
                             <value>wiig.dia.fi.upm.es</value>
                         </systemProperty>
                         <systemProperty>
+                            <name>GRAPH_DB_PORT</name>
+                            <value>5030</value>
+                        </systemProperty>
+                        <systemProperty>
                             <name>MESSAGE_BROKER_HOST</name>
                             <value>wiig.dia.fi.upm.es</value>
+                        </systemProperty>
+                        <systemProperty>
+                            <name>MESSAGE_BROKER_PORT</name>
+                            <value>5041</value>
                         </systemProperty>
                     </systemProperties>
                 </configuration>
@@ -1135,6 +1152,9 @@
                             <include>${project.build.finalName}.war</include>
                         </resource>
                     </resources>
+                    <imageTags>
+                        <imageTag>${project.version}</imageTag>
+                    </imageTags>
                 </configuration>
             </plugin>
 

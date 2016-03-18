@@ -1,0 +1,18 @@
+modelerLDA:
+  container_name: modelerLDA
+  image: librairy/modeler-lda:0.2
+  restart: always
+  environment:
+      - COLUMN_DB_HOST=wiig.dia.fi.upm.es
+      - COLUMN_DB_PORT=5011
+      - DOCUMENT_DB_HOST=wiig.dia.fi.upm.es
+      - DOCUMENT_DB_PORT=5021
+      - GRAPH_DB_HOST=wiig.dia.fi.upm.es
+      - GRAPH_DB_PORT=5030
+      - MESSAGE_BROKER_HOST=wiig.dia.fi.upm.es
+      - MESSAGE_BROKER_PORT=5041
+#  external_links:
+#    - column-db
+#    - document-db
+#    - graph-db
+#    - event-bus

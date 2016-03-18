@@ -9,8 +9,8 @@ import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 /**
  * Created by cbadenes on 11/01/16.
  */
-@Configuration("modeler")
-@ComponentScan({"org.librairy.modeler","org.librairy","es.upm.oeg.epnoi.ressist.parser"})
+@Configuration("modeler-lda")
+@ComponentScan({"org.librairy","es.upm.oeg.epnoi.ressist.parser"})
 @PropertySource({"classpath:modeler.properties"})
 public class Config {
 

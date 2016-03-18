@@ -2,10 +2,10 @@
 <configuration scan="true" scanPeriod="30 seconds">
 
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>../logs/modeler.log</file>
+        <file>${LIBRAIRY_HOME}/logs/modeler.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
             <!-- rollover daily -->
-            <fileNamePattern>../logs/modeler-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>${LIBRAIRY_HOME}/logs/modeler-%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <timeBasedFileNamingAndTriggeringPolicy
                     class="ch.qos.logback.core.rolling.SizeAndTimeBasedFNATP">
                 <!-- or whenever the file size reaches 100MB -->
