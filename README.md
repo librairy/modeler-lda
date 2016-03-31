@@ -32,6 +32,7 @@ That's all!! **librairy LDA modeler** should be run in your system now along wit
 Instead of deploy all containers as a whole, you can deploy each of them independently. It is useful to run the service in a distributed way deployed in several host-machines.
 
 - **LDA-Modeler**:
+
     ```sh
     $ docker run -it --rm --name modelerLDA librairy/modeler-lda
     ```
