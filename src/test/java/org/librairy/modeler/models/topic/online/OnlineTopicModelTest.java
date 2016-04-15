@@ -138,6 +138,17 @@ public class OnlineTopicModelTest {
         Double BATCH_SIZE_RATIO  =   Math.min(1.0,2.0 / MAX_ITERATIONS + 1.0 / SAMPLE_SIZE);  // how many documents
         // are used each iteration
 
+        LOG.info("Test settings: \n"
+                +"- Sample Size= " + SAMPLE_SIZE
+                +"- Sample Ratio= " + SAMPLE_RATIO
+                +"- Max Iterations= " + MAX_ITERATIONS
+                +"- Num Topics= " + NUM_TOPICS
+                +"- Alpha= " + ALPHA
+                +"- Beta= " + BETA
+                +"- Tau= " + TAU
+                +"- Kappa= " + KAPPA
+                +"- Batch Size Ratio= " + BATCH_SIZE_RATIO
+        );
 
         PatentsReferenceModel.TestSample refSample = refModel.sampleOf(SAMPLE_SIZE);
 
