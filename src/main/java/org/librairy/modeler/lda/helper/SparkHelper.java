@@ -29,11 +29,21 @@ public class SparkHelper {
     @PostConstruct
     public void setup(){
 
+        int processors = Runtime.getRuntime().availableProcessors();
+
+        int mb = 1024*1024;
+
+        long maxMemory = Runtime.getRuntime().maxMemory();
+
+        long memPerProcess = maxMemory / mb / processors;
+
+
+
         // Initialize Spark Context
         this.conf = new SparkConf().
-                setMaster("local["+threads+"]").
-                setAppName("DrInventor-Modeler").
-                set("spark.executor.memory", memory).
+                setMaster("local["+processors+"]").
+                setAppName("librairy-LDA-Modeler").
+                set("spark.executor.memory", memPerProcess + "m").
                 set("spark.driver.maxResultSize","0");
         sc = new JavaSparkContext(conf);
     }

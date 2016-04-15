@@ -7,7 +7,7 @@
         </encoder>
     </appender>
 
-    <logger name="org.librairy" level="DEBUG"/>
+    <logger name="org.librairy.modeler" level="DEBUG"/>
     <logger name="org.apache.spark" level="WARN"/>
 
     <root level="info">

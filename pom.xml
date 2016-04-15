@@ -108,7 +108,7 @@
         <servlet.api.version>2.4</servlet.api.version>
         <slf4j.version>1.7.12</slf4j.version>
         <solr.version>5.4.0</solr.version>
-        <spark.version>1.5.0</spark.version>
+        <spark.version>1.6.1</spark.version>
         <springboot.version>1.2.1.RELEASE</springboot.version>
         <spring.data.commons.version>1.12.0.M1</spring.data.commons.version>
         <spring.data.jpa.version>1.10.0.M1</spring.data.jpa.version>
