@@ -3,6 +3,8 @@ package org.librairy.modeler.lda.helper;
 import lombok.Getter;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +15,8 @@ import javax.annotation.PostConstruct;
  */
 @Component
 public class SparkHelper {
+
+    private static final Logger LOG = LoggerFactory.getLogger(SparkHelper.class);
 
     @Value("${librairy.modeler.threads}")
     String threads; // 2
@@ -45,6 +49,9 @@ public class SparkHelper {
                 setAppName("librairy-LDA-Modeler").
                 set("spark.executor.memory", memPerProcess + "m").
                 set("spark.driver.maxResultSize","0");
+
+        LOG.info("Spark configured with " +  processors + " processors and " +  memPerProcess+"m per process");
+
         sc = new JavaSparkContext(conf);
     }
 
