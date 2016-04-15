@@ -39,15 +39,15 @@ public class SparkHelper {
 
         long maxMemory = Runtime.getRuntime().maxMemory();
 
-        long memPerProcess = maxMemory / mb / processors;
+        String memPerProcess = (maxMemory / mb / processors) + "m";
 
 
 
         // Initialize Spark Context
         this.conf = new SparkConf().
-                setMaster("local["+processors+"]").
+                setMaster("local["+threads+"]").
                 setAppName("librairy-LDA-Modeler").
-                set("spark.executor.memory", memPerProcess + "m").
+                set("spark.executor.memory", memory ).
                 set("spark.driver.maxResultSize","0");
 
         LOG.info("Spark configured with " +  processors + " processors and " +  memPerProcess+"m per process");

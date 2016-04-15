@@ -46,7 +46,7 @@ public class PatentsReferenceModel {
 
 
         Set<String> domainURIs = new HashSet<>();
-
+        int maxCites = 0;
         try {
             Files.lines(metaFiles.toPath()).forEach(line -> {
 
@@ -75,7 +75,6 @@ public class PatentsReferenceModel {
                         domainURIs.add(refUri);
                         cites.add(refUri);
                     }
-
                     String uri = baseUri + id;
                     domainURIs.add(uri);
                     references.put(uri,cites);
@@ -94,15 +93,17 @@ public class PatentsReferenceModel {
     }
 
 
-    public TestSample sampleOf(Integer size){
+    public TestSample sampleOf(Integer size, boolean withReferences){
         Random       random    = new Random();
         List<String> refs    = new ArrayList<>();
         Set<String>  all     = new HashSet<>();
 
         List<String> keys      = new ArrayList<String>(references.keySet());
-        for (int i = 0; i< size; i++){
+        for (int i = 0; i< keys.size(); i++){
+            if (refs.size() == size) break;
             String key = keys.get( random.nextInt(keys.size()));
             List<String> related = references.get(key);
+            if (withReferences && related.isEmpty()) continue;
             all.add(key);
             all.addAll(related);
             refs.add(key);
@@ -118,7 +119,6 @@ public class PatentsReferenceModel {
     public List<String> getRefs(String uri){
         List<String> result = references.get(uri);
         if (result == null){
-            LOG.warn("URI not found: " + uri);
             return Collections.EMPTY_LIST;
         }
         return result;

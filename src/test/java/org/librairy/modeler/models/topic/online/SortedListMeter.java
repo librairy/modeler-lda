@@ -31,8 +31,8 @@ public class SortedListMeter {
     public static final void main(String[] args){
 
 
-        List<String> ref = Arrays.asList(new String[]{"4","1","3"});
-        List<String> values = Arrays.asList(new String[]{"4","2","3"});
+        List<String> ref = Arrays.asList(new String[]{"4","1","3","2"});
+        List<String> values = Arrays.asList(new String[]{"4","2"});
 
         double value = measure(ref, values);
         System.out.println(value);

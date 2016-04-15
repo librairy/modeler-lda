@@ -27,7 +27,9 @@ public class BagOfWords {
     public static Vector from(Map<String,Long> frequencies, Map<String,Long> vocabulary){
         double[] bag = new double[vocabulary.size()];
         for(String word: frequencies.keySet()){
-            bag[vocabulary.get(word).intValue()]=frequencies.get(word);
+            Long id = vocabulary.get(word);
+            if (id == null) continue;// word not in vocabulary
+            bag[id.intValue()]=frequencies.get(word);
         }
 
         return Vectors.dense(bag);
