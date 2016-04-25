@@ -226,6 +226,7 @@ public class AbstractEvaluation {
 
     protected Corpus _composeCorpus(List<String> uris, Map<String, Long> refVocabulary){
         LOG.info("Composing corpus from: " + uris.size() + " documents ...");
+
         Stream<Item> items = uris.parallelStream().
                 filter(uri -> udm.exists(Resource.Type.DOCUMENT).withUri(uri)).
                 map(uri -> docItemCache.getUnchecked(uri)).
