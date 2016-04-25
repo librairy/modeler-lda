@@ -35,7 +35,7 @@ public class PatentsReferenceModel {
 
     public Set<String> load(String baseUri){
 
-        String baseDir = "/Users/cbadenes/Documents/OEG/Projects/MINETUR/TopicModelling-2016/patentes-TIC-norteamericanas/";
+        String baseDir = "src/test/resources/";
 
         LOG.info("Loading reference patents from : " + baseDir);
 
