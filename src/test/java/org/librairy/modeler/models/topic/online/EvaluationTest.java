@@ -26,7 +26,7 @@ public class EvaluationTest extends AbstractEvaluation{
     @Test
     public void evaluation() throws IOException {
 
-        Corpus trainingCorpus = _composeCorpus(trainingSet.getUris().stream().limit(10).collect(Collectors.toList()));
+        Corpus trainingCorpus = _composeCorpus(trainingSet.getUris());
 
         File modelFile = new File("src/test/resources/model");
         LocalLDAModel model = null;
@@ -43,8 +43,8 @@ public class EvaluationTest extends AbstractEvaluation{
         }
 
 
-        Corpus testCorpus = _composeCorpus(testSet.getUris().stream().limit(10).collect(Collectors.toList()),
-                trainingCorpus.getVocabulary());
+        Corpus testCorpus = _composeCorpus(testSet.getUris(), trainingCorpus.getVocabulary());
+
         Double similarityThershold = 0.5;
 
 
