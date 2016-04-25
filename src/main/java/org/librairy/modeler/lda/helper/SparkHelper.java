@@ -45,9 +45,9 @@ public class SparkHelper {
 
         // Initialize Spark Context
         this.conf = new SparkConf().
-                setMaster("local["+threads+"]").
+                setMaster("local["+processors+"]").
                 setAppName("librairy-LDA-Modeler").
-                set("spark.executor.memory", memory ).
+                set("spark.executor.memory", memPerProcess).
                 set("spark.driver.maxResultSize","0");
 
         LOG.info("Spark configured with " +  processors + " processors and " +  memPerProcess+"m per process");
