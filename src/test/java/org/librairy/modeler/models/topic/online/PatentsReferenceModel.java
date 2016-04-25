@@ -24,6 +24,10 @@ public class PatentsReferenceModel {
 
     ConcurrentHashMap<String,List<String>> references;
 
+    int minCites = 0;
+
+    int maxCites = 0;
+
     public PatentsReferenceModel(){
         this.references = new ConcurrentHashMap();
     }
@@ -46,7 +50,6 @@ public class PatentsReferenceModel {
 
 
         Set<String> domainURIs = new HashSet<>();
-        int maxCites = 0;
         try {
             Files.lines(metaFiles.toPath()).forEach(line -> {
 
@@ -54,6 +57,8 @@ public class PatentsReferenceModel {
                 StringTokenizer tokenizer = new StringTokenizer(line,"\t");
 
                 String id           = tokenizer.nextToken();
+                String uri = baseUri + id;
+
                 String x            = tokenizer.nextToken();
                 String title        = tokenizer.nextToken();
                 String date         = tokenizer.nextToken();
@@ -75,14 +80,10 @@ public class PatentsReferenceModel {
                         domainURIs.add(refUri);
                         cites.add(refUri);
                     }
-                    String uri = baseUri + id;
-                    domainURIs.add(uri);
+                    if (maxCites < cites.size()) maxCites = cites.size();
                     references.put(uri,cites);
-
                 }
-
-
-
+                domainURIs.add(uri);
             });
 
             return domainURIs;
@@ -92,6 +93,19 @@ public class PatentsReferenceModel {
         }
     }
 
+
+    public boolean contains(String uri){
+        return references.contains(uri);
+    }
+
+    public Integer getSize(){
+        return this.references.size();
+    }
+
+    public Integer getNumberOfPatentsWithReferences(){
+        return Long.valueOf(this.references.entrySet().stream().filter(entry -> entry.getValue() != null && !entry
+                .getValue().isEmpty()).count()).intValue();
+    }
 
     public TestSample sampleOf(Integer size, boolean withReferences){
         Random       random    = new Random();
@@ -132,6 +146,18 @@ public class PatentsReferenceModel {
 
         uris.stream().forEach(uri -> model.getRefs(uri));
 
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder description = new StringBuilder();
+
+        description.append("Number of Patents: ").append(getSize()).append("|");
+        description.append("Number of Patents with cites: ").append(getNumberOfPatentsWithReferences()).append("|");
+        description.append("Max cites per Patents: ").append(maxCites).append("|");
+        description.append("Min cites per Patents: ").append(minCites).append("|");
+
+        return description.toString();
     }
 
     @Data

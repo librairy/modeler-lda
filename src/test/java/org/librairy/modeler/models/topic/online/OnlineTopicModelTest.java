@@ -1,5 +1,6 @@
 package org.librairy.modeler.models.topic.online;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
@@ -7,13 +8,13 @@ import es.cbadenes.lab.test.IntegrationTest;
 import es.upm.oeg.epnoi.matching.metrics.distance.JensenShannonDivergence;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.mllib.clustering.*;
 import org.apache.spark.mllib.linalg.Vector;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
+import org.librairy.model.domain.relations.Bundles;
 import org.librairy.model.domain.relations.Relation;
 import org.librairy.model.domain.resources.Item;
 import org.librairy.model.domain.resources.Resource;
@@ -30,7 +31,11 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import scala.Tuple2;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -41,86 +46,9 @@ import java.util.stream.Stream;
  *
  * @author cbadenes
  */
-@Category(IntegrationTest.class)
-@RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = Config.class)
-@TestPropertySource(properties = {
-        "librairy.comparator.delay = 1000",
-        "librairy.cassandra.contactpoints = zavijava.dia.fi.upm.es",
-        "librairy.cassandra.port = 5011",
-        "librairy.cassandra.keyspace = research",
-        "librairy.elasticsearch.contactpoints = zavijava.dia.fi.upm.es",
-        "librairy.elasticsearch.port = 5021",
-        "librairy.neo4j.contactpoints = zavijava.dia.fi.upm.es",
-        "librairy.neo4j.port = 5030",
-        "librairy.eventbus.host = localhost",
-        "librairy.eventbus.port=5041"})
-public class OnlineTopicModelTest {
+public class OnlineTopicModelTest extends AbstractEvaluation{
 
     private static final Logger LOG = LoggerFactory.getLogger(OnlineTopicModelTest.class);
-
-
-    @Autowired
-    SparkHelper sparkHelper;
-
-    @Autowired
-    UDM udm;
-
-    @Autowired
-    UnifiedColumnRepository unifiedColumnRepository;
-
-    private PatentsReferenceModel refModel;
-
-    private LoadingCache<String, String> itemDocCache;
-
-    private LoadingCache<String, String> docItemCache;
-
-    @Before
-    public void setup(){
-        this.refModel = new PatentsReferenceModel();
-        refModel.load("http://librairy.org/documents/");
-
-
-        Integer maxCites = refModel.references.entrySet().stream().map(x -> x.getValue().size()).reduce((x, y) ->
-                Math.max(x, y))
-                .get();
-        LOG.info("Max Number of Cites from a Patent: " + maxCites);
-
-        // Cache
-        this.itemDocCache = CacheBuilder.newBuilder()
-                .maximumSize(10000)
-                .expireAfterWrite(1, TimeUnit.DAYS)
-                .build(
-                        new CacheLoader<String, String>() {
-                            public String load(String uri) {
-                                Iterator<Relation> it = unifiedColumnRepository.findBy(Relation.Type.BUNDLES,
-                                        "item",
-                                        uri).iterator();
-                                if (!it.hasNext()) return "";
-                                return it.next().getStartUri();
-                            }
-                        });
-
-
-        this.docItemCache = CacheBuilder.newBuilder()
-                .maximumSize(10000)
-                .expireAfterWrite(1, TimeUnit.DAYS)
-                .build(
-                        new CacheLoader<String, String>() {
-                            public String load(String uri) {
-                                Iterator<Relation> it = unifiedColumnRepository.findBy(Relation.Type.BUNDLES,
-                                        "document",
-                                        uri).iterator();
-                                if (!it.hasNext()) return "";
-                                String iuri = it.next().getEndUri();
-                                itemDocCache.put(iuri,uri);
-                                return iuri;
-                            }
-                        });
-
-
-
-    }
 
 
     @Test
@@ -164,7 +92,7 @@ public class OnlineTopicModelTest {
         PatentsReferenceModel.TestSample trainingSet = refModel.sampleOf(TRAINING_SIZE,false);
         List<String> uris = trainingSet.getReferences();
 
-        Corpus trainingCorpus = composeCorpus(uris);
+        Corpus trainingCorpus = _composeCorpus(uris);
         JavaPairRDD<Long, Vector> trainingBagsOfWords = trainingCorpus.getBagsOfWords().cache();
 
         // Online LDA Model :: Creation
@@ -229,7 +157,7 @@ public class OnlineTopicModelTest {
             PatentsReferenceModel.TestSample testingSet = refModel.sampleOf(TESTING_SIZE,true);
             List<String> testUris = testingSet.all;
 
-            Corpus testingCorpus = composeCorpus(testUris,trainingCorpus.getVocabulary());
+            Corpus testingCorpus = _composeCorpus(testUris,trainingCorpus.getVocabulary());
             JavaPairRDD<Long, Vector> testingBagsOfWords = testingCorpus.getBagsOfWords().cache();
 
 
@@ -281,62 +209,6 @@ public class OnlineTopicModelTest {
         LOG.info("Final Accumulated Fit-Rate: " + accumulatedRates.stream().reduce((x,y) -> x+y).get()
                 /accumulatedRates.size());
 
-    }
-
-    private Corpus composeCorpus(List<String> uris){
-        return composeCorpus(uris,null);
-    }
-
-    private Corpus composeCorpus(List<String> uris, Map<String, Long> refVocabulary){
-
-        Stream<Item> items = uris.parallelStream().
-                filter(uri -> udm.exists(Resource.Type.DOCUMENT).withUri(uri)).
-                map(uri -> docItemCache.getUnchecked(uri)).
-                map(uri -> udm.read(Resource.Type.ITEM).byUri(uri)).
-                filter(response -> response.isPresent()).
-                map(response -> response.get().asItem());
-
-
-        List<Tuple2<String, Map<String, Long>>> resources = items.parallel()
-                .map(item -> new Tuple2<String, Map<String, Long>>(item.getUri(), BagOfWords.count(Arrays.asList(item.getTokens().split(" ")))))
-                .collect(Collectors.toList());
-
-
-        JavaRDD<Tuple2<String, Map<String, Long>>> itemsRDD = sparkHelper.getSc().parallelize(resources);
-        itemsRDD.cache();
-
-        LOG.info("Retrieving the Vocabulary...");
-        final Map<String, Long> vocabulary = (refVocabulary != null)? refVocabulary :
-            itemsRDD.
-                    flatMap(resource -> resource._2.keySet()).
-                    distinct().
-                    zipWithIndex().
-                    collectAsMap();
-        ;
-
-        LOG.info( vocabulary.size() + " words" );
-
-        LOG.info("Indexing the documents...");
-        Map<Long, String> documents = itemsRDD.
-                map(resource -> resource._1).
-                zipWithIndex().
-                mapToPair(x -> new Tuple2<Long, String>(x._2, x._1)).
-                collectAsMap();
-
-        LOG.info( documents.size() + " documents" );
-
-        LOG.info("Building the Corpus...");
-
-        JavaPairRDD<Long, Vector> bagsOfWords = itemsRDD.
-                map(resource -> BagOfWords.from(resource._2,vocabulary)).
-                zipWithIndex().
-                mapToPair(x -> new Tuple2<Long, Vector>(x._2, x._1));
-
-        Corpus corpus = new Corpus();
-        corpus.setBagsOfWords(bagsOfWords);
-        corpus.setVocabulary(vocabulary);
-        corpus.setDocuments(documents);
-        return corpus;
     }
 
 
