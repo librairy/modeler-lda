@@ -33,8 +33,22 @@ public class SimMatrix {
     }
 
     public List<String> getSimilarsTo(String ref){
-        return matrix.get(ref).entrySet().stream().sorted((x,y) -> x.getValue().compareTo(y.getValue())).map(x -> x
-                .getKey()).collect(Collectors.toList());
+        return matrix.get(ref).entrySet().stream()
+                .sorted((x,y) -> x.getValue().compareTo(y.getValue()))
+                .map(x -> x.getKey())
+                .collect(Collectors.toList());
+    }
+
+    public List<String> getSimilarsToGreaterThan(String ref, Double threshold){
+        return matrix.get(ref).entrySet().stream()
+                .filter(entry -> entry.getValue() >= threshold)
+                .sorted((x,y) -> x.getValue().compareTo(y.getValue()))
+                .map(x -> x.getKey())
+                .collect(Collectors.toList());
+    }
+
+    public Map<String,Double> getPatentsFrom(String ref){
+        return matrix.get(ref);
     }
 
 }

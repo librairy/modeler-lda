@@ -57,7 +57,7 @@ import java.util.stream.Stream;
         "librairy.elasticsearch.port = 5021",
         "librairy.neo4j.contactpoints = zavijava.dia.fi.upm.es",
         "librairy.neo4j.port = 5030",
-        "librairy.eventbus.host = zavijava.dia.fi.upm.es",
+        "librairy.eventbus.host = localhost",
         "librairy.eventbus.port=5041"})
 public class AbstractEvaluation {
 

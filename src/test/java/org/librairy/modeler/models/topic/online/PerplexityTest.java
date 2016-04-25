@@ -25,7 +25,7 @@ public class PerplexityTest extends AbstractEvaluation{
     @Test
     public void perplexity() throws IOException {
 
-        Corpus corpus = _composeCorpus(trainingSet.getUris().stream().collect(Collectors.toList()));
+        Corpus corpus = _composeCorpus(trainingSet.getUris().stream().limit(100).collect(Collectors.toList()));
 
         Map<Integer,Double> perplexityTable = new HashMap();
         Map<Integer,Double> likelihoodTable = new HashMap();
