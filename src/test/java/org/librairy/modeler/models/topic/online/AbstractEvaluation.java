@@ -36,6 +36,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -90,6 +91,7 @@ public class AbstractEvaluation {
     @Before
     public void setup() throws IOException {
 
+        LOG.info("Creating initial item-cache...");
         // Cache
         this.itemDocCache = CacheBuilder.newBuilder()
                 .maximumSize(10000)
@@ -108,6 +110,7 @@ public class AbstractEvaluation {
                         });
 
 
+        LOG.info("Creating initial doc-cache...");
         this.docItemCache = CacheBuilder.newBuilder()
                 .maximumSize(10000)
                 .expireAfterWrite(1, TimeUnit.DAYS)
@@ -133,6 +136,7 @@ public class AbstractEvaluation {
                         });
 
 
+        LOG.info("Initializing json mapper ...");
         ObjectMapper jsonMapper = new ObjectMapper();
 
 
@@ -172,6 +176,7 @@ public class AbstractEvaluation {
 
     protected LocalLDAModel _buildModel(Double alpha, Double beta, Integer numTopics, Integer numIterations, Corpus
             corpus){
+        System.out.println("building the model ..");
         LOG.info
                 ("====================================================================================================");
         LOG.info(" TRAINING-STAGE: alpha=" + alpha + ", beta=" + beta + ", numTopics=" + numTopics + ", " +
@@ -224,20 +229,43 @@ public class AbstractEvaluation {
         return _composeCorpus(uris,null);
     }
 
-    protected Corpus _composeCorpus(List<String> uris, Map<String, Long> refVocabulary){
+    protected Corpus _composeCorpus(List<String> uris, Map<String, Long> refVocabulary) {
         LOG.info("Composing corpus from: " + uris.size() + " documents ...");
 
-        Stream<Item> items = uris.parallelStream().
-                filter(uri -> udm.exists(Resource.Type.DOCUMENT).withUri(uri)).
-                map(uri -> docItemCache.getUnchecked(uri)).
-                map(uri -> udm.read(Resource.Type.ITEM).byUri(uri)).
-                filter(response -> response.isPresent()).
-                map(response -> response.get().asItem());
+//        Stream<Item> items = uris.parallelStream().
+//                filter(uri -> udm.exists(Resource.Type.DOCUMENT).withUri(uri)).
+//                map(uri -> docItemCache.getUnchecked(uri)).
+//                map(uri -> udm.read(Resource.Type.ITEM).byUri(uri)).
+//                filter(response -> response.isPresent()).
+//                map(response -> response.get().asItem());
 
 
-        List<Tuple2<String, Map<String, Long>>> resources = items.parallel()
-                .map(item -> new Tuple2<String, Map<String, Long>>(item.getUri(), BagOfWords.count(Arrays.asList(item.getTokens().split(" ")))))
-                .collect(Collectors.toList());
+//        List<Tuple2<String, Map<String, Long>>> resources = items.parallel()
+//                .map(item -> new Tuple2<String, Map<String, Long>>(item.getUri(), BagOfWords.count(Arrays.asList(item.getTokens().split(" ")))))
+//                .collect(Collectors.toList());
+
+
+        List<Tuple2<String, Map<String, Long>>> resources = new ArrayList<>();
+
+        for(String uri : uris){
+
+            String itemUri = null;
+            try {
+//                LOG.info("Getting item from: " + uri);
+                itemUri = docItemCache.get(uri);
+                Optional<Resource> res = udm.read(Resource.Type.ITEM).byUri(itemUri);
+                if (!res.isPresent()) throw new ExecutionException(new RuntimeException("Item not found"));
+                Item item = res.get().asItem();
+                //Default tokenizer
+                Map<String, Long> bow = BagOfWords.count(Arrays.asList(item.getTokens()));
+                resources.add(new Tuple2<>(item.getUri(),bow));
+            } catch (ExecutionException e) {
+                LOG.warn("Error getting item from document uri: " + uri,e);
+            }
+
+        }
+
+
 
 
         JavaRDD<Tuple2<String, Map<String, Long>>> itemsRDD = sparkHelper.getSc().parallelize(resources);

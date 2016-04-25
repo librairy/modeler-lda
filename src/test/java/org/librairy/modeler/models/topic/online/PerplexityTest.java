@@ -25,7 +25,9 @@ public class PerplexityTest extends AbstractEvaluation{
     @Test
     public void perplexity() throws IOException {
 
-        Corpus corpus = _composeCorpus(trainingSet.getUris().stream().limit(100).collect(Collectors.toList()));
+        LOG.info("Starting perplexity test ..");
+
+        Corpus corpus = _composeCorpus(trainingSet.getUris());
 
         Map<Integer,Double> perplexityTable = new HashMap();
         Map<Integer,Double> likelihoodTable = new HashMap();
@@ -34,8 +36,8 @@ public class PerplexityTest extends AbstractEvaluation{
 
         List<Integer> topics = Arrays.asList(new Integer[]{20, 40, 60, 80, 100, 120, 140, 160, 180, 200});
 
-        topics.forEach(k ->{
 
+        for (Integer k : topics){
             Long start = System.currentTimeMillis();
             LocalLDAModel model = _buildModel(ALPHA, BETA, k, ITERATIONS, corpus);
             Long end = System.currentTimeMillis();
@@ -43,14 +45,17 @@ public class PerplexityTest extends AbstractEvaluation{
             perplexityTable.put(k,model.logPerplexity(corpus.bagsOfWords));
             likelihoodTable.put(k,model.logLikelihood(corpus.bagsOfWords));
             timeTable.put(k,end-start);
-        });
+        }
+
+
 
         FileWriter writer = new FileWriter("src/test/resources/perplexity.csv");
 
         writer.append("topics").append(",").append("perplexity").append(",").append("likelihood").append(",").append
                 ("time").append("\n");
 
-        topics.forEach(topic ->{
+
+        for(Integer topic: topics){
             try {
                 writer.append(String.valueOf(topic)).append(",");
                 writer.append(String.valueOf(perplexityTable.get(topic))).append(",");
@@ -59,7 +64,7 @@ public class PerplexityTest extends AbstractEvaluation{
             } catch (IOException e) {
                 LOG.warn("Error writing to csv",e);
             }
-        });
+        }
 
         writer.flush();
         writer.close();
