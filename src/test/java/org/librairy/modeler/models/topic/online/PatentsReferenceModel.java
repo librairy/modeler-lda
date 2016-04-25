@@ -34,20 +34,24 @@ public class PatentsReferenceModel {
 
 
     public Set<String> load(String baseUri){
+
         String baseDir = "/Users/cbadenes/Documents/OEG/Projects/MINETUR/TopicModelling-2016/patentes-TIC-norteamericanas/";
 
-        File outDir = Paths.get(baseDir, "metaFiles").toFile();
+        LOG.info("Loading reference patents from : " + baseDir);
 
-        if (!outDir.exists()){
-            outDir.mkdirs();
-        }
+//        File outDir = Paths.get(baseDir, "metaFiles").toFile();
+//
+//        if (!outDir.exists()){
+//            outDir.mkdirs();
+//        }
 
 
         File metaFiles = Paths.get(baseDir,"cites_uspto.csv").toFile();
 
-        ObjectMapper jsonMapper = new ObjectMapper();
-        jsonMapper.enable(SerializationFeature.INDENT_OUTPUT);
+//        ObjectMapper jsonMapper = new ObjectMapper();
+//        jsonMapper.enable(SerializationFeature.INDENT_OUTPUT);
 
+        LOG.info("Exists file: " + metaFiles.getAbsolutePath() + " ->" + metaFiles.exists());
 
         Set<String> domainURIs = new HashSet<>();
         try {
@@ -89,6 +93,7 @@ public class PatentsReferenceModel {
             return domainURIs;
 
         } catch (IOException e) {
+            LOG.warn("Error reading file",e);
             throw new RuntimeException(e);
         }
     }
