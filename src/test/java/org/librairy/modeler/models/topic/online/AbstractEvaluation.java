@@ -57,7 +57,7 @@ import java.util.stream.Stream;
         "librairy.elasticsearch.port = 5021",
         "librairy.neo4j.contactpoints = zavijava.dia.fi.upm.es",
         "librairy.neo4j.port = 5030",
-        "librairy.eventbus.host = localhost",
+        "librairy.eventbus.host = zavijava.dia.fi.upm.es",
         "librairy.eventbus.port=5041"})
 public class AbstractEvaluation {
 
@@ -225,7 +225,7 @@ public class AbstractEvaluation {
     }
 
     protected Corpus _composeCorpus(List<String> uris, Map<String, Long> refVocabulary){
-
+        LOG.info("Composing corpus from: " + uris.size() + " documents ...");
         Stream<Item> items = uris.parallelStream().
                 filter(uri -> udm.exists(Resource.Type.DOCUMENT).withUri(uri)).
                 map(uri -> docItemCache.getUnchecked(uri)).
