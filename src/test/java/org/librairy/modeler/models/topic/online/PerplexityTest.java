@@ -1,6 +1,9 @@
 package org.librairy.modeler.models.topic.online;
 
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.mllib.clustering.LocalLDAModel;
+import org.apache.spark.mllib.linalg.Vector;
+import org.apache.spark.storage.StorageLevel;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +28,57 @@ public class PerplexityTest extends AbstractEvaluation{
     private static final Logger LOG = LoggerFactory.getLogger(PerplexityTest.class);
 
     @Test
-    public void perplexity() throws IOException {
+    public void perplexity20() throws IOException {
+        perplexity(20);
+    }
+
+    @Test
+    public void perplexity40() throws IOException {
+        perplexity(40);
+    }
+
+    @Test
+    public void perplexity60() throws IOException {
+        perplexity(60);
+    }
+
+    @Test
+    public void perplexity80() throws IOException {
+        perplexity(80);
+    }
+
+    @Test
+    public void perplexity100() throws IOException {
+        perplexity(100);
+    }
+
+    @Test
+    public void perplexity120() throws IOException {
+        perplexity(120);
+    }
+
+    @Test
+    public void perplexity140() throws IOException {
+        perplexity(140);
+    }
+
+    @Test
+    public void perplexity160() throws IOException {
+        perplexity(160);
+    }
+
+    @Test
+    public void perplexity180() throws IOException {
+        perplexity(180);
+    }
+
+    @Test
+    public void perplexity200() throws IOException {
+        perplexity(200);
+    }
+
+
+    public void perplexity(int topics) throws IOException {
 
         LOG.info("Starting perplexity test ..");
         Instant start = Instant.now();
@@ -34,29 +87,14 @@ public class PerplexityTest extends AbstractEvaluation{
         List<String> corpusUris = trainingSet.getUris();
 
         Corpus corpus = _composeCorpus(corpusUris);
+        JavaPairRDD<Long, Vector> bow = corpus.bagsOfWords
+                .persist(StorageLevel.MEMORY_AND_DISK());
 
-        Map<Integer,Double> perplexityTable = new HashMap();
-        Map<Integer,Double> likelihoodTable = new HashMap();
-        Map<Integer,Long> timeTable         = new HashMap();
+        Long startModel = System.currentTimeMillis();
+        LocalLDAModel model = _buildModel(ALPHA, BETA, topics, ITERATIONS, corpus);
+        Long endModel = System.currentTimeMillis();
 
-
-        List<Integer> topics = Arrays.asList(new Integer[]{20, 40, 60, 80, 100, 120, 140, 160, 180, 200});
-
-//        List<Integer> topics = Arrays.asList(new Integer[]{20});
-
-        for (Integer k : topics){
-            Long startModel = System.currentTimeMillis();
-            LocalLDAModel model = _buildModel(ALPHA, BETA, k, ITERATIONS, corpus);
-            Long endModel = System.currentTimeMillis();
-
-            perplexityTable.put(k,model.logPerplexity(corpus.bagsOfWords));
-            likelihoodTable.put(k,model.logLikelihood(corpus.bagsOfWords));
-            timeTable.put(k,endModel-startModel);
-        }
-
-
-
-        FileWriter writer = new FileWriter("src/test/resources/perplexity.csv");
+        FileWriter writer = new FileWriter("src/test/resources/perplexity-"+topics+".csv");
 
         writer.append("documents").append(",")
                 .append("topics").append(",")
@@ -65,16 +103,14 @@ public class PerplexityTest extends AbstractEvaluation{
                 .append("time").append("\n");
 
 
-        for(Integer topic: topics){
-            try {
-                writer.append(String.valueOf(corpusUris.size())).append(",");
-                writer.append(String.valueOf(topic)).append(",");
-                writer.append(String.valueOf(perplexityTable.get(topic))).append(",");
-                writer.append(String.valueOf(likelihoodTable.get(topic))).append(",");
-                writer.append(String.valueOf(timeTable.get(topic))).append("\n");
-            } catch (IOException e) {
-                LOG.warn("Error writing to csv",e);
-            }
+        try {
+            writer.append(String.valueOf(corpusUris.size())).append(",");
+            writer.append(String.valueOf(topics)).append(",");
+            writer.append(String.valueOf(model.logPerplexity(bow))).append(",");
+            writer.append(String.valueOf(model.logLikelihood(bow))).append(",");
+            writer.append(String.valueOf(endModel-startModel)).append("\n");
+        } catch (IOException e) {
+            LOG.warn("Error writing to csv",e);
         }
 
         writer.flush();

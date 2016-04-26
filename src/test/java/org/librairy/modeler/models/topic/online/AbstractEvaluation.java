@@ -8,10 +8,7 @@ import es.cbadenes.lab.test.IntegrationTest;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.broadcast.Broadcast;
-import org.apache.spark.mllib.clustering.LDA;
-import org.apache.spark.mllib.clustering.LDAModel;
-import org.apache.spark.mllib.clustering.LocalLDAModel;
-import org.apache.spark.mllib.clustering.OnlineLDAOptimizer;
+import org.apache.spark.mllib.clustering.*;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.storage.StorageLevel;
 import org.apache.spark.util.SizeEstimator;
@@ -241,21 +238,6 @@ public class AbstractEvaluation {
 
     protected Corpus _composeCorpus(List<String> uris, Map<String, Long> refVocabulary) {
         LOG.info("Composing corpus from: " + uris.size() + " documents ...");
-
-//        Stream<Item> items = uris.parallelStream().
-//                filter(uri -> udm.exists(Resource.Type.DOCUMENT).withUri(uri)).
-//                map(uri -> docItemCache.getUnchecked(uri)).
-//                map(uri -> udm.read(Resource.Type.ITEM).byUri(uri)).
-//                filter(response -> response.isPresent()).
-//                map(response -> response.get().asItem());
-
-
-//        List<Tuple2<String, Map<String, Long>>> resources = items.parallel()
-//                .map(item -> new Tuple2<String, Map<String, Long>>(item.getUri(), BagOfWords.count(Arrays.asList(item.getTokens().split(" ")))))
-//                .collect(Collectors.toList());
-
-
-//        List<Tuple2<String, Map<String, Long>>> resources = new ArrayList<>();
 
         CopyOnWriteArrayList<Tuple2<String, Map<String, Long>>> resources = new CopyOnWriteArrayList<>();
 

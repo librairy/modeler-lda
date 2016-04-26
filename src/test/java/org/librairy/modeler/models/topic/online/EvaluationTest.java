@@ -1,9 +1,11 @@
 package org.librairy.modeler.models.topic.online;
 
 import es.upm.oeg.epnoi.matching.metrics.distance.JensenShannonDivergence;
+import org.apache.spark.Accumulator;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.mllib.clustering.LocalLDAModel;
 import org.apache.spark.mllib.linalg.Vector;
+import org.apache.spark.storage.StorageLevel;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,20 +46,24 @@ public class EvaluationTest extends AbstractEvaluation{
 
 
         Corpus testCorpus = _composeCorpus(testSet.getUris(), trainingCorpus.getVocabulary());
+        JavaPairRDD<Long, Vector> bow = testCorpus.bagsOfWords.persist(StorageLevel.MEMORY_AND_DISK());
 
-        Double similarityThershold = 0.5;
+        Double similarityThreshold = 0.5;
 
 
         LOG.info("## Online LDA Model :: Similarity");
 
-        JavaPairRDD<Long, Vector> topicDistributions = model.topicDistributions(testCorpus.bagsOfWords);
+        JavaPairRDD<Long, Vector> topicDistributions = model.topicDistributions(bow);
+        JavaPairRDD<Long, Vector> distributions = topicDistributions.persist(StorageLevel.MEMORY_AND_DISK());
 
         Map<Long, String> documents = testCorpus.getDocuments();
 
         SimMatrix simMatrix = new SimMatrix();
 
-        List<WeightedPair> similarities = topicDistributions.
-                cartesian(topicDistributions).
+        Accumulator<SimMatrix> res = sparkHelper.getSc().accumulator(new SimMatrix(), null);
+
+        List<WeightedPair> similarities = distributions.
+                cartesian(distributions).
                 filter(x -> x._1._1.compareTo(x._2()._1) > 0).
                 map(x -> new WeightedPair(documents.get(x._1._1), documents.get(x._2._1),
                         JensenShannonDivergence
@@ -85,7 +91,7 @@ public class EvaluationTest extends AbstractEvaluation{
             List<String> noSimilarPatents = new ArrayList<String>();
 
             simMatrix.getPatentsFrom(key).entrySet().stream().forEach(entry -> {
-                if (entry.getValue()>= similarityThershold) similarPatents.add(entry.getKey());
+                if (entry.getValue()>= similarityThreshold) similarPatents.add(entry.getKey());
                 else noSimilarPatents.add(entry.getKey());
             });
 
