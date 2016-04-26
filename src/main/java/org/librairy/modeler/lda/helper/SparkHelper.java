@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.util.Arrays;
 
 /**
  * Created by cbadenes on 11/01/16.
@@ -42,15 +43,23 @@ public class SparkHelper {
         String memPerProcess = (maxMemory / mb / processors) + "m";
 
 
+        int cores = processors * 3;
+
 
         // Initialize Spark Context
         this.conf = new SparkConf().
-                setMaster("local["+threads+"]").
+                setMaster("local["+String.valueOf(cores)+"]").
                 setAppName("librairy-LDA-Modeler").
-                set("spark.executor.memory", memory).
-                set("spark.driver.maxResultSize","0");
+                set("spark.executor.memory", memPerProcess).
+                set("spark.driver.maxResultSize","0").
+                set("spark.default.parallelism",String.valueOf(4*cores)).
+                set("spark.executor.cores",String.valueOf(processors)).
+                set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+        ;
 
-        LOG.info("Spark configured with " +  processors + " processors and " +  memPerProcess+"m per process");
+        //this.conf.registerKryoClasses(new Class[]{Corpus.class});
+
+        LOG.info("Spark configured with " +  cores + " processors and " +  memPerProcess+"m per process");
 
         sc = new JavaSparkContext(conf);
     }

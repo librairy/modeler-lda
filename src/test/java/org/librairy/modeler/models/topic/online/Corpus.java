@@ -4,6 +4,7 @@ import lombok.Data;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.mllib.linalg.Vector;
 
+import java.io.Serializable;
 import java.util.Map;
 
 /**
@@ -12,7 +13,7 @@ import java.util.Map;
  * @author cbadenes
  */
 @Data
-public class Corpus {
+public class Corpus implements Serializable{
 
     JavaPairRDD<Long, Vector> bagsOfWords;
 

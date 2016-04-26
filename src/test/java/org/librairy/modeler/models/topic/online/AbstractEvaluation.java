@@ -7,11 +7,14 @@ import com.google.common.cache.LoadingCache;
 import es.cbadenes.lab.test.IntegrationTest;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.mllib.clustering.LDA;
 import org.apache.spark.mllib.clustering.LDAModel;
 import org.apache.spark.mllib.clustering.LocalLDAModel;
 import org.apache.spark.mllib.clustering.OnlineLDAOptimizer;
 import org.apache.spark.mllib.linalg.Vector;
+import org.apache.spark.storage.StorageLevel;
+import org.apache.spark.util.SizeEstimator;
 import org.junit.Before;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -22,6 +25,7 @@ import org.librairy.modeler.lda.Config;
 import org.librairy.modeler.lda.builder.BagOfWords;
 import org.librairy.modeler.lda.helper.SparkHelper;
 import org.librairy.storage.UDM;
+import org.librairy.storage.executor.ParallelExecutor;
 import org.librairy.storage.system.column.repository.UnifiedColumnRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +40,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -90,6 +95,7 @@ public class AbstractEvaluation {
 
     @Before
     public void setup() throws IOException {
+
 
         LOG.info("Creating initial item-cache...");
         // Cache
@@ -162,8 +168,8 @@ public class AbstractEvaluation {
         File trainingSetFile = new File("src/test/resources/training-set.json");
         if (!trainingSetFile.exists()){
             LOG.info("Composing training-set..");
-            trainingSet.setUris(allUris.parallelStream().filter(uri -> refModel.getRefs(uri).isEmpty()).collect
-                    (Collectors.toList()));
+            trainingSet.setUris(allUris.parallelStream().filter(uri -> refModel.getRefs(uri).isEmpty()).limit(50000)
+                    .collect(Collectors.toList()));
             LOG.info("Writing training-set  to json file...");
             jsonMapper.writeValue(trainingSetFile,trainingSet);
         }else{
@@ -184,7 +190,11 @@ public class AbstractEvaluation {
         LOG.info
                 ("====================================================================================================");
 
-        JavaPairRDD<Long, Vector> trainingBagsOfWords = corpus.getBagsOfWords().cache();
+//        JavaPairRDD<Long, Vector> trainingBagsOfWords = corpus.getBagsOfWords();
+//        trainingBagsOfWords.persist(StorageLevel.MEMORY_AND_DISK()); //MEMORY_ONLY_SER
+
+        Broadcast<JavaPairRDD<Long, Vector>> trainingBOW = sparkHelper.getSc().broadcast(corpus.getBagsOfWords());
+        LOG.info("Size of training-bow: " + SizeEstimator.estimate(trainingBOW.getValue()));
 
         Instant start = Instant.now();
         // Online LDA Model :: Creation
@@ -207,7 +217,7 @@ public class AbstractEvaluation {
                 setK(numTopics).
                 setMaxIterations(numIterations).
                 setOptimizer(onlineLDAOptimizer).
-                run(trainingBagsOfWords);
+                run(trainingBOW.getValue());
 
         LocalLDAModel localLDAModel = (LocalLDAModel) ldaModel;
         Instant end = Instant.now();
@@ -215,8 +225,8 @@ public class AbstractEvaluation {
         // Online LDA Model :: Description
         LOG.info("## Online LDA Model :: Description");
 
-        LOG.info("Log-Perplexity: "     + localLDAModel.logPerplexity(trainingBagsOfWords));
-        LOG.info("Log-Likelihood: "     + localLDAModel.logLikelihood(trainingBagsOfWords));
+        LOG.info("Log-Perplexity: "     + localLDAModel.logPerplexity(trainingBOW.getValue()));
+        LOG.info("Log-Likelihood: "     + localLDAModel.logLikelihood(trainingBOW.getValue()));
         LOG.info("Vocabulary Size: "    + localLDAModel.vocabSize());
         LOG.info("Elapsed Time: "       + ChronoUnit.MINUTES.between(start,end) + "min " + ChronoUnit.SECONDS
                 .between(start,end) + "secs");
@@ -245,42 +255,66 @@ public class AbstractEvaluation {
 //                .collect(Collectors.toList());
 
 
-        List<Tuple2<String, Map<String, Long>>> resources = new ArrayList<>();
+//        List<Tuple2<String, Map<String, Long>>> resources = new ArrayList<>();
 
+        CopyOnWriteArrayList<Tuple2<String, Map<String, Long>>> resources = new CopyOnWriteArrayList<>();
+
+        ParallelExecutor executor = new ParallelExecutor();
         for(String uri : uris){
 
-            String itemUri = null;
-            try {
+            executor.execute(() -> {
+                String itemUri = null;
+                try {
 //                LOG.info("Getting item from: " + uri);
-                itemUri = docItemCache.get(uri);
-                Optional<Resource> res = udm.read(Resource.Type.ITEM).byUri(itemUri);
-                if (!res.isPresent()) throw new ExecutionException(new RuntimeException("Item not found"));
-                Item item = res.get().asItem();
-                //Default tokenizer
-                Map<String, Long> bow = BagOfWords.count(Arrays.asList(item.getTokens()));
-                resources.add(new Tuple2<>(item.getUri(),bow));
-            } catch (ExecutionException e) {
-                LOG.warn("Error getting item from document uri: " + uri,e);
-            }
-
+                    itemUri = docItemCache.get(uri);
+                    Optional<Resource> res = udm.read(Resource.Type.ITEM).byUri(itemUri);
+                    if (!res.isPresent()) throw new ExecutionException(new RuntimeException("Item not found"));
+                    Item item = res.get().asItem();
+                    //Default tokenizer
+                    Map<String, Long> bow = BagOfWords.count(Arrays.asList(item.getTokens()));
+                    resources.add(new Tuple2<>(item.getUri(),bow));
+                } catch (ExecutionException e) {
+                    LOG.warn("Error getting item from document uri: " + uri,e);
+                }
+            });
         }
 
+        // Tell threads to finish off.
+        executor.shutdown();
+        // Wait for everything to finish.
+        while (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+            LOG.info("Awaiting completion of threads.");
+        }
+        LOG.info("Size of resources: " + SizeEstimator.estimate(resources));
 
 
 
         JavaRDD<Tuple2<String, Map<String, Long>>> itemsRDD = sparkHelper.getSc().parallelize(resources);
-        itemsRDD.cache();
+//        itemsRDD.cache();
+        itemsRDD.persist(StorageLevel.MEMORY_AND_DISK()); //MEMORY_ONLY_SER
+
+        LOG.info("Size of ItemsRDD: " + SizeEstimator.estimate(itemsRDD));
 
         LOG.info("Retrieving the Vocabulary...");
-        final Map<String, Long> vocabulary = (refVocabulary != null)? refVocabulary :
-                itemsRDD.
-                        flatMap(resource -> resource._2.keySet()).
-                        distinct().
-                        zipWithIndex().
-                        collectAsMap();
-        ;
 
-        LOG.info( vocabulary.size() + " words" );
+
+        Broadcast<Map<String, Long>> vocabularyBroadcast = sparkHelper.getSc().broadcast(
+                (refVocabulary != null) ? refVocabulary :
+                        itemsRDD.
+                                flatMap(resource -> resource._2.keySet()).
+                                distinct().
+                                zipWithIndex().
+                                collectAsMap());
+
+//        final Map<String, Long> vocabulary = (refVocabulary != null)? refVocabulary :
+//                itemsRDD.
+//                        flatMap(resource -> resource._2.keySet()).
+//                        distinct().
+//                        zipWithIndex().
+//                        collectAsMap();
+//        ;
+
+        LOG.info( vocabularyBroadcast.getValue().size() + " words" );
 
         LOG.info("Indexing the documents...");
         Map<Long, String> documents = itemsRDD.
@@ -294,13 +328,13 @@ public class AbstractEvaluation {
         LOG.info("Building the Corpus...");
 
         JavaPairRDD<Long, Vector> bagsOfWords = itemsRDD.
-                map(resource -> BagOfWords.from(resource._2,vocabulary)).
+                map(resource -> BagOfWords.from(resource._2,vocabularyBroadcast.getValue())).
                 zipWithIndex().
                 mapToPair(x -> new Tuple2<Long, Vector>(x._2, x._1));
 
         Corpus corpus = new Corpus();
         corpus.setBagsOfWords(bagsOfWords);
-        corpus.setVocabulary(vocabulary);
+        corpus.setVocabulary(vocabularyBroadcast.getValue());
         corpus.setDocuments(documents);
         return corpus;
     }

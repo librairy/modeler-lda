@@ -7,6 +7,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.FileWriter;
 import java.io.IOException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -26,8 +28,12 @@ public class PerplexityTest extends AbstractEvaluation{
     public void perplexity() throws IOException {
 
         LOG.info("Starting perplexity test ..");
+        Instant start = Instant.now();
 
-        Corpus corpus = _composeCorpus(trainingSet.getUris());
+
+        List<String> corpusUris = trainingSet.getUris();
+
+        Corpus corpus = _composeCorpus(corpusUris);
 
         Map<Integer,Double> perplexityTable = new HashMap();
         Map<Integer,Double> likelihoodTable = new HashMap();
@@ -36,27 +42,32 @@ public class PerplexityTest extends AbstractEvaluation{
 
         List<Integer> topics = Arrays.asList(new Integer[]{20, 40, 60, 80, 100, 120, 140, 160, 180, 200});
 
+//        List<Integer> topics = Arrays.asList(new Integer[]{20});
 
         for (Integer k : topics){
-            Long start = System.currentTimeMillis();
+            Long startModel = System.currentTimeMillis();
             LocalLDAModel model = _buildModel(ALPHA, BETA, k, ITERATIONS, corpus);
-            Long end = System.currentTimeMillis();
+            Long endModel = System.currentTimeMillis();
 
             perplexityTable.put(k,model.logPerplexity(corpus.bagsOfWords));
             likelihoodTable.put(k,model.logLikelihood(corpus.bagsOfWords));
-            timeTable.put(k,end-start);
+            timeTable.put(k,endModel-startModel);
         }
 
 
 
         FileWriter writer = new FileWriter("src/test/resources/perplexity.csv");
 
-        writer.append("topics").append(",").append("perplexity").append(",").append("likelihood").append(",").append
-                ("time").append("\n");
+        writer.append("documents").append(",")
+                .append("topics").append(",")
+                .append("perplexity").append(",")
+                .append("likelihood").append(",")
+                .append("time").append("\n");
 
 
         for(Integer topic: topics){
             try {
+                writer.append(String.valueOf(corpusUris.size())).append(",");
                 writer.append(String.valueOf(topic)).append(",");
                 writer.append(String.valueOf(perplexityTable.get(topic))).append(",");
                 writer.append(String.valueOf(likelihoodTable.get(topic))).append(",");
@@ -68,6 +79,11 @@ public class PerplexityTest extends AbstractEvaluation{
 
         writer.flush();
         writer.close();
+
+
+        Instant end = Instant.now();
+        LOG.info("Elapsed time for perplexity-test: " + ChronoUnit.MINUTES.between(start,end) + "min " + ChronoUnit
+                .SECONDS.between(start,end) + "secs");
 
     }
 
