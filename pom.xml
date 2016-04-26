@@ -1025,10 +1025,16 @@
                     </dependency>
                 </dependencies>
                 <configuration>
+                    <forkMode>never</forkMode>
+                    <runOrder>alphabetical</runOrder>
+                    <argLine>-Xmx1024m</argLine>
                     <includes>
                         <include>**/*.class</include>
                     </includes>
                     <excludedGroups>es.cbadenes.lab.test.IntegrationTest</excludedGroups>
+                    <systemPropertyVariables>
+                        <logback.configurationFile>${basedir}/src/test/resources/logback.xml</logback.configurationFile>
+                    </systemPropertyVariables>
                 </configuration>
             </plugin>
 
