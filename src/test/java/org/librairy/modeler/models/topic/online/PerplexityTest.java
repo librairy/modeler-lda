@@ -1,5 +1,6 @@
 package org.librairy.modeler.models.topic.online;
 
+import com.google.gson.Gson;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.mllib.clustering.LocalLDAModel;
 import org.apache.spark.mllib.linalg.Vector;
@@ -93,6 +94,23 @@ public class PerplexityTest extends AbstractEvaluation{
         Long startModel = System.currentTimeMillis();
         LocalLDAModel model = _buildModel(ALPHA, BETA, topics, ITERATIONS, corpus);
         Long endModel = System.currentTimeMillis();
+
+        model.save(sparkHelper.getSc().sc(),"src/test/resources/model-"+topics);
+
+
+        Gson gson = new Gson();
+
+        // Serialize.
+        String json = gson.toJson(corpus.getVocabulary());
+        FileWriter jsonFile = new FileWriter("src/test/resources/vocabulary-"+topics);
+        jsonFile.append(json); // {"key1":"value1","key2":"value2","key3":"value3"}
+        jsonFile.flush();
+        jsonFile.close();
+
+        // Deserialize.
+//        Map<String, String> map2 = gson.fromJson(json, new TypeToken<Map<String, String>>() {}.getType());
+//        System.out.println(map2); // {key1=value1, key2=value2, key3=value3}
+
 
         FileWriter writer = new FileWriter("src/test/resources/perplexity-"+topics+".csv");
 

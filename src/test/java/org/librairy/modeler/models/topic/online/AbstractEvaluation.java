@@ -165,7 +165,7 @@ public class AbstractEvaluation {
         File trainingSetFile = new File("src/test/resources/training-set.json");
         if (!trainingSetFile.exists()){
             LOG.info("Composing training-set..");
-            trainingSet.setUris(allUris.parallelStream().filter(uri -> refModel.getRefs(uri).isEmpty()).limit(50000)
+            trainingSet.setUris(allUris.parallelStream().filter(uri -> refModel.getRefs(uri).isEmpty()).limit(10000)
                     .collect(Collectors.toList()));
             LOG.info("Writing training-set  to json file...");
             jsonMapper.writeValue(trainingSetFile,trainingSet);
