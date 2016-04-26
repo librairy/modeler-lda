@@ -253,7 +253,7 @@ public class AbstractEvaluation {
                     if (!res.isPresent()) throw new ExecutionException(new RuntimeException("Item not found"));
                     Item item = res.get().asItem();
                     //Default tokenizer
-                    Map<String, Long> bow = BagOfWords.count(Arrays.asList(item.getTokens()));
+                    Map<String, Long> bow = BagOfWords.count(Arrays.asList(item.getTokens().split(" ")));
                     resources.add(new Tuple2<>(item.getUri(),bow));
                 } catch (ExecutionException e) {
                     LOG.warn("Error getting item from document uri: " + uri,e);

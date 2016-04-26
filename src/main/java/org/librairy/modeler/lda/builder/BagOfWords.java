@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 public class BagOfWords {
 
     private static final List<String> STOPWORDS = Arrays.asList(new String[]{
-            "fig.","sample"
+            "fig.","sample","figs."
     });
 
 
