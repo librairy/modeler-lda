@@ -101,7 +101,7 @@ public class PerplexityTest extends AbstractEvaluation{
 
         // Serialize.
         String json = gson.toJson(corpus.getVocabulary());
-        FileWriter jsonFile = new FileWriter("src/test/resources/vocabulary-"+topics);
+        FileWriter jsonFile = new FileWriter("src/test/resources/vocabulary-"+topics+".json");
         jsonFile.append(json); // {"key1":"value1","key2":"value2","key3":"value3"}
         jsonFile.flush();
         jsonFile.close();
