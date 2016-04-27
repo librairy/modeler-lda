@@ -44,4 +44,13 @@ public class BagOfWords {
     }
 
 
+    public static void main(String[] args){
+
+        String line = "amig fig. 1 fig2 tres dos uno amig dos fig.";
+
+        System.out.println(BagOfWords.count(Arrays.asList(line.split(" "))));
+
+
+    }
+
 }

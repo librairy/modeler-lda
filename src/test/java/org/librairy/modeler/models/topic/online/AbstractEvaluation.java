@@ -191,7 +191,7 @@ public class AbstractEvaluation {
 //        trainingBagsOfWords.persist(StorageLevel.MEMORY_AND_DISK()); //MEMORY_ONLY_SER
 
         Broadcast<JavaPairRDD<Long, Vector>> trainingBOW = sparkHelper.getSc().broadcast(corpus.getBagsOfWords());
-        LOG.info("Size of training-bow: " + SizeEstimator.estimate(trainingBOW.getValue()));
+//        LOG.info("Size of training-bow: " + SizeEstimator.estimate(trainingBOW.getValue()));
 
         Instant start = Instant.now();
         // Online LDA Model :: Creation
@@ -267,15 +267,15 @@ public class AbstractEvaluation {
         while (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
             LOG.info("Awaiting completion of threads.");
         }
-        LOG.info("Size of resources: " + SizeEstimator.estimate(resources));
+//        LOG.info("Size of resources: " + SizeEstimator.estimate(resources));
 
 
 
         JavaRDD<Tuple2<String, Map<String, Long>>> itemsRDD = sparkHelper.getSc().parallelize(resources);
 //        itemsRDD.cache();
-        itemsRDD.persist(StorageLevel.MEMORY_AND_DISK()); //MEMORY_ONLY_SER
+        itemsRDD.persist(StorageLevel.MEMORY_ONLY()); //MEMORY_ONLY_SER
 
-        LOG.info("Size of ItemsRDD: " + SizeEstimator.estimate(itemsRDD));
+//        LOG.info("Size of ItemsRDD: " + SizeEstimator.estimate(itemsRDD));
 
         LOG.info("Retrieving the Vocabulary...");
 

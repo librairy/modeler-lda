@@ -43,7 +43,7 @@ public class SparkHelper {
         String memPerProcess = (maxMemory / mb / processors) + "m";
 
 
-        int cores = processors * 3;
+        int cores = processors * 2;
 
 
         // Initialize Spark Context
@@ -52,10 +52,10 @@ public class SparkHelper {
                 setAppName("librairy-LDA-Modeler").
                 set("spark.executor.memory", memPerProcess).
                 set("spark.driver.maxResultSize","0").
-                set("spark.default.parallelism",String.valueOf(4*cores)).
+                set("spark.default.parallelism",String.valueOf(cores)).
                 set("spark.executor.cores",String.valueOf(processors)).
                 set("spark.serializer", "org.apache.spark.serializer.KryoSerializer").
-                set("spark.kryoserializer.buffer.max", "2000m")
+                set("spark.kryoserializer.buffer.max", "64m")
         ;
 
         //this.conf.registerKryoClasses(new Class[]{Corpus.class});
