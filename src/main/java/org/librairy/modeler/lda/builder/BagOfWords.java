@@ -1,5 +1,6 @@
 package org.librairy.modeler.lda.builder;
 
+import com.google.common.base.CharMatcher;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
 
@@ -37,10 +38,16 @@ public class BagOfWords {
 
 
     public static Map<String,Long> count(List<String> tokens){
-        return tokens.stream().filter(token -> !STOPWORDS.contains(token.toLowerCase())).collect(Collectors.groupingBy
-                (token ->
-                token, Collectors
-                .counting()));
+        return tokens.stream().
+                filter(token -> isValid(token))
+                .collect(Collectors.groupingBy(token -> token, Collectors.counting()));
+    }
+
+    private static boolean isValid(String token){
+        return !STOPWORDS.contains(token.toLowerCase()) &&
+                CharMatcher.ASCII.matchesAllOf(token) &&
+                CharMatcher.JAVA_LETTER.countIn(token) > 1
+                ;
     }
 
 

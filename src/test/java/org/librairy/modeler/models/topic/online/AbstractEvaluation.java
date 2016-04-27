@@ -317,8 +317,8 @@ public class AbstractEvaluation {
         LOG.info("Log-Perplexity: "     + localLDAModel.logPerplexity(trainingBOW.getValue()));
         LOG.info("Log-Likelihood: "     + localLDAModel.logLikelihood(trainingBOW.getValue()));
         LOG.info("Vocabulary Size: "    + localLDAModel.vocabSize());
-        LOG.info("Elapsed Time: "       + ChronoUnit.MINUTES.between(start,end) + "min " + ChronoUnit.SECONDS
-                .between(start,end) + "secs");
+        LOG.info("Elapsed Time: "       + ChronoUnit.MINUTES.between(start,end) + "min " + (ChronoUnit.SECONDS
+                .between(start,end)%60) + "secs");
 
         return localLDAModel;
 
