@@ -33,50 +33,50 @@ public class PerplexityTest extends AbstractEvaluation{
         perplexity(20);
     }
 
-    @Test
-    public void perplexity40() throws IOException {
-        perplexity(40);
-    }
-
-    @Test
-    public void perplexity60() throws IOException {
-        perplexity(60);
-    }
-
-    @Test
-    public void perplexity80() throws IOException {
-        perplexity(80);
-    }
-
-    @Test
-    public void perplexity100() throws IOException {
-        perplexity(100);
-    }
-
-    @Test
-    public void perplexity120() throws IOException {
-        perplexity(120);
-    }
-
-    @Test
-    public void perplexity140() throws IOException {
-        perplexity(140);
-    }
-
-    @Test
-    public void perplexity160() throws IOException {
-        perplexity(160);
-    }
-
-    @Test
-    public void perplexity180() throws IOException {
-        perplexity(180);
-    }
-
-    @Test
-    public void perplexity200() throws IOException {
-        perplexity(200);
-    }
+//    @Test
+//    public void perplexity40() throws IOException {
+//        perplexity(40);
+//    }
+//
+//    @Test
+//    public void perplexity60() throws IOException {
+//        perplexity(60);
+//    }
+//
+//    @Test
+//    public void perplexity80() throws IOException {
+//        perplexity(80);
+//    }
+//
+//    @Test
+//    public void perplexity100() throws IOException {
+//        perplexity(100);
+//    }
+//
+//    @Test
+//    public void perplexity120() throws IOException {
+//        perplexity(120);
+//    }
+//
+//    @Test
+//    public void perplexity140() throws IOException {
+//        perplexity(140);
+//    }
+//
+//    @Test
+//    public void perplexity160() throws IOException {
+//        perplexity(160);
+//    }
+//
+//    @Test
+//    public void perplexity180() throws IOException {
+//        perplexity(180);
+//    }
+//
+//    @Test
+//    public void perplexity200() throws IOException {
+//        perplexity(200);
+//    }
 
 
     public void perplexity(int topics) throws IOException {

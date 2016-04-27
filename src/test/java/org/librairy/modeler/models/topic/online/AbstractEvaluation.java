@@ -177,61 +177,6 @@ public class AbstractEvaluation {
 
     }
 
-    protected LocalLDAModel _buildModel(Double alpha, Double beta, Integer numTopics, Integer numIterations, Corpus
-            corpus){
-        System.out.println("building the model ..");
-        LOG.info
-                ("====================================================================================================");
-        LOG.info(" TRAINING-STAGE: alpha=" + alpha + ", beta=" + beta + ", numTopics=" + numTopics + ", " +
-                "numIterations="+numIterations+", corpusSize="  + corpus.getDocuments().size());
-        LOG.info
-                ("====================================================================================================");
-
-//        JavaPairRDD<Long, Vector> trainingBagsOfWords = corpus.getBagsOfWords();
-//        trainingBagsOfWords.persist(StorageLevel.MEMORY_AND_DISK()); //MEMORY_ONLY_SER
-
-        Broadcast<JavaPairRDD<Long, Vector>> trainingBOW = sparkHelper.getSc().broadcast(corpus.getBagsOfWords());
-//        LOG.info("Size of training-bow: " + SizeEstimator.estimate(trainingBOW.getValue()));
-
-        Instant start = Instant.now();
-        // Online LDA Model :: Creation
-        // -> Online Optimizer
-        Double TAU              =   1.0;  // how downweight early iterations
-        Double KAPPA            =   0.5;  // how quickly old information is forgotten
-        Double BATCH_SIZE_RATIO  =   Math.min(1.0,2.0 / numIterations + 1.0 / corpus.getDocuments().size());  // how many
-        // documents
-        OnlineLDAOptimizer onlineLDAOptimizer = new OnlineLDAOptimizer()
-                .setMiniBatchFraction(BATCH_SIZE_RATIO)
-                .setOptimizeDocConcentration(true)
-                .setTau0(TAU)
-                .setKappa(KAPPA)
-                ;
-
-        LOG.info("Building the model...");
-        LDAModel ldaModel = new LDA().
-                setAlpha(alpha).
-                setBeta(beta).
-                setK(numTopics).
-                setMaxIterations(numIterations).
-                setOptimizer(onlineLDAOptimizer).
-                run(trainingBOW.getValue());
-
-        LocalLDAModel localLDAModel = (LocalLDAModel) ldaModel;
-        Instant end = Instant.now();
-
-        // Online LDA Model :: Description
-        LOG.info("## Online LDA Model :: Description");
-
-        LOG.info("Log-Perplexity: "     + localLDAModel.logPerplexity(trainingBOW.getValue()));
-        LOG.info("Log-Likelihood: "     + localLDAModel.logLikelihood(trainingBOW.getValue()));
-        LOG.info("Vocabulary Size: "    + localLDAModel.vocabSize());
-        LOG.info("Elapsed Time: "       + ChronoUnit.MINUTES.between(start,end) + "min " + ChronoUnit.SECONDS
-                .between(start,end) + "secs");
-
-        return localLDAModel;
-
-    }
-
     protected Corpus _composeCorpus(List<String> uris){
         return _composeCorpus(uris,null);
     }
@@ -319,6 +264,64 @@ public class AbstractEvaluation {
         corpus.setVocabulary(vocabularyBroadcast.getValue());
         corpus.setDocuments(documents);
         return corpus;
+    }
+
+    protected LocalLDAModel _buildModel(Double alpha, Double beta, Integer numTopics, Integer numIterations, Corpus
+            corpus){
+        System.out.println("building the model ..");
+        LOG.info
+                ("====================================================================================================");
+        LOG.info(" TRAINING-STAGE: alpha=" + alpha + ", beta=" + beta + ", numTopics=" + numTopics + ", " +
+                "numIterations="+numIterations+", corpusSize="  + corpus.getDocuments().size());
+        LOG.info
+                ("====================================================================================================");
+
+//        JavaPairRDD<Long, Vector> trainingBagsOfWords = corpus.getBagsOfWords();
+//        trainingBagsOfWords.persist(StorageLevel.MEMORY_AND_DISK()); //MEMORY_ONLY_SER
+
+        Broadcast<JavaPairRDD<Long, Vector>> trainingBOW = sparkHelper.getSc().broadcast(corpus.getBagsOfWords());
+//        LOG.info("Size of training-bow: " + SizeEstimator.estimate(trainingBOW.getValue()));
+
+        Instant start = Instant.now();
+        // Online LDA Model :: Creation
+        // -> Online Optimizer
+        Double TAU              =   1.0;  // how downweight early iterations
+        Double KAPPA            =   0.5;  // how quickly old information is forgotten
+        Double BATCH_SIZE_RATIO  =   Math.min(1.0,2.0 / numIterations + 1.0 / corpus.getDocuments().size());  // how many
+        // documents
+//        OnlineLDAOptimizer onlineLDAOptimizer = new OnlineLDAOptimizer()
+//                .setMiniBatchFraction(BATCH_SIZE_RATIO)
+//                .setOptimizeDocConcentration(true)
+//                .setTau0(TAU)
+//                .setKappa(KAPPA)
+//                ;
+
+
+        OnlineLDAOptimizer onlineLDAOptimizer = new OnlineLDAOptimizer();
+
+        LOG.info("Building the model...");
+        LDAModel ldaModel = new LDA().
+                setAlpha(alpha).
+                setBeta(beta).
+                setK(numTopics).
+                setMaxIterations(numIterations).
+                setOptimizer(onlineLDAOptimizer).
+                run(trainingBOW.getValue());
+
+        LocalLDAModel localLDAModel = (LocalLDAModel) ldaModel;
+        Instant end = Instant.now();
+
+        // Online LDA Model :: Description
+        LOG.info("## Online LDA Model :: Description");
+
+        LOG.info("Log-Perplexity: "     + localLDAModel.logPerplexity(trainingBOW.getValue()));
+        LOG.info("Log-Likelihood: "     + localLDAModel.logLikelihood(trainingBOW.getValue()));
+        LOG.info("Vocabulary Size: "    + localLDAModel.vocabSize());
+        LOG.info("Elapsed Time: "       + ChronoUnit.MINUTES.between(start,end) + "min " + ChronoUnit.SECONDS
+                .between(start,end) + "secs");
+
+        return localLDAModel;
+
     }
 
 }
