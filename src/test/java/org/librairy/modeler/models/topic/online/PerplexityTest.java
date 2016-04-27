@@ -85,7 +85,7 @@ public class PerplexityTest extends AbstractEvaluation{
         Instant start = Instant.now();
 
 
-        List<String> corpusUris = trainingSet.getUris().subList(0,100);
+        List<String> corpusUris = trainingSet.getUris();
 
         Corpus corpus = _composeCorpus(corpusUris);
         JavaPairRDD<Long, Vector> bow = corpus.bagsOfWords.persist(StorageLevel.MEMORY_ONLY());
