@@ -55,7 +55,7 @@ public class SparkHelper {
                 set("spark.default.parallelism",String.valueOf(cores)).
                 set("spark.executor.cores",String.valueOf(processors)).
                 set("spark.serializer", "org.apache.spark.serializer.KryoSerializer").
-                set("spark.kryoserializer.buffer.max", "64m")
+                set("spark.kryoserializer.buffer.max", "1024m")
         ;
 
         //this.conf.registerKryoClasses(new Class[]{Corpus.class});
