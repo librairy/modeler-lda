@@ -90,5 +90,4 @@ public class TopicModel implements Serializable{
             this.resources.put(uri, topicDistributionList);
         }
     }
-
 }

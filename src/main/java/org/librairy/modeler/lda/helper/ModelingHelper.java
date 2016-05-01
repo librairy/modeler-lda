@@ -4,6 +4,7 @@ import lombok.Data;
 import org.librairy.modeler.lda.builder.*;
 import org.librairy.storage.UDM;
 import org.librairy.storage.generator.URIGenerator;
+import org.librairy.storage.system.column.repository.UnifiedColumnRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -35,4 +36,6 @@ public class ModelingHelper {
 
     @Autowired
     UDM udm;
+    @Autowired
+    UnifiedColumnRepository columnRepository;
 }
