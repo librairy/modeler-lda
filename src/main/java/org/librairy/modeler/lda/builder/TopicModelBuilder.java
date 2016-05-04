@@ -65,10 +65,11 @@ public class TopicModelBuilder {
             topics = settings.getTopics();
             alpha = settings.getAlpha();
             beta = settings.getBeta();
+            logger.info("Topic Model for '" + id + "' learnt with: alpha=" + alpha + ", beta="+ beta + " and numTopics: " + topics);
         }
 
 
-        logger.info("Topic Model for '" + id + "' learnt with: alpha=" + alpha + ", beta="+ beta + " and numTopics: " + topics);
+
         return build(id, workspace, topics, alpha, beta, maxIterations);
     }
 
@@ -80,6 +81,8 @@ public class TopicModelBuilder {
 
 
     private TopicModel build(String id, ConceptsSpace conceptsSpace, Integer numTopics, Double alpha, Double beta, Integer maxIt){
+        logger.info("Building a Topic Model for: " + id + " with " + numTopics + " topics, " + alpha + " alpha " +
+                "parameter and " + beta + " beta parameter. " + maxIt + " iterations.");
         // TODO LDASettings can not be static class!!!
         // Manual Configuration
         LDASettings.setTopics(numTopics);

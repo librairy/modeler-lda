@@ -59,12 +59,13 @@ public class TopicModeler extends ModelingTask {
 
     public void clean(){
         // Delete previous Topics
-        helper.getColumnRepository().findBy(Relation.Type.EMERGES_IN, "domain", domainUri).forEach(relation -> helper
-                .getUdm().delete(Resource.Type.TOPIC).byUri(relation.getStartUri()));
-//        helper.getUdm().find(Resource.Type.TOPIC).from(Resource.Type.DOMAIN,domainUri).stream().
-//                filter(topic -> !helper.getUdm().find(resourceType).from(Resource.Type.TOPIC,topic).isEmpty() ).
-//                forEach(topic -> helper.getUdm().delete(Resource.Type.TOPIC).byUri(topic));
-
+        LOG.info("Deleting existing topics");
+        helper.getColumnRepository().findBy(Relation.Type.EMERGES_IN, "domain", domainUri).forEach(relation -> {
+            LOG.info("Deleting topic: " + relation.getStartUri());
+            helper.getUdm().delete(Resource.Type.TOPIC).byUri(relation.getStartUri());
+            helper.getColumnRepository().delete(Relation.Type.EMERGES_IN,relation.getUri());
+        });
+        LOG.info("Deleted existing topics");
 
     }
 
@@ -111,6 +112,7 @@ public class TopicModeler extends ModelingTask {
             topic.setAnalysis(analysis.getUri());
             topic.setContent(String.join(",",topicData.getWords().stream().map(wd -> wd.getWord()).collect(Collectors.toList())));
             topic.setUri(helper.getUriGenerator().basedOnContent(Resource.Type.TOPIC,topic.getContent()));
+            LOG.info("Saving topic: " + topic.getUri() + " => " + topic.getContent());
             helper.getUdm().save(topic);
 
             EmergesIn emerges = Relation.newEmergesIn(topic.getUri(), domainUri);
@@ -132,7 +134,8 @@ public class TopicModeler extends ModelingTask {
                     if (result != null && !result.isEmpty()){
                         wordURI = result.get(0);
                     }else {
-                        wordURI = helper.getUriGenerator().basedOnContent(Resource.Type.WORD,wordDistribution.getWord());
+                        //wordURI = helper.getUriGenerator().basedOnContent(Resource.Type.WORD,wordDistribution.getWord());
+                        wordURI = helper.getUriGenerator().from(Resource.Type.WORD,wordDistribution.getWord());
 
                         // Create Word
                         Word word = Resource.newWord();
@@ -176,8 +179,18 @@ public class TopicModeler extends ModelingTask {
 
     private void calculateSimilarities(){
         LOG.debug("deleting existing similarities ..");
-        // TODO BUG in Neo4j: this action will remove other relations
-        helper.getUdm().delete(Relation.Type.SIMILAR_TO_ITEMS).in(Resource.Type.DOMAIN, domainUri);
+        helper.getUdm().find(Relation.Type.SIMILAR_TO_DOCUMENTS).from(Resource.Type.DOMAIN, domainUri).forEach(relation
+                -> helper.getUdm().delete(Relation.Type.SIMILAR_TO_DOCUMENTS).byUri(relation.getUri()));
+
+        helper.getUdm().find(Relation.Type.SIMILAR_TO_ITEMS).from(Resource.Type.DOMAIN, domainUri).forEach(relation
+                -> helper.getUdm().delete(Relation.Type.SIMILAR_TO_ITEMS).byUri(relation.getUri()));
+
+        helper.getUdm().find(Relation.Type.SIMILAR_TO_PARTS).from(Resource.Type.DOMAIN, domainUri).forEach(relation
+                -> helper.getUdm().delete(Relation.Type.SIMILAR_TO_PARTS).byUri(relation.getUri()));
+
+//        helper.getUdm().delete(Relation.Type.SIMILAR_TO_ITEMS).in(Resource.Type.DOMAIN, domainUri);
+//        helper.getUdm().delete(Relation.Type.SIMILAR_TO_DOCUMENTS).in(Resource.Type.DOMAIN, domainUri);
+//        helper.getUdm().delete(Relation.Type.SIMILAR_TO_PARTS).in(Resource.Type.DOMAIN, domainUri);
 
         // Get topic distributions
         Iterable<Relation> relations = helper.getUdm().find(Relation.Type.DEALS_WITH_FROM_ITEM).from(Resource.Type.DOMAIN, domainUri);

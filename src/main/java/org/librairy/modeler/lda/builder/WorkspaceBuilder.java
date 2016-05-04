@@ -3,7 +3,6 @@ package org.librairy.modeler.lda.builder;
 import es.upm.oeg.epnoi.matching.metrics.domain.entity.ConceptualResource;
 import es.upm.oeg.epnoi.matching.metrics.domain.entity.RegularResource;
 import es.upm.oeg.epnoi.matching.metrics.domain.space.ConceptsSpace;
-import es.upm.oeg.epnoi.ressist.parser.CRParser;
 import org.apache.spark.api.java.JavaRDD;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,14 +18,14 @@ public class WorkspaceBuilder {
     private static final Logger LOG = LoggerFactory.getLogger(WorkspaceBuilder.class);
 
     @Autowired
-    CRParser crParser;
+    CRBuilder crBuilder;
 
     public ConceptsSpace from(String id, JavaRDD<RegularResource> regularResources){
 
         LOG.info("Number of Regular Resources: " + regularResources.count() + " in domain: '" + id + "'");
 
         // Convert Regular Resources to Conceptual Resources
-        JavaRDD<ConceptualResource> conceptualResources = regularResources.map(crParser);
+        JavaRDD<ConceptualResource> conceptualResources = regularResources.map(crBuilder);
         LOG.info("Number of Conceptual Resources: " + regularResources.count() + " in domain: '" + id + "'");
 
         // Create the Concepts Space

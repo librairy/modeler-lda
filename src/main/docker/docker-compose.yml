@@ -1,7 +1,7 @@
 modelerLDA:
   container_name: modelerLDA
-  image: librairy/modeler-lda:0.2
-  restart: always
+  image: librairy/modeler-lda:latest
+  #restart: always
   environment:
       - COLUMN_DB_HOST=wiig.dia.fi.upm.es
       - COLUMN_DB_PORT=5011

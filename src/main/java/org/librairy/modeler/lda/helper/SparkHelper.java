@@ -43,28 +43,15 @@ public class SparkHelper {
         String memPerProcess = (maxMemory / mb / processors) + "m";
 
 
-        int cores = processors * 2;
-
 
         // Initialize Spark Context
         this.conf = new SparkConf().
-//                setMaster("local["+String.valueOf(cores)+"]").
-                setMaster("spark://zavijava.dia.fi.upm.es:3333").
+                setMaster("local["+threads+"]").
                 setAppName("librairy-LDA-Modeler").
-                set("spark.app.id","librairy-lda-modeler").
-//                set("spark.executor.instances", "4").
-//                set("spark.worker.cores", "2").
-//                set("spark.executor.memory", "1024M").
-//                set("spark.driver.maxResultSize","0").
-//                set("spark.default.parallelism","8").
-//                set("spark.executor.cores","2").
-                set("spark.serializer", "org.apache.spark.serializer.KryoSerializer").
-                set("spark.kryoserializer.buffer.max", "1024m")
-        ;
+                set("spark.executor.memory", memory ).
+                set("spark.driver.maxResultSize","0");
 
-        //this.conf.registerKryoClasses(new Class[]{Corpus.class});
-
-        LOG.info("Spark configured with " +  cores + " processors and " +  memPerProcess+"m per process");
+        LOG.info("Spark configured with " +  processors + " processors and " +  memPerProcess+"m per process");
 
         sc = new JavaSparkContext(conf);
     }

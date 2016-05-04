@@ -47,7 +47,6 @@
         <maven.compiler.plugin.version>3.3</maven.compiler.plugin.version>
         <maven.jar.plugin.version>2.6</maven.jar.plugin.version>
         <maven.site.plugin.version>0.10</maven.site.plugin.version>
-        <maven.scala.version>2.15.2</maven.scala.version>
         <maven.surefire.plugin.version>2.11</maven.surefire.plugin.version>
         <maven.war.plugin.version>2.6</maven.war.plugin.version>
         <maven.resources.plugin.version>2.7</maven.resources.plugin.version>
@@ -68,6 +67,7 @@
         <gate.version>8.1</gate.version>
         <gate.stanford.version>1.0</gate.stanford.version>
         <guava.version>18.0</guava.version>
+        <hadoop.version>2.6.0</hadoop.version>
         <hector.version>1.1-3</hector.version>
         <hibernate.version>4.3.0.Beta5</hibernate.version>
         <httpcomponents.version>4.4</httpcomponents.version>
@@ -95,6 +95,7 @@
         <lz4.version>1.3.0</lz4.version>
         <mahout.version>0.9</mahout.version>
         <mapdb.version>1.0.7</mapdb.version>
+        <metrics.version>0.0.9</metrics.version>
         <mockito.version>1.9.5</mockito.version>
         <neo4j.version>2.3.2</neo4j.version>
         <opennlp.version>1.5.3</opennlp.version>
@@ -103,8 +104,7 @@
         <rabbitmq.version>3.5.6</rabbitmq.version>
         <ressist.version>0.0.6</ressist.version>
         <restlet.version>2.3.5</restlet.version>
-        <scala.version>2.11.2</scala.version>
-        <scalatest.version>2.2.4</scalatest.version>
+        <scala.version>2.10.6</scala.version><!-- 2.11.2 -->
         <servlet.api.version>2.4</servlet.api.version>
         <slf4j.version>1.7.12</slf4j.version>
         <solr.version>5.4.0</solr.version>
@@ -608,20 +608,15 @@
 
             <!-- Spark Libraries -->
             <dependency>
-                <groupId>org.apache.spark</groupId>
-                <artifactId>spark-core_2.11</artifactId>
-                <version>${spark.version}</version>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-client</artifactId>
+                <version>${hadoop.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.apache.spark</groupId>
-                <artifactId>spark-mllib_2.11</artifactId>
-                <version>${spark.version}</version>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-main</artifactId>
+                <version>${hadoop.version}</version>
             </dependency>
-            <!--<dependency>
-                <groupId>org.apache.spark</groupId>
-                <artifactId>spark-core_2.10</artifactId>
-                <version>${spark.version}</version>
-            </dependency>-->
 
             <!-- Spring Libraries -->
             <dependency>
@@ -864,16 +859,55 @@
         </dependency>
 
 		<!-- Ressist Dependency -->
-		<dependency>
-			<groupId>es.upm.oeg.epnoi</groupId>
-			<artifactId>epnoi-ressist</artifactId>
-			<exclusions>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>slf4j-log4j12</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
+		<!--<dependency>-->
+			<!--<groupId>es.upm.oeg.epnoi</groupId>-->
+			<!--<artifactId>epnoi-ressist</artifactId>-->
+			<!--<exclusions>-->
+				<!--<exclusion>-->
+					<!--<groupId>org.slf4j</groupId>-->
+					<!--<artifactId>slf4j-log4j12</artifactId>-->
+				<!--</exclusion>-->
+                <!--<exclusion>-->
+                    <!--<groupId>org.apache.spark</groupId>-->
+                    <!--<artifactId>spark-core_2.11</artifactId>-->
+                <!--</exclusion>-->
+                <!--<exclusion>-->
+                    <!--<groupId>org.apache.spark</groupId>-->
+                    <!--<artifactId>spark-mllib_2.11</artifactId>-->
+                <!--</exclusion>-->
+
+			<!--</exclusions>-->
+		<!--</dependency>-->
+
+        <dependency>
+            <groupId>es.upm.oeg.epnoi</groupId>
+            <artifactId>epnoi-matching-metrics</artifactId>
+            <version>${metrics.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-core_2.10</artifactId>
+            <version>${spark.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-log4j12</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-mllib_2.10</artifactId>
+            <version>${spark.version}</version>
+        </dependency>
 
         <!-- Spring Web -->
         <dependency>
@@ -912,10 +946,10 @@
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-core</artifactId>
         </dependency>
-        <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>log4j-over-slf4j</artifactId>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>org.slf4j</groupId>-->
+            <!--<artifactId>log4j-over-slf4j</artifactId>-->
+        <!--</dependency>-->
 
         <!-- Apache Camel context -->
         <dependency>
@@ -1033,9 +1067,7 @@
                     </dependency>
                 </dependencies>
                 <configuration>
-                    <forkMode>never</forkMode>
-                    <runOrder>alphabetical</runOrder>
-                    <argLine>-Xmx1024m</argLine>
+                    <argLine>-Xmx5024m</argLine>
                     <includes>
                         <include>**/*.class</include>
                     </includes>

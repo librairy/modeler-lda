@@ -10,7 +10,7 @@
     <logger name="org.librairy.modeler" level="DEBUG"/>
     <logger name="org.apache.spark" level="WARN"/>
 
-    <root level="info">
+    <root level="WARN">
         <appender-ref ref="STDOUT" />
     </root>
 </configuration>
