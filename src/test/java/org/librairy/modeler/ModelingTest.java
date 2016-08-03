@@ -10,6 +10,8 @@ import org.librairy.model.domain.resources.Topic;
 import org.librairy.model.modules.EventBus;
 import org.librairy.model.modules.RoutingKey;
 import org.librairy.modeler.lda.Config;
+import org.librairy.modeler.lda.helper.ModelingHelper;
+import org.librairy.modeler.lda.models.topic.TopicModeler;
 import org.librairy.storage.UDM;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -27,7 +29,19 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
-@TestPropertySource(properties = {"librairy.modeler.delay = 2000"})
+@TestPropertySource(properties = {
+        "librairy.cassandra.contactpoints       = wiig.dia.fi.upm.es",
+        "librairy.cassandra.port                = 5011",
+        "librairy.cassandra.keyspace            = research",
+        "librairy.elasticsearch.contactpoints   = wiig.dia.fi.upm.es",
+        "librairy.elasticsearch.port            = 5021",
+        "librairy.neo4j.contactpoints           = wiig.dia.fi.upm.es",
+        "librairy.neo4j.port                    = 5030",
+        "librairy.eventbus.host                 = wiig.dia.fi.upm.es",
+        "librairy.eventbus.port                 = 5041",
+        "librairy.modeler.learn                 = true",
+        "librairy.modeler.delay = 2000"
+})
 public class ModelingTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ModelingTest.class);
@@ -38,11 +52,17 @@ public class ModelingTest {
     @Autowired
     UDM udm;
 
+    @Autowired
+    ModelingHelper helper;
 
     @Test
     public void run() throws InterruptedException {
+
+        String domainUri = "http://librairy.org/domains/default";
+        new TopicModeler(domainUri,helper,Resource.Type.ITEM).run();
+//
         LOG.info("Sleepping...");
-        Thread.sleep(120000);
+        Thread.sleep(300000);
         LOG.info("Wake Up!");
     }
 

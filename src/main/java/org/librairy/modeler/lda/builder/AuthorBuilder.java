@@ -1,11 +1,13 @@
 package org.librairy.modeler.lda.builder;
 
+import com.google.common.base.Strings;
 import org.apache.commons.httpclient.util.URIUtil;
 import org.apache.commons.lang.StringUtils;
 import org.librairy.model.domain.resources.User;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -17,6 +19,9 @@ public class AuthorBuilder {
 
     //TODO this class will dissapear when create Users as entity domains
     public List<User> composeFromMetadata(String authoredBy){
+
+        if (Strings.isNullOrEmpty(authoredBy)) return Collections.emptyList();
+
         List <User> users = new ArrayList<>();
 
         for (String author : authoredBy.split(";")){

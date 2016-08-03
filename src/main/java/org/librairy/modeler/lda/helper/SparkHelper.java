@@ -1,12 +1,16 @@
 package org.librairy.modeler.lda.helper;
 
 import lombok.Getter;
+import lombok.Setter;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.util.Arrays;
 
 /**
  * Created by cbadenes on 11/01/16.
@@ -14,10 +18,12 @@ import javax.annotation.PostConstruct;
 @Component
 public class SparkHelper {
 
-    @Value("${librairy.modeler.threads}")
+    private static final Logger LOG = LoggerFactory.getLogger(SparkHelper.class);
+
+    @Value("${librairy.modeler.threads}") @Setter
     String threads; // 2
 
-    @Value("${librairy.modeler.memory}")
+    @Value("${librairy.modeler.memory}") @Setter
     String memory; // 3g
 
     private SparkConf conf;
@@ -29,12 +35,25 @@ public class SparkHelper {
     @PostConstruct
     public void setup(){
 
+        int processors = Runtime.getRuntime().availableProcessors();
+
+        int mb = 1024*1024;
+
+        long maxMemory = Runtime.getRuntime().maxMemory();
+
+        String memPerProcess = (maxMemory / mb / processors) + "m";
+
+
+
         // Initialize Spark Context
         this.conf = new SparkConf().
                 setMaster("local["+threads+"]").
-                setAppName("DrInventor-Modeler").
-                set("spark.executor.memory", memory).
+                setAppName("librairy-LDA-Modeler").
+                set("spark.executor.memory", memory ).
                 set("spark.driver.maxResultSize","0");
+
+        LOG.info("Spark configured with " +  processors + " processors and " +  memPerProcess+"m per process");
+
         sc = new JavaSparkContext(conf);
     }
 

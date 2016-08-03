@@ -14,7 +14,7 @@ os:
 # whitelist
 branches:
   only:
-    - develop
+    - master
 
 #env:
 #  global:
