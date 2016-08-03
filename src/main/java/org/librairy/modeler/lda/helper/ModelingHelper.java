@@ -32,6 +32,9 @@ public class ModelingHelper {
     TopicModelBuilder topicModelBuilder;
 
     @Autowired
+    OnlineLDABuilder onlineLDABuilder;
+
+    @Autowired
     RegularResourceBuilder regularResourceBuilder;
 
     @Autowired

@@ -4,7 +4,7 @@
 
 	<groupId>org.librairy</groupId>
     <artifactId>modeler-lda</artifactId>
-    <version>0.3-SNAPSHOT</version>
+    <version>0.3</version>
     <packaging>war</packaging>
     <name>librairy modeler lda</name>
     <description>Create Topic Models for a given domain</description>
@@ -84,7 +84,7 @@
         <jena.version>2.10.1</jena.version>
         <jgrapht.version>0.9.0</jgrapht.version>
         <junit.version>4.12</junit.version>
-        <librairy.version>0.3-SNAPSHOT</librairy.version>
+        <librairy.version>0.4-SNAPSHOT</librairy.version>
         <log4j.version>1.2.17</log4j.version>
         <log4j.slf4j.version>1.7.14</log4j.slf4j.version>
         <logback.version>1.1.3</logback.version>
@@ -892,6 +892,18 @@
         </dependency>
 
 
+        <!--<dependency>-->
+            <!--<groupId>com.datastax.spark</groupId>-->
+            <!--<artifactId>spark-cassandra-connector_2.10</artifactId>-->
+            <!--<version>1.6.0-M2</version>-->
+        <!--</dependency>-->
+        <!--<dependency>-->
+            <!--<groupId>com.datastax.spark</groupId>-->
+            <!--<artifactId>spark-cassandra-connector-java_2.10</artifactId>-->
+            <!--<version>1.6.0-M1</version>-->
+        <!--</dependency>-->
+
+        <!-- Spark -->
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.10</artifactId>

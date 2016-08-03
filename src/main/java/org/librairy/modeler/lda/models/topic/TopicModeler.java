@@ -46,14 +46,19 @@ public class TopicModeler extends ModelingTask {
 
         LOG.info("ready to create a new topic model for domain: " + domainUri);
 
-        // Remove existing topics in domain
-        clean();
+        helper.getOnlineLDABuilder().build(domainUri,10000);
 
-        // Create a new Topic Model
-        List<String> uris = build();
 
-        // Calculate similarities based on the model
-        calculateSimilarities();
+
+
+//        // Remove existing topics in domain
+//        clean();
+//
+//        // Create a new Topic Model
+//        List<String> uris = build();
+//
+//        // Calculate similarities based on the model
+//        calculateSimilarities();
 
     }
 
@@ -62,8 +67,23 @@ public class TopicModeler extends ModelingTask {
         LOG.info("Deleting existing topics");
         helper.getColumnRepository().findBy(Relation.Type.EMERGES_IN, "domain", domainUri).forEach(relation -> {
             LOG.info("Deleting topic: " + relation.getStartUri());
-            helper.getUdm().delete(Resource.Type.TOPIC).byUri(relation.getStartUri());
+
+            helper.getUdm().find(Relation.Type.DEALS_WITH_FROM_DOCUMENT).from(Resource.Type.TOPIC, relation.getStartUri())
+                    .forEach(rel -> helper.getColumnRepository().delete(Relation.Type.DEALS_WITH_FROM_DOCUMENT,rel.getUri()));
+
+            helper.getUdm().find(Relation.Type.DEALS_WITH_FROM_ITEM).from(Resource.Type.TOPIC, relation.getStartUri())
+                    .forEach(rel -> helper.getColumnRepository().delete(Relation.Type.DEALS_WITH_FROM_ITEM,rel.getUri()));
+
+            helper.getUdm().find(Relation.Type.DEALS_WITH_FROM_PART).from(Resource.Type.TOPIC, relation.getStartUri())
+                    .forEach(rel -> helper.getColumnRepository().delete(Relation.Type.DEALS_WITH_FROM_PART,rel.getUri()));
+
+            helper.getUdm().find(Relation.Type.MENTIONS_FROM_TOPIC).from(Resource.Type.TOPIC, relation.getStartUri())
+                    .forEach(rel -> helper.getColumnRepository().delete(Relation.Type.MENTIONS_FROM_TOPIC,rel.getUri()));
+
             helper.getColumnRepository().delete(Relation.Type.EMERGES_IN,relation.getUri());
+
+            helper.getUdm().delete(Resource.Type.TOPIC).byUri(relation.getStartUri());
+
         });
         LOG.info("Deleted existing topics");
 
@@ -77,23 +97,24 @@ public class TopicModeler extends ModelingTask {
             uris = helper.getUdm().find(Resource.Type.ITEM).from(Resource.Type.DOMAIN, domainUri);
 
             List<RegularResource> regularResources = uris.parallelStream().
-                            map(uri -> helper.getUdm().read(Resource.Type.ITEM).byUri(uri)).
-                            filter(res -> res.isPresent()).map(res -> (Item) res.get()).
-                            map(item -> helper.getRegularResourceBuilder().from(item.getUri(), item.getTitle(), item.getAuthoredOn(), helper.getAuthorBuilder().composeFromMetadata(item.getAuthoredBy()), item.getTokens())).
-                            collect(Collectors.toList());
+                    map(uri -> helper.getUdm().read(Resource.Type.ITEM).byUri(uri)).
+                    filter(res -> res.isPresent()).map(res -> (Item) res.get()).
+                    map(item -> helper.getRegularResourceBuilder().from(item.getUri(), item.getTitle(), item.getAuthoredOn(), helper.getAuthorBuilder().composeFromMetadata(item.getAuthoredBy()), item.getTokens())).
+                    collect(Collectors.toList());
 
             if ((regularResources == null) || (regularResources.isEmpty()))
                 throw new RuntimeException("No " + resourceType.name() + "s found in domain: " + domainUri);
 
+            TopicModel model = helper.getTopicModelBuilder().build(domainUri, regularResources);
+
+
+
             // Create the analysis
             Analysis analysis = newAnalysis("Topic-Model","LDA with Evolutionary Algorithm parametrization",resourceType.name(),domainUri);
+            analysis.setConfiguration(model.getConfiguration().toString());
 
             // Persist Topic and Relations
-            TopicModel model = helper.getTopicModelBuilder().build(domainUri, regularResources);
             persistModel(analysis,model,resourceType);
-
-            // Save the analysis
-            analysis.setConfiguration(model.getConfiguration().toString());
             helper.getUdm().save(analysis);
         } catch (RuntimeException e){
             LOG.warn(e.getMessage(),e);
@@ -102,6 +123,7 @@ public class TopicModeler extends ModelingTask {
         }
         return uris;
     }
+
 
     private void persistModel(Analysis analysis, TopicModel model, Resource.Type resourceType){
         Map<String,String> topicTable = new HashMap<>();
@@ -126,7 +148,7 @@ public class TopicModeler extends ModelingTask {
 
             // Relate it to Words
             // TODO parallelStream does not work with graph-db
-            topicData.getWords().stream().forEach( wordDistribution -> {
+            topicData.getWords().parallelStream().forEach( wordDistribution -> {
 
                 if (!words.contains(wordDistribution.getWord())){
                     List<String> result = helper.getUdm().find(Resource.Type.WORD).by(Word.CONTENT, wordDistribution.getWord());
@@ -158,7 +180,7 @@ public class TopicModeler extends ModelingTask {
         }
 
         // TODO parallelStream does not work with graph-db
-        model.getResources().keySet().stream().forEach(resourceURI ->{
+        model.getResources().keySet().parallelStream().forEach(resourceURI ->{
 
             String itemUri = resourceURI;
 

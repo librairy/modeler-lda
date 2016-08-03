@@ -54,9 +54,12 @@ public class TopicModelBuilder {
         // TODO LDASettings can not be static class!!!
         LDASettings.setMaxIterations(maxIterations);
 
-        int topics = 4;
-        double alpha = 16.1;
-        double beta = 4.1;
+
+        Double value = 2 * Math.sqrt(regularResources.size()/2);
+
+        int topics = value.intValue();
+        double alpha = -1;
+        double beta = -1;
 
         if (learn){
             logger.info("Learning Topic Model for '" + id + "' maxIt: " + maxIterations);

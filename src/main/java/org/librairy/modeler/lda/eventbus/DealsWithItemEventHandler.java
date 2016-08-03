@@ -65,6 +65,11 @@ public class DealsWithItemEventHandler implements EventBusSubscriber {
                 LOG.info("Saving topic distribution for a Document from Item: " + dealsWith);
                 udm.save(dealsWith);
             });
+
+            //TODO set DEALS_WITH(PARTS) by using onlineLDA
+
+
+
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added
             LOG.error("Error scheduling a new topic model for Items from domain: " + event, e);

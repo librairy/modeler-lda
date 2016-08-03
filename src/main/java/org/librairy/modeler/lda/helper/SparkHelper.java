@@ -1,6 +1,7 @@
 package org.librairy.modeler.lda.helper;
 
 import lombok.Getter;
+import lombok.Setter;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.slf4j.Logger;
@@ -19,10 +20,10 @@ public class SparkHelper {
 
     private static final Logger LOG = LoggerFactory.getLogger(SparkHelper.class);
 
-    @Value("${librairy.modeler.threads}")
+    @Value("${librairy.modeler.threads}") @Setter
     String threads; // 2
 
-    @Value("${librairy.modeler.memory}")
+    @Value("${librairy.modeler.memory}") @Setter
     String memory; // 3g
 
     private SparkConf conf;
