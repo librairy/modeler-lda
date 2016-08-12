@@ -53,12 +53,12 @@ public class TopicModelBuilderTest {
     public void basic(){
 
         // Source
-        Source source = Resource.newSource();
+        Source source = Resource.newSource("s1");
         source.setUri(uriGenerator.newFor(Resource.Type.SOURCE));
         udm.save(source);
 
         // Domain
-        Domain domain = Resource.newDomain();
+        Domain domain = Resource.newDomain("d1");
         domain.setUri(uriGenerator.newFor(Resource.Type.DOMAIN));
         domain.setName("test-domain");
         udm.save(domain);
@@ -75,9 +75,8 @@ public class TopicModelBuilderTest {
         udm.save(analysis);
 
         // Document 1
-        Document document1 = Resource.newDocument();
+        Document document1 = Resource.newDocument("title-1");
         document1.setUri(uriGenerator.newFor(Resource.Type.DOCUMENT));
-        document1.setTitle("title-1");
         document1.setPublishedOn("20160112T12:07");
         udm.save(document1);
         udm.save(Relation.newProvides(source.getUri(),document1.getUri()));
@@ -85,21 +84,20 @@ public class TopicModelBuilderTest {
 
 
         // -> Item 1 from 1
-        Item item11 = Resource.newItem();
+        Item item11 = Resource.newItem("i1");
         item11.setUri(uriGenerator.newFor(Resource.Type.ITEM));
         udm.save(item11);
         udm.save(Relation.newBundles(document1.getUri(),item11.getUri()));
 
         // -> Item 2 from 1
-        Item item12 = Resource.newItem();
+        Item item12 = Resource.newItem("i2");
         item12.setUri(uriGenerator.newFor(Resource.Type.ITEM));
         udm.save(item12);
         udm.save(Relation.newBundles(document1.getUri(),item12.getUri()));
 
         // Document 2
-        Document document2 = Resource.newDocument();
+        Document document2 = Resource.newDocument("title-2");
         document2.setUri(uriGenerator.newFor(Resource.Type.DOCUMENT));
-        document2.setTitle("title-2");
         document2.setPublishedOn("20160112T12:07");
         udm.save(document2);
 
@@ -108,14 +106,14 @@ public class TopicModelBuilderTest {
 
 
         // -> Item 1 from 2
-        Item item21 = Resource.newItem();
+        Item item21 = Resource.newItem("i21");
         item21.setUri(uriGenerator.newFor(Resource.Type.ITEM));
         udm.save(item21);
         udm.save(Relation.newBundles(document2.getUri(),item21.getUri()));
 
 
         // -> Item 2 from 2
-        Item item22 = Resource.newItem();
+        Item item22 = Resource.newItem("i22");
         item22.setUri(uriGenerator.newFor(Resource.Type.ITEM));
         udm.save(item22);
         udm.save(Relation.newBundles(document2.getUri(),item22.getUri()));
@@ -155,10 +153,10 @@ public class TopicModelBuilderTest {
             // Relate it to Words
             for (WordDistribution wordDistribution : topicData.getWords()){
 
-                List<String> result = udm.find(Resource.Type.WORD).by(Word.CONTENT, wordDistribution.getWord());
+                List<Resource> result = udm.find(Resource.Type.WORD).by(Word.CONTENT, wordDistribution.getWord());
                 String wordURI;
                 if (result != null && !result.isEmpty()){
-                    wordURI = result.get(0);
+                    wordURI = result.get(0).getUri();
                 }else {
                     wordURI = uriGenerator.newFor(Resource.Type.WORD);
 

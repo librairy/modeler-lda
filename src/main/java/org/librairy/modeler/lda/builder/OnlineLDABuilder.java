@@ -79,55 +79,14 @@ public class OnlineLDABuilder {
     @Value("${spark.filesystem}") @Setter
     String fileSystemEndpoint;
 
+    @Value("${librairy.modeler.maxiterations}") @Setter
+    Integer maxIterations;
+
     @Value("${librairy.modeler.folder}")
     String modelFolder;
 
     @Value("${librairy.vocabulary.folder}")
     String vocabularyFolder;
-
-
-    public Corpus createCorpus(String domainURI, Integer vocabSize){
-        Corpus corpus = new Corpus();
-
-        // Reading Uris
-        LOG.info("Reading item uris..");
-        List<String> itemsUri = udm.find(Resource.Type.ITEM).from(Resource.Type.DOMAIN, domainURI);
-        if ((itemsUri == null) || (itemsUri.isEmpty()))
-            throw new RuntimeException("No Items found in domain: " + domainURI);
-
-        // Load Items
-        LOG.info("Loading Items from domain: " + domainURI);
-        List<Row> items = itemsUri.parallelStream().
-                map(uri -> udm.read(Resource.Type.ITEM).byUri(uri)).
-                filter(res -> res.isPresent()).map(res -> (Item) res.get()).
-                map(item -> RowFactory.create(item.getUri(), item.getTokens())).
-                collect(Collectors.toList());
-
-        // -> preprocess items
-        LOG.info("Preprocess Items from domain: " + domainURI);
-        DataFrame itemsDF = preprocess(items);
-
-        // -> create corpus
-        LOG.info("Creating corpus for domain: " + domainURI);
-        CountVectorizerModel cvModel = createCorpus(itemsDF,vocabSize);
-        corpus.setModel(cvModel);
-
-        ConcurrentHashMap<Long,String> itemRegistry = new ConcurrentHashMap<>();
-        items.parallelStream().forEach(row -> {
-            String uri = String.valueOf(row.get(0));
-            Long id = RowToPair.from(uri);
-            itemRegistry.put(id,uri);
-        });
-
-        Tuple2<Object, Vector> tuple = new Tuple2<Object,Vector>(0l, Vectors.dense(new double[]{1.0}));
-        RDD<Tuple2<Object, Vector>> documents = cvModel.transform(itemsDF).select("uri",
-                "features").map(new RowToPair(), ClassTag$.MODULE$.<Tuple2<Object, Vector>>apply(tuple.getClass()))
-                .cache();
-        corpus.setDocuments(documents);
-
-        return corpus;
-
-    }
 
 
     public void build(String domainUri, Integer vocabSize){
@@ -136,19 +95,19 @@ public class OnlineLDABuilder {
 
         // Reading Uris
         LOG.info("Reading item uris..");
-        List<String> itemsUri = udm.find(Resource.Type.ITEM).from(Resource.Type.DOMAIN, domainUri);
-        if ((itemsUri == null) || (itemsUri.isEmpty()))
+        List<Resource> itemResources = udm.find(Resource.Type.ITEM).from(Resource.Type.DOMAIN, domainUri);
+        if ((itemResources == null) || (itemResources.isEmpty()))
             throw new RuntimeException("No Items found in domain: " + domainUri);
 
         // Reading Parts
         LOG.info("Reading part uris..");
-        List<String> partUris = udm.find(Resource.Type.PART).from(Resource.Type.DOMAIN, domainUri);
+        List<Resource> partResources = udm.find(Resource.Type.PART).from(Resource.Type.DOMAIN, domainUri);
 
         // Load Items
         LOG.info("Loading Items from domain: " + domainUri);
 
-        List<Row> items = itemsUri.parallelStream().
-                        map(uri -> udm.read(Resource.Type.ITEM).byUri(uri)).
+        List<Row> items = itemResources.parallelStream().
+                        map(res -> udm.read(Resource.Type.ITEM).byUri(res.getUri())).
                         filter(res -> res.isPresent()).map(res -> (Item) res.get()).
                         map(item -> RowFactory.create(item.getUri(), item.getTokens())).
                         collect(Collectors.toList());
@@ -175,40 +134,21 @@ public class OnlineLDABuilder {
                 .cache();
 
         // -> build model
-        //Double k = 2*Math.sqrt(items.size()/2);
-        Double k = 7.0; //TODO algorithm to discover number of topics
-        Integer iteration = 10;
+        //TODO algorithm to discover number of topics
+        Double k = 2*Math.sqrt(items.size()/2);
+        Integer iteration = maxIterations;
         Double alpha    =  -1.0;
         Double beta     =  -1.0;
         LOG.info("Training LDA model from domain: " + domainUri);
         LDAModel ldaModel = trainModel(k.intValue(), iteration, alpha, beta, documents);
         LocalLDAModel localLDAModel = (LocalLDAModel) ldaModel;
 
+        // Save Model and Vocabulary
+        persist(localLDAModel, cvModel, domainUri);
+
         // save Topics
         LOG.info("Saving topics from domain: " + domainUri);
         ConcurrentHashMap<Integer, String> topics = saveTopics(ldaModel, cvModel, domainUri);
-
-
-        // Save Model and Vocabulary
-        String domainId = URIGenerator.retrieveId(domainUri);
-        Path modelPath = Paths.get(modelFolder,domainId);
-        Path vocabularyPath = Paths.get(vocabularyFolder,domainId);
-
-        try {
-            Files.deleteIfExists(modelPath);
-            Files.deleteIfExists(vocabularyPath);
-
-            Files.createDirectories(modelPath);
-            Files.createDirectories(vocabularyPath);
-
-            localLDAModel.save(sparkHelper.getSc().sc(),modelPath.toString());
-            cvModel.save(vocabularyPath.toAbsolutePath().toString());
-
-
-        } catch (IOException e) {
-            LOG.error("Error persisting the model",e);
-        }
-
 
         // Items distribution
         LOG.info("Saving item distribution for each topic in domain: " + domainUri);
@@ -234,11 +174,11 @@ public class OnlineLDABuilder {
 
 
         // Parts distribution
-        if ((partUris != null) && !partUris.isEmpty()){
+        if ((partResources != null) && !partResources.isEmpty()){
             LOG.info("Processing parts from domain: " + domainUri);
 
-            List<Row> parts = partUris.parallelStream().
-                    map(uri -> udm.read(Resource.Type.PART).byUri(uri)).
+            List<Row> parts = partResources.parallelStream().
+                    map(partResource -> udm.read(Resource.Type.PART).byUri(partResource.getUri())).
                     filter(res -> res.isPresent()).map(res -> (Part) res.get()).
                     map(resource -> RowFactory.create(resource.getUri(), resource.getTokens())).
                     collect(Collectors.toList());
@@ -300,12 +240,12 @@ public class OnlineLDABuilder {
 
         // Items Similarities
         LOG.info("Calculating similarities between items in domain: " + domainUri);
-        calculateSimilaritiesBetweenItems(itemsUri,domainUri);
+        calculateSimilaritiesBetweenItems(itemResources,domainUri);
 
         // Parts Similarities
-        if ((partUris != null) && (!partUris.isEmpty())){
+        if ((partResources != null) && (!partResources.isEmpty())){
             LOG.info("Calculating similarities between parts in domain: " + domainUri);
-            calculateSimilaritiesBetweenParts(partUris,domainUri);
+            calculateSimilaritiesBetweenParts(partResources,domainUri);
         }
 
 
@@ -343,74 +283,62 @@ public class OnlineLDABuilder {
 
     }
 
-    private void calculateSimilaritiesBetweenItems(List<String> items, String domainUri){
+    private void calculateSimilaritiesBetweenItems(List<Resource> resources, String domainUri){
 
-        JavaRDD<String> itemsRDD = sparkHelper.getSc().parallelize(items);
+        JavaRDD<Resource> itemsRDD = sparkHelper.getSc().parallelize(resources);
 
-        List<Tuple2<String, String>> itemsPair = itemsRDD.cartesian(itemsRDD)
-                .filter(x -> x._1().compareTo(x._2()) > 0)
+        List<Tuple2<Resource, Resource>> itemsPair = itemsRDD.cartesian(itemsRDD)
+                .filter(x -> x._1().getUri().compareTo(x._2().getUri()) > 0)
                 .collect();
 
         LOG.info("Calculating similarities...");
         itemsPair.parallelStream().forEach( pair -> {
 
             List<Relationship> p1 = udm.find(Relation.Type.DEALS_WITH_FROM_ITEM).from(Resource.Type
-                    .ITEM, pair._1).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
+                    .ITEM, pair._1.getUri()).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
                     (Collectors.toList());
             List<Relationship> p2 = udm.find(Relation.Type.DEALS_WITH_FROM_ITEM).from(Resource.Type
-                    .ITEM, pair._2).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
+                    .ITEM, pair._2.getUri()).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
                     (Collectors.toList());
 
             Double similarity = RelationalSimilarity.between(p1, p2);
 
             LOG.info("Attaching SIMILAR_TO (ITEM) based on " + pair);
-            SimilarTo simRel1 = Relation.newSimilarToItems(pair._1, pair._2);
-            SimilarTo simRel2 = Relation.newSimilarToItems(pair._2, pair._1);
+            SimilarTo simRel1 = Relation.newSimilarToItems(pair._1.getUri(), pair._2.getUri(),domainUri);
 
             simRel1.setWeight(similarity);
             simRel1.setDomain(domainUri);
             udm.save(simRel1);
-
-            simRel2.setWeight(similarity);
-            simRel2.setDomain(domainUri);
-            udm.save(simRel2);
-
         });
 
     }
 
-    private void calculateSimilaritiesBetweenParts(List<String> parts, String domainUri){
+    private void calculateSimilaritiesBetweenParts(List<Resource> parts, String domainUri){
 
+        JavaRDD<Resource> urisRDD = sparkHelper.getSc().parallelize(parts);
 
-        JavaRDD<String> urisRDD = sparkHelper.getSc().parallelize(parts);
-
-        List<Tuple2<String, String>> pairs = urisRDD.cartesian(urisRDD)
-                .filter(x -> x._1().compareTo(x._2()) > 0)
+        List<Tuple2<Resource, Resource>> pairs = urisRDD.cartesian(urisRDD)
+                .filter(x -> x._1().getUri().compareTo(x._2().getUri()) > 0)
                 .collect();
 
         LOG.info("Calculating similarities...");
         pairs.parallelStream().forEach( pair -> {
 
             List<Relationship> p1 = udm.find(Relation.Type.DEALS_WITH_FROM_PART).from(Resource.Type
-                    .PART, pair._1).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
+                    .PART, pair._1.getUri()).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
                     (Collectors.toList());
             List<Relationship> p2 = udm.find(Relation.Type.DEALS_WITH_FROM_PART).from(Resource.Type
-                    .PART, pair._2).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
+                    .PART, pair._2.getUri()).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
                     (Collectors.toList());
 
             Double similarity = RelationalSimilarity.between(p1, p2);
 
             LOG.info("Attaching SIMILAR_TO (PART) based on " + pair);
-            SimilarTo simRel1 = Relation.newSimilarToParts(pair._1, pair._2);
-            SimilarTo simRel2 = Relation.newSimilarToParts(pair._2, pair._1);
+            SimilarTo simRel1 = Relation.newSimilarToParts(pair._1.getUri(), pair._2.getUri(),domainUri);
 
             simRel1.setWeight(similarity);
             simRel1.setDomain(domainUri);
             udm.save(simRel1);
-
-            simRel2.setWeight(similarity);
-            simRel2.setDomain(domainUri);
-            udm.save(simRel2);
 
         });
 
@@ -518,15 +446,16 @@ public class OnlineLDABuilder {
     public void persist(LDAModel ldaModel, CountVectorizerModel cvModel, String domainUri ){
         LOG.info("Persist Model and vocabulary");
         try {
-            String sufix = "-"+ StringUtils.substringAfterLast(domainUri,"/");
+            String domainId = URIGenerator.retrieveId(domainUri);
+            String time     = TimeUtils.asISO();
 
-            String vocabName = "/vocab"+sufix;
-            LOG.info("Saving the vocabulary: " + vocabName);
-            cvModel.save(fileSystemEndpoint +"/models/"+vocabName);
+            String vocabPath = fileSystemEndpoint +":/" + vocabularyFolder + File.separator + domainId + "-" + time;
+            LOG.info("Saving the vocabulary: " + vocabPath);
+            cvModel.save(vocabPath);
 
-            String modelName = "/model"+sufix;
-            LOG.info("Saving the model: " + modelName);
-            ldaModel.save(sparkHelper.getSc().sc(), fileSystemEndpoint +"/models/"+modelName);
+            String modelPath = fileSystemEndpoint +":/" + modelFolder + File.separator + domainId + "-" + time;
+            LOG.info("Saving the model: " + modelPath);
+            ldaModel.save(sparkHelper.getSc().sc(), modelPath);
 
         }catch (Exception e){
             if (e instanceof FileAlreadyExistsException) {
@@ -568,17 +497,16 @@ public class OnlineLDABuilder {
                 if (wordTable.contains(word)){
                     wordUri = wordTable.get(word);
                 }else{
-                    List<String> result = udm.find(Resource.Type.WORD).by(Word.CONTENT, word);
+                    List<Resource> result = udm.find(Resource.Type.WORD).by(Word.CONTENT, word);
                     if (result != null && !result.isEmpty()){
-                        wordUri = result.get(0);
+                        wordUri = result.get(0).getUri();
                     }else {
                         wordUri= uriGenerator.from(Resource.Type.WORD,word);
 
                         // Create Word
-                        Word wordData = Resource.newWord();
+                        Word wordData = Resource.newWord(word);
                         wordData.setUri(wordUri);
                         wordData.setCreationTime(TimeUtils.asISO());
-                        wordData.setContent(word);
                         udm.save(wordData);
                     }
                 }
@@ -591,9 +519,8 @@ public class OnlineLDABuilder {
             LOG.info("------------------------------------------");
 
             // Save Topic
-            Topic topic = Resource.newTopic();
+            Topic topic = Resource.newTopic(content.toString());
             topic.setAnalysis("");
-            topic.setContent(content.toString());
             topic.setUri(uriGenerator.basedOnContent(Resource.Type.TOPIC,topic.getContent()));
             LOG.info("Saving topic: " + topic.getUri() + " => " + topic.getContent());
             udm.save(topic);

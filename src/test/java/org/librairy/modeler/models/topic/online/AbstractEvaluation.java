@@ -53,12 +53,12 @@ import java.util.stream.Stream;
 @ContextConfiguration(classes = Config.class)
 @TestPropertySource(properties = {
         "librairy.comparator.delay = 1000",
-        "librairy.cassandra.contactpoints = zavijava.dia.fi.upm.es",
+        "librairy.cassandra.contactpoints = 192.168.99.100",
         "librairy.cassandra.port = 5011",
         "librairy.cassandra.keyspace = research",
-        "librairy.elasticsearch.contactpoints = zavijava.dia.fi.upm.es",
+        "librairy.elasticsearch.contactpoints = 192.168.99.100",
         "librairy.elasticsearch.port = 5021",
-        "librairy.neo4j.contactpoints = zavijava.dia.fi.upm.es",
+        "librairy.neo4j.contactpoints = 192.168.99.100",
         "librairy.neo4j.port = 5030",
         "librairy.eventbus.host = localhost",
         "librairy.eventbus.port=5041"})
@@ -124,11 +124,12 @@ public class AbstractEvaluation {
                                         "document",
                                         uri).iterator();
                                 if (!it.hasNext()){
-                                    List<String> res = udm.find(Resource.Type.ITEM).from(Resource.Type.DOCUMENT, uri);
+                                    List<Resource> res = udm.find(Resource.Type.ITEM).from(Resource.Type.DOCUMENT,
+                                            uri);
                                     if (!res.isEmpty()){
                                         udm.save(Relation.newBundles(uri,
-                                                res.get(0)));
-                                        return res.get(0);
+                                                res.get(0).getUri()));
+                                        return res.get(0).getUri();
                                     }
                                     return "";
                                 }

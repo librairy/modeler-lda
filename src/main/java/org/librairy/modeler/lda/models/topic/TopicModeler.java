@@ -89,17 +89,18 @@ public class TopicModeler extends ModelingTask {
 
     }
 
-    private List<String> build(){
-        List<String> uris = new ArrayList<>();
+    private List<Resource> build(){
+        List<Resource> uris = new ArrayList<>();
         try{
             LOG.info("Building a topic model for " + resourceType.name() + "s in domain: " + domainUri);
 
             uris = helper.getUdm().find(Resource.Type.ITEM).from(Resource.Type.DOMAIN, domainUri);
 
             List<RegularResource> regularResources = uris.parallelStream().
-                    map(uri -> helper.getUdm().read(Resource.Type.ITEM).byUri(uri)).
+                    map(itemRes -> helper.getUdm().read(Resource.Type.ITEM).byUri(itemRes.getUri())).
                     filter(res -> res.isPresent()).map(res -> (Item) res.get()).
-                    map(item -> helper.getRegularResourceBuilder().from(item.getUri(), item.getTitle(), item.getAuthoredOn(), helper.getAuthorBuilder().composeFromMetadata(item.getAuthoredBy()), item.getTokens())).
+                    map(item -> helper.getRegularResourceBuilder().from(item.getUri(), item.getUri(), item.getCreationTime(),
+                            helper.getAuthorBuilder().composeFromMetadata(item.getAuthoredBy()), item.getTokens())).
                     collect(Collectors.toList());
 
             if ((regularResources == null) || (regularResources.isEmpty()))
@@ -130,9 +131,10 @@ public class TopicModeler extends ModelingTask {
         for (TopicData topicData : model.getTopics()){
 
             // Save Topic
-            Topic topic = Resource.newTopic();
+            String content = String.join(",",topicData.getWords().stream().map(wd -> wd.getWord()).collect(Collectors
+                    .toList()));
+            Topic topic = Resource.newTopic(content);
             topic.setAnalysis(analysis.getUri());
-            topic.setContent(String.join(",",topicData.getWords().stream().map(wd -> wd.getWord()).collect(Collectors.toList())));
             topic.setUri(helper.getUriGenerator().basedOnContent(Resource.Type.TOPIC,topic.getContent()));
             LOG.info("Saving topic: " + topic.getUri() + " => " + topic.getContent());
             helper.getUdm().save(topic);
@@ -151,19 +153,19 @@ public class TopicModeler extends ModelingTask {
             topicData.getWords().parallelStream().forEach( wordDistribution -> {
 
                 if (!words.contains(wordDistribution.getWord())){
-                    List<String> result = helper.getUdm().find(Resource.Type.WORD).by(Word.CONTENT, wordDistribution.getWord());
+                    List<Resource> result = helper.getUdm().find(Resource.Type.WORD).by(Word.CONTENT, wordDistribution
+                            .getWord());
                     String wordURI;
                     if (result != null && !result.isEmpty()){
-                        wordURI = result.get(0);
+                        wordURI = result.get(0).getUri();
                     }else {
                         //wordURI = helper.getUriGenerator().basedOnContent(Resource.Type.WORD,wordDistribution.getWord());
                         wordURI = helper.getUriGenerator().from(Resource.Type.WORD,wordDistribution.getWord());
 
                         // Create Word
-                        Word word = Resource.newWord();
+                        Word word = Resource.newWord(wordDistribution.getWord());
                         word.setUri(wordURI);
                         word.setCreationTime(TimeUtils.asISO());
-                        word.setContent(wordDistribution.getWord());
                         helper.getUdm().save(word);
 
                     }
@@ -224,16 +226,11 @@ public class TopicModeler extends ModelingTask {
         similarities.parallelStream().forEach(pair -> {
 
             LOG.info("Attaching SIMILAR_TO based on " + pair);
-            SimilarTo simRel1 = Relation.newSimilarToItems(pair.getUri1(), pair.getUri2());
-            SimilarTo simRel2 = Relation.newSimilarToItems(pair.getUri2(), pair.getUri1());
+            SimilarTo simRel1 = Relation.newSimilarToItems(pair.getUri1(), pair.getUri2(), domainUri);
 
             simRel1.setWeight(pair.getWeight());
             simRel1.setDomain(domainUri);
             helper.getUdm().save(simRel1);
-
-            simRel2.setWeight(pair.getWeight());
-            simRel2.setDomain(domainUri);
-            helper.getUdm().save(simRel2);
         });
 
     }
