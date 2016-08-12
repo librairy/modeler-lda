@@ -40,7 +40,8 @@ import scala.reflect.ClassTag$;
 
 import java.io.File;
 import java.io.*;
-import java.nio.file.Paths;
+import java.nio.file.*;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -314,17 +315,28 @@ public class OnlineLDABuilder {
             String domainId = URIGenerator.retrieveId(domainUri);
             String time     = TimeUtils.asISO();
 
-            String vocabularyFolderPath = fileSystemEndpoint.equalsIgnoreCase("file")? Paths.get(vocabularyFolder)
-                    .toAbsolutePath().toString() : vocabularyFolder;
+            String vocabularyFolderPath = vocabularyFolder;
+            String modelFolderPath = modelFolder;
 
-            String vocabPath = fileSystemEndpoint +"://" + vocabularyFolderPath + File.separator + domainId + "-" + time;
+            if (fileSystemEndpoint.equalsIgnoreCase("file")){
+                // Vocabulary
+                Path vocabPath = Paths.get(vocabularyFolder,domainId,time);
+                Files.deleteIfExists(vocabPath);
+                Files.createDirectories(vocabPath);
+                vocabularyFolderPath = vocabPath.toAbsolutePath().toString();
+
+                // Model
+                Path modelPath = Paths.get(modelFolder,domainId,time);
+                Files.deleteIfExists(modelPath);
+                Files.createDirectories(modelPath);
+                modelFolderPath = modelPath.toAbsolutePath().toString();
+            }
+
+            String vocabPath = fileSystemEndpoint +"://" + vocabularyFolderPath;
             LOG.info("Saving the vocabulary: " + vocabPath);
             cvModel.save(vocabPath);
 
-            String modelFolderPath = fileSystemEndpoint.equalsIgnoreCase("file")? Paths.get(modelFolder)
-                    .toAbsolutePath().toString() : modelFolder;
-
-            String modelPath = fileSystemEndpoint +"://" + modelFolderPath + File.separator + domainId + "-" + time;
+            String modelPath = fileSystemEndpoint +"://" + modelFolderPath;
             LOG.info("Saving the model: " + modelPath);
             ldaModel.save(sparkHelper.getSc().sc(), modelPath);
 

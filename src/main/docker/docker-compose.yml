@@ -6,7 +6,7 @@ modelerLDA:
       - LIBRAIRY_FS=file
       - LIBRAIRY_HOME=.
   volumes:
-       - ./lda-models:/usr/local/tomcat/models/
+       - ./lda-models:/usr/local/tomcat/lda-models/
        - ./vocabularies:/usr/local/tomcat/vocabularies/
   external_links:
        - column-db
