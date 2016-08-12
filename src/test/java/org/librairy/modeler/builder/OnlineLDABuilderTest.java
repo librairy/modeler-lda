@@ -42,9 +42,10 @@ import java.util.stream.Collectors;
         "librairy.neo4j.port = 5030",
         "librairy.eventbus.host = 192.168.99.100",
         "librairy.eventbus.port = 5041",
-        "spark.filesystem = file:",
+        "spark.filesystem = file",
         "librairy.modeler.folder = target",
-        "librairy.vocabulary.folder = target"
+        "librairy.vocabulary.folder = target",
+        "librairy.vocabulary.size = 10000"
 })
 public class OnlineLDABuilderTest {
 
@@ -61,9 +62,8 @@ public class OnlineLDABuilderTest {
     public void buildOnlineLDA(){
 
         String domainURI    = "http://drinventor.eu/domains/4f56ab24bb6d815a48b8968a3b157470";
-        Integer vocabSize   = 10000;
 
-        builder.build(domainURI,vocabSize);
+        builder.build(domainURI);
 
     }
 }

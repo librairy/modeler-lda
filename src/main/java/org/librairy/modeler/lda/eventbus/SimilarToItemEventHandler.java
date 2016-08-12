@@ -80,7 +80,7 @@ public class SimilarToItemEventHandler implements EventBusSubscriber {
                             .newSimilarToDocuments(document1Uri, document2Uri, domainUri);
                     similarToDocuments.setWeight(similarItemRel.getWeight());
                     similarToDocuments.setDomain(similarItemRel.getDomain());
-                    LOG.info("Saving similarity between Documents from Items: " + similarToDocuments);
+                    LOG.info("Saving similarity similarityBetween Documents from Items: " + similarToDocuments);
                     udm.save(similarToDocuments);
                 });
             });

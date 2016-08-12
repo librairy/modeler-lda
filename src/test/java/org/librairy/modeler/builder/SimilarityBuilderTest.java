@@ -11,10 +11,8 @@ import org.librairy.model.domain.relations.SimilarTo;
 import org.librairy.model.domain.resources.Resource;
 import org.librairy.modeler.lda.Config;
 import org.librairy.modeler.lda.builder.OnlineLDABuilder;
+import org.librairy.modeler.lda.builder.SimilarityBuilder;
 import org.librairy.modeler.lda.helper.ModelingHelper;
-import org.librairy.modeler.lda.models.similarity.RelationalSimilarity;
-import org.librairy.modeler.lda.models.topic.DensityDistribution;
-import org.librairy.modeler.lda.models.topic.WeightedPair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,11 +21,8 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import scala.Tuple2;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 /**
  * Created on 27/06/16:
@@ -56,7 +51,7 @@ public class SimilarityBuilderTest {
     private static final Logger LOG = LoggerFactory.getLogger(SimilarityBuilderTest.class);
 
     @Autowired
-    OnlineLDABuilder builder;
+    SimilarityBuilder builder;
 
     @Autowired
     ModelingHelper modelingHelper;
@@ -87,7 +82,7 @@ public class SimilarityBuilderTest {
 //        });
 
         // Items Similarities
-        LOG.info("Calculating similarities between parts in domain: " + domainUri);
+        LOG.info("Calculating similarities similarityBetween parts in domain: " + domainUri);
         calculateSimilaritiesBetweenParts(domainUri);
 
     }
@@ -114,7 +109,7 @@ public class SimilarityBuilderTest {
                     .ITEM, pair._2.getUri()).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
                     (Collectors.toList());
 
-            Double similarity = RelationalSimilarity.between(p1, p2);
+            Double similarity = builder.similarityBetween(p1, p2);
 
             LOG.info("Attaching SIMILAR_TO based on " + pair);
             SimilarTo simRel1 = Relation.newSimilarToItems(pair._1.getUri(), pair._2.getUri(), domainUri);
@@ -149,7 +144,7 @@ public class SimilarityBuilderTest {
                     .PART, pair._2.getUri()).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
                     (Collectors.toList());
 
-            Double similarity = RelationalSimilarity.between(p1, p2);
+            Double similarity = builder.similarityBetween(p1, p2);
 
             LOG.info("Attaching SIMILAR_TO (PART) based on " + pair);
             SimilarTo simRel1 = Relation.newSimilarToParts(pair._1.getUri(), pair._2.getUri(), domainUri);

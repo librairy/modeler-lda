@@ -1,12 +1,8 @@
 package org.librairy.modeler.lda.services;
 
-import org.librairy.model.domain.relations.Relation;
-import org.librairy.model.domain.resources.Analysis;
-import org.librairy.model.domain.resources.Domain;
 import org.librairy.model.domain.resources.Resource;
-import org.librairy.modeler.lda.cache.CacheManager;
 import org.librairy.modeler.lda.helper.ModelingHelper;
-import org.librairy.modeler.lda.models.topic.TopicModeler;
+import org.librairy.modeler.lda.tasks.LDATask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +12,6 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.util.Date;
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 
@@ -39,9 +34,6 @@ public class TopicModelingService {
     @Autowired
     ModelingHelper helper;
 
-    @Autowired
-    CacheManager cacheManager;
-
     @PostConstruct
     public void setup(){
         this.tasks = new ConcurrentHashMap<>();
@@ -56,7 +48,7 @@ public class TopicModelingService {
         LOG.info("Planning a new task for building a topic model (LDA) for the domain: " + domainUri + " and resources: " + resourceType);
         ScheduledFuture<?> task = tasks.get(domainUri+resourceType.name());
         if (task != null) task.cancel(false);
-        task = this.threadpool.schedule(new TopicModeler(domainUri,helper,resourceType), new Date(System.currentTimeMillis() + delay));
+        task = this.threadpool.schedule(new LDATask(domainUri,helper,resourceType), new Date(System.currentTimeMillis() + delay));
         tasks.put(domainUri+resourceType.name(),task);
     }
 

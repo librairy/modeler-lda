@@ -11,7 +11,7 @@ import org.librairy.model.modules.EventBus;
 import org.librairy.model.modules.RoutingKey;
 import org.librairy.modeler.lda.Config;
 import org.librairy.modeler.lda.helper.ModelingHelper;
-import org.librairy.modeler.lda.models.topic.TopicModeler;
+import org.librairy.modeler.lda.tasks.LDATask;
 import org.librairy.storage.UDM;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -59,7 +59,7 @@ public class ModelingTest {
     public void run() throws InterruptedException {
 
         String domainUri = "http://librairy.org/domains/default";
-        new TopicModeler(domainUri,helper,Resource.Type.ITEM).run();
+        new LDATask(domainUri,helper,Resource.Type.ITEM).run();
 //
         LOG.info("Sleepping...");
         Thread.sleep(300000);

@@ -23,22 +23,17 @@ public class ModelingHelper {
     URIGenerator uriGenerator;
 
     @Autowired
-    AuthorBuilder authorBuilder;
-
-    @Autowired
-    ModelBuilder modelBuilder;
-
-    @Autowired
-    TopicModelBuilder topicModelBuilder;
-
-    @Autowired
     OnlineLDABuilder onlineLDABuilder;
 
     @Autowired
-    RegularResourceBuilder regularResourceBuilder;
+    SimilarityBuilder similarityBuilder;
+
+    @Autowired
+    Cleaner cleaner;
 
     @Autowired
     UDM udm;
+
     @Autowired
     UnifiedColumnRepository columnRepository;
 }
