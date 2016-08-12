@@ -67,6 +67,7 @@ public class SimilarToItemEventHandler implements EventBusSubscriber {
             SimilarToItems similarItemRel = res.get().asSimilarToItems();
             String item1Uri      = similarItemRel.getStartUri();
             String item2Uri      = similarItemRel.getEndUri();
+            String domainUri     = similarItemRel.getDomain();
 
             // set SIMILAR_TO(DOCUMENT)
             columnRepository.findBy(Relation.Type.BUNDLES, "item", item1Uri).forEach( rel -> {
@@ -76,7 +77,7 @@ public class SimilarToItemEventHandler implements EventBusSubscriber {
                     String document2Uri = rel2.getStartUri();
 
                     SimilarToDocuments similarToDocuments = Relation
-                            .newSimilarToDocuments(document1Uri, document2Uri);
+                            .newSimilarToDocuments(document1Uri, document2Uri, domainUri);
                     similarToDocuments.setWeight(similarItemRel.getWeight());
                     similarToDocuments.setDomain(similarItemRel.getDomain());
                     LOG.info("Saving similarity between Documents from Items: " + similarToDocuments);

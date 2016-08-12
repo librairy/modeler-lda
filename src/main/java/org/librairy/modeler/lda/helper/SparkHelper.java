@@ -20,12 +20,6 @@ public class SparkHelper {
 
     private static final Logger LOG = LoggerFactory.getLogger(SparkHelper.class);
 
-    @Value("${librairy.modeler.threads}") @Setter
-    String threads; // 2
-
-    @Value("${librairy.modeler.memory}") @Setter
-    String memory; // 3g
-
     private SparkConf conf;
 
     @Getter
@@ -47,9 +41,9 @@ public class SparkHelper {
 
         // Initialize Spark Context
         this.conf = new SparkConf().
-                setMaster("local["+threads+"]").
+                setMaster("local["+processors+"]").
                 setAppName("librairy-LDA-Modeler").
-                set("spark.executor.memory", memory ).
+                set("spark.executor.memory", memPerProcess ).
                 set("spark.driver.maxResultSize","0");
 
         LOG.info("Spark configured with " +  processors + " processors and " +  memPerProcess+"m per process");

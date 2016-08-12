@@ -3,16 +3,23 @@ modelerLDA:
   image: librairy/modeler-lda:latest
   #restart: always
   environment:
-      - COLUMN_DB_HOST=wiig.dia.fi.upm.es
-      - COLUMN_DB_PORT=5011
-      - DOCUMENT_DB_HOST=wiig.dia.fi.upm.es
-      - DOCUMENT_DB_PORT=5021
-      - GRAPH_DB_HOST=wiig.dia.fi.upm.es
-      - GRAPH_DB_PORT=5030
-      - MESSAGE_BROKER_HOST=wiig.dia.fi.upm.es
-      - MESSAGE_BROKER_PORT=5041
-#  external_links:
-#    - column-db
-#    - document-db
-#    - graph-db
-#    - event-bus
+      - LIBRAIRY_FS=file
+      - LIBRAIRY_HOME=.
+  volumes:
+       - ./models:/usr/local/tomcat/models/
+       - ./vocabularies:/usr/local/tomcat/vocabularies/
+  external_links:
+       - column-db
+       - document-db
+       - graph-db
+       - event-bus
+  networks:
+       - "db"
+       - "events"
+networks:
+  db:
+    external:
+      name: base_db
+  events:
+    external:
+      name: base_events

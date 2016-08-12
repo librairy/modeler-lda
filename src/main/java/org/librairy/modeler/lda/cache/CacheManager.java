@@ -37,8 +37,8 @@ public class CacheManager {
                 .build(
                         new CacheLoader<String, String>() {
                             public String load(String key) {
-                                List<String> uris = udm.find(Resource.Type.DOMAIN).from(Resource.Type.ITEM, key);
-                                return (uris.isEmpty())? null : uris.get(0);
+                                List<Resource> resources = udm.find(Resource.Type.DOMAIN).from(Resource.Type.ITEM, key);
+                                return (resources.isEmpty())? null : resources.get(0).getUri();
                             }
                         });
     }

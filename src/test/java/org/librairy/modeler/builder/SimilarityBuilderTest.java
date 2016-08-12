@@ -40,14 +40,14 @@ import java.util.stream.StreamSupport;
 @TestPropertySource(properties = {
         "librairy.modeler.learn = false",
         "librairy.comparator.delay = 1000",
-        "librairy.cassandra.contactpoints = wiener.dia.fi.upm.es",
+        "librairy.cassandra.contactpoints = 192.168.99.100",
         "librairy.cassandra.port = 5011",
         "librairy.cassandra.keyspace = research",
-        "librairy.elasticsearch.contactpoints = wiener.dia.fi.upm.es",
+        "librairy.elasticsearch.contactpoints = 192.168.99.100",
         "librairy.elasticsearch.port = 5021",
-        "librairy.neo4j.contactpoints = wiener.dia.fi.upm.es",
+        "librairy.neo4j.contactpoints = 192.168.99.100",
         "librairy.neo4j.port = 5030",
-        "librairy.eventbus.host = wiener.dia.fi.upm.es",
+        "librairy.eventbus.host = 192.168.99.100",
         "librairy.eventbus.port = 5041",
 })
 public class SimilarityBuilderTest {
@@ -96,37 +96,32 @@ public class SimilarityBuilderTest {
     private void calculateSimilaritiesBetweenItems(String domainUri){
 
         LOG.info("Reading items from domain: " + domainUri);
-        List<String> items = modelingHelper.getUdm().find(Resource.Type.ITEM).from(Resource.Type.DOMAIN, domainUri);
+        List<Resource> items = modelingHelper.getUdm().find(Resource.Type.ITEM).from(Resource.Type.DOMAIN, domainUri);
 
-        JavaRDD<String> itemsRDD = modelingHelper.getSparkHelper().getSc().parallelize(items);
+        JavaRDD<Resource> itemsRDD = modelingHelper.getSparkHelper().getSc().parallelize(items);
 
-        List<Tuple2<String, String>> itemsPair = itemsRDD.cartesian(itemsRDD)
-                .filter(x -> x._1().compareTo(x._2()) > 0)
+        List<Tuple2<Resource, Resource>> itemsPair = itemsRDD.cartesian(itemsRDD)
+                .filter(x -> x._1().getUri().compareTo(x._2().getUri()) > 0)
                 .collect();
 
         LOG.info("Calculating similarities...");
         itemsPair.parallelStream().forEach( pair -> {
 
             List<Relationship> p1 = modelingHelper.getUdm().find(Relation.Type.DEALS_WITH_FROM_ITEM).from(Resource.Type
-                    .ITEM, pair._1).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
+                    .ITEM, pair._1.getUri()).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
                     (Collectors.toList());
             List<Relationship> p2 = modelingHelper.getUdm().find(Relation.Type.DEALS_WITH_FROM_ITEM).from(Resource.Type
-                    .ITEM, pair._2).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
+                    .ITEM, pair._2.getUri()).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
                     (Collectors.toList());
 
             Double similarity = RelationalSimilarity.between(p1, p2);
 
             LOG.info("Attaching SIMILAR_TO based on " + pair);
-            SimilarTo simRel1 = Relation.newSimilarToItems(pair._1, pair._2);
-            SimilarTo simRel2 = Relation.newSimilarToItems(pair._2, pair._1);
+            SimilarTo simRel1 = Relation.newSimilarToItems(pair._1.getUri(), pair._2.getUri(), domainUri);
 
             simRel1.setWeight(similarity);
             simRel1.setDomain(domainUri);
             modelingHelper.getUdm().save(simRel1);
-
-            simRel2.setWeight(similarity);
-            simRel2.setDomain(domainUri);
-            modelingHelper.getUdm().save(simRel2);
 
         });
 
@@ -136,37 +131,32 @@ public class SimilarityBuilderTest {
     private void calculateSimilaritiesBetweenParts(String domainUri){
 
         LOG.info("Reading parts from domain: " + domainUri);
-        List<String> parts = modelingHelper.getUdm().find(Resource.Type.PART).from(Resource.Type.DOMAIN, domainUri);
+        List<Resource> parts = modelingHelper.getUdm().find(Resource.Type.PART).from(Resource.Type.DOMAIN, domainUri);
 
-        JavaRDD<String> urisRDD = modelingHelper.getSparkHelper().getSc().parallelize(parts);
+        JavaRDD<Resource> urisRDD = modelingHelper.getSparkHelper().getSc().parallelize(parts);
 
-        List<Tuple2<String, String>> pairs = urisRDD.cartesian(urisRDD)
-                .filter(x -> x._1().compareTo(x._2()) > 0)
+        List<Tuple2<Resource, Resource>> pairs = urisRDD.cartesian(urisRDD)
+                .filter(x -> x._1().getUri().compareTo(x._2().getUri()) > 0)
                 .collect();
 
         LOG.info("Calculating similarities...");
         pairs.parallelStream().forEach( pair -> {
 
             List<Relationship> p1 = modelingHelper.getUdm().find(Relation.Type.DEALS_WITH_FROM_PART).from(Resource.Type
-                    .PART, pair._1).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
+                    .PART, pair._1.getUri()).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
                     (Collectors.toList());
             List<Relationship> p2 = modelingHelper.getUdm().find(Relation.Type.DEALS_WITH_FROM_PART).from(Resource.Type
-                    .PART, pair._2).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
+                    .PART, pair._2.getUri()).stream().map(rel -> new Relationship(rel.getEndUri(), rel.getWeight())).collect
                     (Collectors.toList());
 
             Double similarity = RelationalSimilarity.between(p1, p2);
 
             LOG.info("Attaching SIMILAR_TO (PART) based on " + pair);
-            SimilarTo simRel1 = Relation.newSimilarToParts(pair._1, pair._2);
-            SimilarTo simRel2 = Relation.newSimilarToParts(pair._2, pair._1);
+            SimilarTo simRel1 = Relation.newSimilarToParts(pair._1.getUri(), pair._2.getUri(), domainUri);
 
             simRel1.setWeight(similarity);
             simRel1.setDomain(domainUri);
             modelingHelper.getUdm().save(simRel1);
-
-            simRel2.setWeight(similarity);
-            simRel2.setDomain(domainUri);
-            modelingHelper.getUdm().save(simRel2);
 
         });
 

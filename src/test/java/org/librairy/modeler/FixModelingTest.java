@@ -30,14 +30,14 @@ import java.io.IOException;
 @TestPropertySource(properties = {
         "librairy.modeler.learn = false",
         "librairy.comparator.delay = 1000",
-        "librairy.cassandra.contactpoints = wiener.dia.fi.upm.es",
+        "librairy.cassandra.contactpoints = 192.168.99.100",
         "librairy.cassandra.port = 5011",
         "librairy.cassandra.keyspace = research",
-        "librairy.elasticsearch.contactpoints = wiener.dia.fi.upm.es",
+        "librairy.elasticsearch.contactpoints = 192.168.99.100",
         "librairy.elasticsearch.port = 5021",
-        "librairy.neo4j.contactpoints = wiener.dia.fi.upm.es",
+        "librairy.neo4j.contactpoints = 192.168.99.100",
         "librairy.neo4j.port = 5030",
-        "librairy.eventbus.host = wiener.dia.fi.upm.es",
+        "librairy.eventbus.host = 192.168.99.100",
         "librairy.eventbus.port = 5041",
         "librairy.modeler.folder = target/models",
 })
@@ -84,7 +84,7 @@ public class FixModelingTest {
         udm.find(Resource.Type.DOCUMENT)
                 .all()
                 .stream()
-                .map(uri -> udm.read(Resource.Type.DOCUMENT).byUri(uri).get().asDocument())
+                .map(res -> udm.read(Resource.Type.DOCUMENT).byUri(res.getUri()).get().asDocument())
                 .forEach(document -> {
                     try {
                         String year = (Strings.isNullOrEmpty(document.getPublishedOn()))? "NONE" : document
