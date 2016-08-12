@@ -4,7 +4,7 @@
 
 	<groupId>org.librairy</groupId>
     <artifactId>modeler-lda</artifactId>
-    <version>0.5-SNAPSHOT</version>
+    <version>0.5</version>
     <packaging>war</packaging>
     <name>librairy modeler lda</name>
     <description>Create Topic Models for a given domain</description>
@@ -855,7 +855,7 @@
         <dependency>
             <groupId>org.librairy</groupId>
             <artifactId>librairy-boot</artifactId>
-            <version>0.8</version>
+            <version>0.9</version>
         </dependency>
 
 		<!-- Ressist Dependency -->
