@@ -93,7 +93,7 @@ public class SimilarityBuilderTest {
         LOG.info("Reading items from domain: " + domainUri);
         List<Resource> items = modelingHelper.getUdm().find(Resource.Type.ITEM).from(Resource.Type.DOMAIN, domainUri);
 
-        JavaRDD<Resource> itemsRDD = modelingHelper.getSparkHelper().getSc().parallelize(items);
+        JavaRDD<Resource> itemsRDD = modelingHelper.getSparkHelper().getContext().parallelize(items);
 
         List<Tuple2<Resource, Resource>> itemsPair = itemsRDD.cartesian(itemsRDD)
                 .filter(x -> x._1().getUri().compareTo(x._2().getUri()) > 0)
@@ -128,7 +128,7 @@ public class SimilarityBuilderTest {
         LOG.info("Reading parts from domain: " + domainUri);
         List<Resource> parts = modelingHelper.getUdm().find(Resource.Type.PART).from(Resource.Type.DOMAIN, domainUri);
 
-        JavaRDD<Resource> urisRDD = modelingHelper.getSparkHelper().getSc().parallelize(parts);
+        JavaRDD<Resource> urisRDD = modelingHelper.getSparkHelper().getContext().parallelize(parts);
 
         List<Tuple2<Resource, Resource>> pairs = urisRDD.cartesian(urisRDD)
                 .filter(x -> x._1().getUri().compareTo(x._2().getUri()) > 0)

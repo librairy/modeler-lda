@@ -1,21 +1,19 @@
-modelerLDA:
-  container_name: modelerLDA
-  image: librairy/modeler-lda:latest
-  #restart: always
-  environment:
-      - LIBRAIRY_FS=file
-      - LIBRAIRY_HOME=.
-  volumes:
-       - ./lda-models:/usr/local/tomcat/lda-models/
-       - ./vocabularies:/usr/local/tomcat/vocabularies/
-  external_links:
-       - column-db
-       - document-db
-       - graph-db
-       - event-bus
-  networks:
-       - "db"
-       - "events"
+version: "2"
+services:
+  modelerLDA:
+    container_name: modelerLDA
+    image: librairy/modeler-lda:latest
+    #restart: always
+    volumes:
+         - ./librairy:/librairy
+    external_links:
+         - column-db
+         - document-db
+         - graph-db
+         - event-bus
+    networks:
+         - "db"
+         - "events"
 networks:
   db:
     external:

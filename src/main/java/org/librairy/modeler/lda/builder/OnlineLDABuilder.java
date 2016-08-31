@@ -22,11 +22,11 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.Metadata;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
+import org.librairy.computing.helper.SparkHelper;
 import org.librairy.model.domain.relations.*;
 import org.librairy.model.domain.resources.*;
 import org.librairy.model.utils.TimeUtils;
 import org.librairy.modeler.lda.functions.RowToPair;
-import org.librairy.modeler.lda.helper.SparkHelper;
 import org.librairy.storage.UDM;
 import org.librairy.storage.generator.URIGenerator;
 import org.librairy.storage.system.column.repository.UnifiedColumnRepository;
@@ -38,10 +38,10 @@ import org.springframework.stereotype.Component;
 import scala.Tuple2;
 import scala.reflect.ClassTag$;
 
-import java.io.File;
 import java.io.*;
-import java.nio.file.*;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -215,14 +215,14 @@ public class OnlineLDABuilder {
 
     public DataFrame preprocess(List<Row> rows){
 
-        JavaRDD<Row> jrdd = sparkHelper.getSc().parallelize(rows);
+        JavaRDD<Row> jrdd = sparkHelper.getContext().parallelize(rows);
 
         StructType schema = new StructType(new StructField[]{
                 new StructField("uri", DataTypes.StringType, false, Metadata.empty()),
                 new StructField("tokens", DataTypes.StringType, false, Metadata.empty())
         });
 
-        SQLContext sqlContext = new SQLContext(sparkHelper.getSc());
+        SQLContext sqlContext = new SQLContext(sparkHelper.getContext());
 
         int processors = Runtime.getRuntime().availableProcessors()*2; //2 or 3 times
 
@@ -334,11 +334,11 @@ public class OnlineLDABuilder {
 
             String vocabPath = fileSystemEndpoint +"://" + vocabularyFolderPath;
             LOG.info("Saving the vocabulary: " + vocabPath);
-            cvModel.save(vocabPath);
+//            cvModel.save(vocabPath);
 
             String modelPath = fileSystemEndpoint +"://" + modelFolderPath;
             LOG.info("Saving the model: " + modelPath);
-            ldaModel.save(sparkHelper.getSc().sc(), modelPath);
+            ldaModel.save(sparkHelper.getContext().sc(), modelPath);
 
         }catch (Exception e){
             if (e instanceof FileAlreadyExistsException) {

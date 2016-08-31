@@ -1,13 +1,13 @@
 package org.librairy.modeler.lda.builder;
 
-import es.upm.oeg.epnoi.matching.metrics.similarity.JensenShannonSimilarity;
 import lombok.Setter;
 import org.apache.spark.api.java.JavaRDD;
+import org.librairy.computing.helper.SparkHelper;
+import org.librairy.metrics.similarity.JensenShannonSimilarity;
 import org.librairy.model.domain.relations.Relation;
 import org.librairy.model.domain.relations.Relationship;
 import org.librairy.model.domain.relations.SimilarTo;
 import org.librairy.model.domain.resources.Resource;
-import org.librairy.modeler.lda.helper.SparkHelper;
 import org.librairy.storage.UDM;
 import org.librairy.storage.generator.URIGenerator;
 import org.librairy.storage.system.column.repository.UnifiedColumnRepository;
@@ -91,7 +91,7 @@ public class SimilarityBuilder {
 
         if (resources.isEmpty()) return;
 
-        JavaRDD<Resource> resourcesRDD = sparkHelper.getSc().parallelize(resources);
+        JavaRDD<Resource> resourcesRDD = sparkHelper.getContext().parallelize(resources);
 
         List<Tuple2<Resource, Resource>> pairs = resourcesRDD.cartesian(resourcesRDD)
                 .filter(x -> x._1().getUri().compareTo(x._2().getUri()) > 0)

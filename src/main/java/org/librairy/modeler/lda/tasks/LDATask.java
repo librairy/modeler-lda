@@ -2,8 +2,14 @@ package org.librairy.modeler.lda.tasks;
 
 import org.librairy.model.domain.resources.Resource;
 import org.librairy.modeler.lda.helper.ModelingHelper;
+import org.librairy.modeler.lda.models.Corpus;
+import org.librairy.modeler.lda.models.TopicDescription;
+import org.librairy.modeler.lda.models.TopicModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * Created on 12/08/16:
@@ -32,14 +38,25 @@ public class LDATask implements Runnable {
 
         LOG.info("ready to create a new topic model for domain: " + domainUri);
 
-        // Remove existing topics in domain
-        helper.getCleaner().clean(domainUri);
+        // Create corpus
+        Corpus corpus = helper.getCorpusBuilder().build(domainUri, Resource.Type.ITEM);
 
         // Create a new Topic Model
-        helper.getOnlineLDABuilder().build(domainUri);
+        TopicModel model = helper.getLdaBuilder().build(corpus);
 
-        // Calculate similarities based on the model
-        helper.getSimilarityBuilder().update(domainUri);
+        // Persist it on data model
+        Map<String, String> registry = helper.getTopicsBuilder().persist(model);
+
+        // Relate items to topics
+        helper.getDealsBuilder().build(corpus,model,registry);
+
+        // Relate parts to topics
+        Corpus corpusOfParts = helper.getCorpusBuilder().build(domainUri, Resource.Type.PART);
+        corpusOfParts.setCountVectorizerModel(corpus.getCountVectorizerModel());
+        helper.getDealsBuilder().build(corpusOfParts,model,registry);
+
+        //TODO Calculate similarities based on the model
+//        helper.getSimilarityBuilder().update(domainUri);
 
     }
 

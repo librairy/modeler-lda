@@ -3,10 +3,10 @@
     <modelVersion>4.0.0</modelVersion>
 
 	<groupId>org.librairy</groupId>
-    <artifactId>modeler-lda</artifactId>
+    <artifactId>librairy-modeler-lda</artifactId>
     <version>0.8-SNAPSHOT</version>
     <packaging>war</packaging>
-    <name>librairy modeler lda</name>
+    <name>modeler-lda</name>
     <description>Create Topic Models for a given domain</description>
     <url>https://github.com/librairy/modeler-lda</url>
     <organization>
@@ -53,12 +53,17 @@
 
         <!-- Project Dependencies -->
 
+
         <asm.version>5.0.4</asm.version>
         <apache.commons.lang.version>3.0</apache.commons.lang.version>
         <beanutils.version>1.9.2</beanutils.version>
         <camel.euia.version>1.0.0</camel.euia.version>
         <camel.oaipmh.version>1.0.5</camel.oaipmh.version>
         <camel.version>2.15.2</camel.version>
+        <cassandra.driver.core.version>2.1.9</cassandra.driver.core.version>
+        <cassandra.driver.dse.version>2.1.9</cassandra.driver.dse.version>
+        <cassandra.spark.version>1.5.0-M1</cassandra.spark.version>
+        <cassandra.spark.java.version>1.5.0</cassandra.spark.java.version>
         <cloning.version>1.9.1</cloning.version>
         <coreNlpExtensions.version>1.0</coreNlpExtensions.version>
         <commons.lang.version>2.6</commons.lang.version>
@@ -67,7 +72,7 @@
         <gate.version>8.1</gate.version>
         <gate.stanford.version>1.0</gate.stanford.version>
         <guava.version>18.0</guava.version>
-        <hadoop.version>2.6.0</hadoop.version>
+        <hadoop.version>2.2.0</hadoop.version>
         <hector.version>1.1-3</hector.version>
         <hibernate.version>4.3.0.Beta5</hibernate.version>
         <httpcomponents.version>4.4</httpcomponents.version>
@@ -84,7 +89,9 @@
         <jena.version>2.10.1</jena.version>
         <jgrapht.version>0.9.0</jgrapht.version>
         <junit.version>4.12</junit.version>
-        <librairy.version>0.4-SNAPSHOT</librairy.version>
+        <librairy.boot.version>0.15-SNAPSHOT</librairy.boot.version>
+        <librairy.computing.version>0.2</librairy.computing.version>
+        <librairy.metrics.version>1.1</librairy.metrics.version>
         <log4j.version>1.2.17</log4j.version>
         <log4j.slf4j.version>1.7.14</log4j.slf4j.version>
         <logback.version>1.1.3</logback.version>
@@ -108,11 +115,11 @@
         <servlet.api.version>2.4</servlet.api.version>
         <slf4j.version>1.7.12</slf4j.version>
         <solr.version>5.4.0</solr.version>
-        <spark.version>1.6.1</spark.version>
+        <spark.version>1.5.2</spark.version><!-- 1.5.2 -->
         <springboot.version>1.2.1.RELEASE</springboot.version>
         <spring.data.commons.version>1.12.0.M1</spring.data.commons.version>
         <spring.data.jpa.version>1.10.0.M1</spring.data.jpa.version>
-        <spring.data.cassandra.version>1.4.0.M1</spring.data.cassandra.version>
+        <spring.data.cassandra.version>1.4.1.RELEASE</spring.data.cassandra.version>
         <spring.data.elasticsearch.version>1.4.0.M1</spring.data.elasticsearch.version>
         <spring.data.neo4j.version>4.1.0.M1</spring.data.neo4j.version>
         <spring.data.neo4j.ogm.version>2.0.0-M03</spring.data.neo4j.ogm.version>
@@ -122,6 +129,7 @@
         <stanford.parser.version>1.0</stanford.parser.version>
         <surefire.junit.version>2.12</surefire.junit.version>
         <swagger.jersey.version>1.5.0</swagger.jersey.version>
+        <sweble.version>1.1.0</sweble.version>
         <sweble.version>1.1.0</sweble.version>
         <testutils.version>1.0.0</testutils.version>
         <tomcat.version>8.0.21</tomcat.version>
@@ -219,6 +227,26 @@
                 <version>${spring.data.cassandra.version}</version>
             </dependency>
             <dependency>
+                <groupId>com.datastax.cassandra</groupId>
+                <artifactId>cassandra-driver-dse</artifactId>
+                <version>${cassandra.driver.dse.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.datastax.cassandra</groupId>
+                <artifactId>cassandra-driver-core</artifactId>
+                <version>${cassandra.driver.core.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.datastax.spark</groupId>
+                <artifactId>spark-cassandra-connector_2.10</artifactId>
+                <version>${cassandra.spark.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.datastax.spark</groupId>
+                <artifactId>spark-cassandra-connector-java_2.10</artifactId>
+                <version>${cassandra.spark.java.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.xerial.snappy</groupId>
                 <artifactId>snappy-java</artifactId>
                 <version>${snappy.version}</version>
@@ -234,6 +262,18 @@
                 <groupId>org.springframework.data</groupId>
                 <artifactId>spring-data-elasticsearch</artifactId>
                 <version>${spring.data.elasticsearch.version}</version>
+            </dependency>
+
+            <!-- Hadoop Libraries -->
+            <dependency>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-client</artifactId>
+                <version>${hadoop.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-main</artifactId>
+                <version>${hadoop.version}</version>
             </dependency>
 
             <!-- Graph Libraries -->
@@ -300,6 +340,23 @@
                 <groupId>com.fasterxml.jackson.core</groupId>
                 <artifactId>jackson-databind</artifactId>
                 <version>${fasterxml.jackson.version}</version>
+            </dependency>
+
+            <!-- Librairy -->
+            <dependency>
+                <groupId>org.librairy</groupId>
+                <artifactId>librairy-boot</artifactId>
+                <version>${librairy.boot.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.librairy</groupId>
+                <artifactId>librairy-metrics</artifactId>
+                <version>${librairy.metrics.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.librairy</groupId>
+                <artifactId>librairy-computing</artifactId>
+                <version>${librairy.computing.version}</version>
             </dependency>
 
             <!-- Log Libraries -->
@@ -608,14 +665,14 @@
 
             <!-- Spark Libraries -->
             <dependency>
-                <groupId>org.apache.hadoop</groupId>
-                <artifactId>hadoop-client</artifactId>
-                <version>${hadoop.version}</version>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-core_2.10</artifactId>
+                <version>${spark.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.apache.hadoop</groupId>
-                <artifactId>hadoop-main</artifactId>
-                <version>${hadoop.version}</version>
+                <groupId>org.apache.spark</groupId>
+                <artifactId>spark-mllib_2.10</artifactId>
+                <version>${spark.version}</version>
             </dependency>
 
             <!-- Spring Libraries -->
@@ -855,59 +912,32 @@
         <dependency>
             <groupId>org.librairy</groupId>
             <artifactId>librairy-boot</artifactId>
-            <version>0.9</version>
         </dependency>
-
-		<!-- Ressist Dependency -->
-		<!--<dependency>-->
-			<!--<groupId>es.upm.oeg.epnoi</groupId>-->
-			<!--<artifactId>epnoi-ressist</artifactId>-->
-			<!--<exclusions>-->
-				<!--<exclusion>-->
-					<!--<groupId>org.slf4j</groupId>-->
-					<!--<artifactId>slf4j-log4j12</artifactId>-->
-				<!--</exclusion>-->
-                <!--<exclusion>-->
-                    <!--<groupId>org.apache.spark</groupId>-->
-                    <!--<artifactId>spark-core_2.11</artifactId>-->
-                <!--</exclusion>-->
-                <!--<exclusion>-->
-                    <!--<groupId>org.apache.spark</groupId>-->
-                    <!--<artifactId>spark-mllib_2.11</artifactId>-->
-                <!--</exclusion>-->
-
-			<!--</exclusions>-->
-		<!--</dependency>-->
 
         <dependency>
-            <groupId>es.upm.oeg.epnoi</groupId>
-            <artifactId>epnoi-matching-metrics</artifactId>
-            <version>${metrics.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-log4j12</artifactId>
-                </exclusion>
-            </exclusions>
+            <groupId>org.librairy</groupId>
+            <artifactId>librairy-metrics</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.librairy</groupId>
+            <artifactId>librairy-computing</artifactId>
+        </dependency>
 
-        <!--<dependency>-->
-            <!--<groupId>com.datastax.spark</groupId>-->
-            <!--<artifactId>spark-cassandra-connector_2.10</artifactId>-->
-            <!--<version>1.6.0-M2</version>-->
-        <!--</dependency>-->
-        <!--<dependency>-->
-            <!--<groupId>com.datastax.spark</groupId>-->
-            <!--<artifactId>spark-cassandra-connector-java_2.10</artifactId>-->
-            <!--<version>1.6.0-M1</version>-->
-        <!--</dependency>-->
+        <!-- Cassandra DataFrames-->
+        <dependency>
+            <groupId>com.datastax.spark</groupId>
+            <artifactId>spark-cassandra-connector_2.10</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.datastax.spark</groupId>
+            <artifactId>spark-cassandra-connector-java_2.10</artifactId>
+        </dependency>
 
-        <!-- Spark -->
+		<!-- Spark -->
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-core_2.10</artifactId>
-            <version>${spark.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
@@ -918,7 +948,11 @@
         <dependency>
             <groupId>org.apache.spark</groupId>
             <artifactId>spark-mllib_2.10</artifactId>
-            <version>${spark.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.jblas</groupId>
+            <artifactId>jblas</artifactId>
+            <version>1.2.4</version>
         </dependency>
 
         <!-- Spring Web -->
@@ -1222,7 +1256,7 @@
                         </systemProperty>
                         <systemProperty>
                             <name>COLUMN_DB_HOST</name>
-                            <value>wiig.dia.fi.upm.es</value>
+                            <value>127.0.0.1</value>
                         </systemProperty>
                         <systemProperty>
                             <name>COLUMN_DB_PORT</name>
@@ -1230,7 +1264,7 @@
                         </systemProperty>
                         <systemProperty>
                             <name>DOCUMENT_DB_HOST</name>
-                            <value>wiig.dia.fi.upm.es</value>
+                            <value>127.0.0.1</value>
                         </systemProperty>
                         <systemProperty>
                             <name>DOCUMENT_DB_PORT</name>
@@ -1238,7 +1272,7 @@
                         </systemProperty>
                         <systemProperty>
                             <name>GRAPH_DB_HOST</name>
-                            <value>wiig.dia.fi.upm.es</value>
+                            <value>127.0.0.1</value>
                         </systemProperty>
                         <systemProperty>
                             <name>GRAPH_DB_PORT</name>
@@ -1246,7 +1280,7 @@
                         </systemProperty>
                         <systemProperty>
                             <name>MESSAGE_BROKER_HOST</name>
-                            <value>wiig.dia.fi.upm.es</value>
+                            <value>127.0.0.1</value>
                         </systemProperty>
                         <systemProperty>
                             <name>MESSAGE_BROKER_PORT</name>
@@ -1262,7 +1296,7 @@
                 <artifactId>docker-maven-plugin</artifactId>
                 <version>0.2.3</version>
                 <configuration>
-                    <imageName>${docker.image.prefix}/${project.artifactId}</imageName>
+                    <imageName>${docker.image.prefix}/${project.name}</imageName>
                     <dockerDirectory>src/main/docker</dockerDirectory>
                     <resources>
                         <resource>
@@ -1273,6 +1307,7 @@
                     </resources>
                     <imageTags>
                         <imageTag>${project.version}</imageTag>
+                        <imageTag>latest</imageTag>
                     </imageTags>
                 </configuration>
             </plugin>
