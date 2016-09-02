@@ -4,7 +4,7 @@
 
 	<groupId>org.librairy</groupId>
     <artifactId>librairy-modeler-lda</artifactId>
-    <version>0.8</version>
+    <version>0.9-SNAPSHOT</version>
     <packaging>war</packaging>
     <name>modeler-lda</name>
     <description>Create Topic Models for a given domain</description>
@@ -861,7 +861,7 @@
         <!-- Librairy Repository -->
         <repository>
             <id>librairy-mvn-repo</id>
-            <url>https://raw.github.com/librairy/boot/mvn-repo/</url>
+            <url>https://raw.github.com/librairy/metrics/mvn-repo/</url>
             <snapshots>
                 <enabled>true</enabled>
                 <updatePolicy>always</updatePolicy>
