@@ -9,7 +9,7 @@ import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 /**
  * Created by cbadenes on 11/01/16.
  */
-@Configuration("modeler-lda")
+@Configuration("modeler.lda")
 @ComponentScan({"org.librairy"})
 @PropertySource({"classpath:lda-modeler.properties","classpath:boot.properties","classpath:computing.properties"})
 public class Config {

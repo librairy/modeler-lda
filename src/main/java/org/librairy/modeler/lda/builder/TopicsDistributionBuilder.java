@@ -1,6 +1,5 @@
 package org.librairy.modeler.lda.builder;
 
-import org.apache.spark.mllib.clustering.LocalLDAModel;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.rdd.RDD;
 import org.librairy.model.domain.resources.Resource;
@@ -14,11 +13,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import scala.Tuple2;
 
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
-import java.util.function.DoubleBinaryOperator;
 import java.util.stream.Collectors;
 
 /**

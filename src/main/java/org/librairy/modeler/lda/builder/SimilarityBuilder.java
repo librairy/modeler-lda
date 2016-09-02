@@ -8,6 +8,8 @@ import org.librairy.model.domain.relations.Relation;
 import org.librairy.model.domain.relations.Relationship;
 import org.librairy.model.domain.relations.SimilarTo;
 import org.librairy.model.domain.resources.Resource;
+import org.librairy.modeler.lda.models.SimilarResource;
+import org.librairy.modeler.lda.models.TopicDistribution;
 import org.librairy.storage.UDM;
 import org.librairy.storage.generator.URIGenerator;
 import org.librairy.storage.system.column.repository.UnifiedColumnRepository;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Component;
 import scala.Tuple2;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -110,6 +113,49 @@ public class SimilarityBuilder {
             simRel1.setDomain(domainUri);
             udm.save(simRel1);
         });
+    }
+
+
+    public List<SimilarResource> topSimilars(Resource.Type type, String domainUri, Integer n,  List<TopicDistribution>
+            topicsDistribution){
+
+        LOG.info("Getting top "+n+" similar " + type.route() + " to a given one in domain: " + domainUri);
+
+        List<Relationship> topicsInText = topicsDistribution.stream()
+                .map(td -> new Relationship(td.getTopicUri(),td.getWeight()))
+                .collect(Collectors.toList());
+
+        Comparator<? super SimilarResource> byWeight = new Comparator<SimilarResource>() {
+            @Override
+            public int compare(SimilarResource o1, SimilarResource o2) {
+                return -o1.getWeight().compareTo(o2.getWeight());
+            }
+        };
+
+        List<Resource> items = udm.find(type).from(Resource.Type.DOMAIN, domainUri);
+
+        return udm.find(type)
+                .from(Resource.Type.DOMAIN, domainUri)
+                .parallelStream()
+                .map( resource -> {
+
+                    List<Relationship> p1 = udm.find(dealsFrom(type))
+                            .from(type, resource.getUri())
+                            .stream()
+                            .map(rel -> new Relationship(rel.getEndUri(), rel.getWeight()))
+                            .collect(Collectors.toList());
+
+                    Double similarity = similarityBetween(p1, topicsInText);
+
+                    SimilarResource sr = new SimilarResource();
+                    sr.setUri(resource.getUri());
+                    sr.setWeight(similarity);
+                    return sr;
+                })
+                .sorted(byWeight)
+                .limit(n)
+                .collect(Collectors.toList())
+        ;
     }
 
     public Double similarityBetween(List<Relationship> relationships1, List<Relationship> relationships2){
