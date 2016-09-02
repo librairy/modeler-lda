@@ -45,18 +45,6 @@ public class SimilarityBuilder {
     @Autowired @Setter
     SparkHelper sparkHelper;
 
-    @Value("${spark.filesystem}") @Setter
-    String fileSystemEndpoint;
-
-    @Value("${librairy.modeler.maxiterations}") @Setter
-    Integer maxIterations;
-
-    @Value("${librairy.modeler.folder}")
-    String modelFolder;
-
-    @Value("${librairy.vocabulary.folder}")
-    String vocabularyFolder;
-
 
     public void update(String domainUri){
 
@@ -147,11 +135,11 @@ public class SimilarityBuilder {
         }
     }
 
-    private SimilarTo newSimilarTo(Resource.Type type, String uri1, String uri2, String uri3){
+    private SimilarTo newSimilarTo(Resource.Type type, String uri1, String uri2, String domainUri){
         switch (type){
-            case ITEM: return Relation.newSimilarToItems(uri1, uri2, uri3);
-            case DOCUMENT: return Relation.newSimilarToDocuments(uri1, uri2, uri3);
-            case PART: return Relation.newSimilarToParts(uri1, uri2, uri3);
+            case ITEM: return Relation.newSimilarToItems(uri1, uri2, domainUri);
+            case DOCUMENT: return Relation.newSimilarToDocuments(uri1, uri2, domainUri);
+            case PART: return Relation.newSimilarToParts(uri1, uri2, domainUri);
             default: throw new RuntimeException("Type : " + type + " not handled to calculate similarities");
         }
     }

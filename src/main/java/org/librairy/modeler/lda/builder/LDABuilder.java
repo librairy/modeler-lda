@@ -1,7 +1,5 @@
 package org.librairy.modeler.lda.builder;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.Setter;
 import org.apache.spark.ml.feature.CountVectorizerModel;
 import org.apache.spark.mllib.clustering.LDA;
 import org.apache.spark.mllib.clustering.LDAModel;
@@ -9,13 +7,12 @@ import org.apache.spark.mllib.clustering.LocalLDAModel;
 import org.apache.spark.mllib.clustering.OnlineLDAOptimizer;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.rdd.RDD;
-import org.librairy.computing.cluster.Partitioner;
 import org.librairy.computing.helper.SparkHelper;
 import org.librairy.computing.helper.StorageHelper;
 import org.librairy.modeler.lda.models.Corpus;
 import org.librairy.modeler.lda.models.TopicModel;
-import org.librairy.modeler.lda.utils.SerializerUtils;
-import org.librairy.storage.UDM;
+import org.librairy.modeler.lda.optimizers.LDAOptimizer;
+import org.librairy.modeler.lda.optimizers.LDAParameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,10 +20,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import scala.Tuple2;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URISyntaxException;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 
@@ -41,27 +34,16 @@ public class LDABuilder {
     private static Logger LOG = LoggerFactory.getLogger(LDABuilder.class);
 
     @Autowired
-    UDM udm;
-
-    @Autowired
     SparkHelper sparkHelper;
 
     @Autowired
     StorageHelper storageHelper;
 
     @Autowired
-    Partitioner partitionHelper;
+    LDAOptimizer ldaOptimizer;
 
-    @Autowired
-    CorpusBuilder corpusBuilder;
-
-    ObjectMapper jsonMapper = new ObjectMapper();
-
-    @Value("${librairy.modeler.maxiterations}") @Setter
+    @Value("#{environment['LIBRAIRY_LDA_MAX_ITERATIONS']?:${librairy.lda.maxiterations}}")
     Integer maxIterations;
-
-    @Value("${librairy.vocabulary.size}")
-    Integer vocabularySize;
 
     public TopicModel build(Corpus corpus){
 
@@ -75,27 +57,23 @@ public class LDABuilder {
 
     }
 
-
     public TopicModel train(Corpus corpus){
 
-        RDD<Tuple2<Object, Vector>> documents = corpus.getDocuments().cache();
+        // LDA parameter optimization
+        LDAParameters ldaParameters = ldaOptimizer.getParametersFor(corpus);
+        LOG.info("LDA parameters calculated by " + ldaOptimizer+ ": " + ldaParameters);
 
-        // -> build model
-        //TODO algorithm to discover number of topics
-        Integer k = Double.valueOf(2*Math.sqrt(corpus.getSize()/2)).intValue();
-        Double alpha    = -1.0;
-        Double beta     = -1.0;
-        double mbf      = 0.8;
-
+        // LDA parametrization
+        RDD<Tuple2<Object, Vector>> documents = corpus.getBagOfWords().cache();
         LDA lda = new LDA()
-                .setOptimizer(new OnlineLDAOptimizer().setMiniBatchFraction(mbf))
-                .setK(k)
+                .setOptimizer(new OnlineLDAOptimizer().setMiniBatchFraction(0.8))
+                .setK(ldaParameters.getK())
                 .setMaxIterations(maxIterations)
-                .setDocConcentration(alpha)
-                .setTopicConcentration(beta)
+                .setDocConcentration(ldaParameters.getAlpha())
+                .setTopicConcentration(ldaParameters.getBeta())
                 ;
 
-        LOG.info("Building a new LDA Model [k="+k+"|maxIter="+maxIterations+"|alpha="+alpha+"|beta="+beta+"] from "+
+        LOG.info("Building a new LDA Model (iter="+maxIterations+") "+ldaParameters+" from "+
                 corpus.getSize() + " documents");
         Instant startModel  = Instant.now();
         LDAModel ldaModel   = lda.run(documents);
@@ -114,26 +92,19 @@ public class LDABuilder {
     public void persist(TopicModel model, String id ){
         try {
 
-            // Save the model
-            String modelPath = storageHelper.path(id,"lda/model");
-            storageHelper.deleteIfExists(modelPath);
+            // Clean previous model
+            String ldaPath = storageHelper.path(id, "lda");
+            storageHelper.deleteIfExists(ldaPath);
 
-            String absoluteModelPath = storageHelper.absolutePath(modelPath);
+            // Save the model
+            String absoluteModelPath = storageHelper.absolutePath(storageHelper.path(id, "lda/model"));
             LOG.info("Saving (or updating) the lda model at: " + absoluteModelPath);
             model.getLdaModel().save(sparkHelper.getContext().sc(), absoluteModelPath);
 
             //Save the vocabulary
-            String vocabPath = storageHelper.path(id,"lda/vocabulary");
-            storageHelper.deleteIfExists(vocabPath);
-
-            String absoluteVocabPath = storageHelper.absolutePath(vocabPath);
+            String absoluteVocabPath = storageHelper.absolutePath(storageHelper.path(id, "lda/vocabulary"));
             LOG.info("Saving (or updating) the lda vocab at: " + absoluteVocabPath);
-
-            String tmpDir   = System.getProperty("java.io.tmpdir");
-
-            File vocabFile = Paths.get(tmpDir, "vectorizer-" + id + ".ser").toFile();
-            SerializerUtils.serialize(model.getCountVectorizerModel(), vocabFile.getAbsolutePath());
-            storageHelper.save(vocabPath+"/CountVectorizerModel.ser", vocabFile);
+            model.getVocabModel().save(absoluteVocabPath);
 
         }catch (Exception e){
             if (e instanceof java.nio.file.FileAlreadyExistsException) {
@@ -147,22 +118,17 @@ public class LDABuilder {
 
     public TopicModel load(String id){
 
-        try {
-            // Load the model
-            String path = storageHelper.absolutePath(storageHelper.path(id,"lda/model"));
-            LOG.info("loading lda model from :" + path);
-            LocalLDAModel localLDAModel = LocalLDAModel.load(sparkHelper.getContext().sc(), path);
+        // Load the model
+        String modelPath = storageHelper.absolutePath(storageHelper.path(id,"lda/model"));
+        LOG.info("loading lda model from :" + modelPath);
+        LocalLDAModel localLDAModel = LocalLDAModel.load(sparkHelper.getContext().sc(), modelPath);
 
-            //Load the CountVectorizerModel
-            String vectorizerPath = storageHelper.path(id,"lda/vocabulary/CountVectorizerModel.ser");
-            File vectorizerFile = storageHelper.read(vectorizerPath);
+        //Load the CountVectorizerModel
+        String vocabPath = storageHelper.absolutePath(storageHelper.path(id,"lda/vocabulary"));
+        LOG.info("loading lda vocabulary from :" + vocabPath);
+        CountVectorizerModel vocabModel = CountVectorizerModel.load(vocabPath);
+        return new TopicModel(id,localLDAModel, vocabModel);
 
-            CountVectorizerModel countVectorizerModel = (CountVectorizerModel) SerializerUtils.deserialize(vectorizerFile.getAbsolutePath());
-
-            return new TopicModel(id,localLDAModel, countVectorizerModel);
-        } catch (URISyntaxException | IOException | ClassNotFoundException e) {
-            throw new RuntimeException(e);
-        }
     }
 
 }

@@ -42,20 +42,23 @@ public class DealsBuilder {
 
         LOG.info("Linking "+corpus.getType().route()+" to topics in domain: " + domainUri);
 
-        RDD<Tuple2<Object, Vector>> documents = corpus.getDocuments().cache();
+        // Documents
+        RDD<Tuple2<Object, Vector>> documents = corpus.getBagOfWords().cache();
 
+        // LDA Model
         LocalLDAModel localLDAModel = topicModel.getLdaModel();
 
+        // Topics distribution for documents
+        Map<Object, String> documentsUri = corpus.getRegistry();
+
         // Topics distribution
-        RDD<Tuple2<Object, Vector>> itemsDistribution = localLDAModel.topicDistributions(documents);
+        RDD<Tuple2<Object, Vector>> topicsDistribution = localLDAModel.topicDistributions(documents);
 
+        Tuple2<Object, Vector>[] topicsDistributionArray = (Tuple2<Object, Vector>[]) topicsDistribution.collect();
 
-        Tuple2<Object, Vector>[] itemsArray = (Tuple2<Object, Vector>[]) itemsDistribution.collect();
+        Arrays.stream(topicsDistributionArray).parallel().forEach(distribution -> {
 
-        Map<Object, String> registry = corpus.getRegistry();
-        Arrays.stream(itemsArray).parallel().forEach(distribution -> {
-
-            String uri = registry.get(distribution._1);
+            String uri = documentsUri.get(distribution._1);
             double[] weights = distribution._2.toArray();
             for (int i = 0; i< weights.length; i++ ){
 
@@ -75,7 +78,7 @@ public class DealsBuilder {
                 }
                 dealsWith.setWeight(weights[i]);
                 LOG.info("Saving: " + dealsWith);
-//                udm.save(dealsWith);
+                udm.save(dealsWith);
             }
         });
 

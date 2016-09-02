@@ -9,6 +9,7 @@ import org.librairy.storage.UDM;
 import org.librairy.storage.generator.URIGenerator;
 import org.librairy.storage.system.column.repository.UnifiedColumnRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -17,6 +18,9 @@ import org.springframework.stereotype.Component;
 @Data
 @Component
 public class ModelingHelper {
+
+    @Value("#{environment['LIBRAIRY_LDA_VOCABULARY_SIZE']?:${librairy.lda.vocabulary.size}}")
+    Integer vocabSize;
 
     @Autowired
     SparkHelper sparkHelper;

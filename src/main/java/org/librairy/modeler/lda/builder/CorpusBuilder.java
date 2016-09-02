@@ -30,11 +30,6 @@ public class CorpusBuilder {
     @Autowired
     ModelingHelper helper;
 
-    @Value("${librairy.modeler.maxiterations}")
-    Integer maxIterations;
-
-    @Value("${librairy.vocabulary.size}")
-    Integer vocabularySize;
 
     public Corpus build(String domainUri, Resource.Type type){
 
@@ -60,7 +55,9 @@ public class CorpusBuilder {
     public Corpus build(String id, List<String> uris){
 
         // Initialize a corpus based on uris
-        return new Corpus(id, uris, vocabularySize, helper);
+        Corpus corpus = new Corpus(id, helper);
+        corpus.loadResources(uris);
+        return corpus;
     }
 
 }

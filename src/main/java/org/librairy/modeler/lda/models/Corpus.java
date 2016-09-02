@@ -2,8 +2,7 @@ package org.librairy.modeler.lda.models;
 
 import com.google.common.collect.ImmutableMap;
 import lombok.Data;
-import org.apache.spark.SparkContext;
-import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.ml.feature.CountVectorizer;
 import org.apache.spark.ml.feature.CountVectorizerModel;
 import org.apache.spark.ml.feature.RegexTokenizer;
@@ -12,6 +11,9 @@ import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.DataFrame;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
+import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.cassandra.CassandraSQLContext;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
@@ -29,6 +31,7 @@ import scala.reflect.ClassTag$;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -43,26 +46,55 @@ public class Corpus {
     private static final Logger LOG = LoggerFactory.getLogger(Corpus.class);
 
     String id;
-    Resource.Type type;
-    List<String> uris;
-    Integer vocabSize;
     Map<Object,String> registry;
     ModelingHelper helper;
     CountVectorizerModel countVectorizerModel;
+    DataFrame df;
 
-    public Corpus(String id, List<String> uris, Integer vocabSize, ModelingHelper helper){
+    public Corpus(String id, ModelingHelper helper){
         this.id = id;
-        this.uris = uris;
-        this.type = URIGenerator.typeFrom(uris.get(0));
         this.helper = helper;
-        this.vocabSize = vocabSize;
-
-        this.registry = new ConcurrentHashMap<>();
-        uris.parallelStream().forEach(uri -> registry.put(RowToPair.from(uri),uri));
     }
 
+    public void updateRegistry(List<String> ids){
+        this.registry = new ConcurrentHashMap<>();
+        ids.parallelStream().forEach(id -> registry.put(RowToPair.from(id),id));
+    }
 
-    public DataFrame getDataFrame(){
+    public void loadTexts(List<Text> texts){
+
+        List<String> ids = texts
+                .parallelStream()
+                .map(text -> text.getId())
+                .collect(Collectors.toList());
+        updateRegistry(ids);
+
+        List<Row> rows = texts.parallelStream()
+                .map(text -> RowFactory.create(text.getId(), text.getContent()))
+                .collect(Collectors.toList());
+
+        JavaRDD<Row> jrdd = helper.getSparkHelper().getContext().parallelize(rows);
+
+        // Define a schema
+        StructType schema = DataTypes
+                .createStructType(new StructField[] {
+                        DataTypes.createStructField(Resource.URI, DataTypes.StringType, false),
+                        DataTypes.createStructField(Item.TOKENS, DataTypes.StringType, false)
+                });
+
+        SQLContext sqlContext = new SQLContext(helper.getSparkHelper().getContext());
+
+
+        DataFrame df = sqlContext.createDataFrame(jrdd, schema);
+
+        this.df = process(df);
+    }
+
+    public void loadResources(List<String> uris){
+
+        updateRegistry(uris);
+
+
         // Create a Data Frame from Cassandra query
         CassandraSQLContext cc = new CassandraSQLContext(helper.getSparkHelper().getContext().sc());
 
@@ -75,6 +107,7 @@ public class Corpus {
 
         String whereClause = "uri in (" + uris.stream().map(uri -> "'"+uri+"'").collect(Collectors.joining(", ")) + ")";
 
+        Resource.Type type = URIGenerator.typeFrom(uris.get(0));
         DataFrame df = cc
                 .read()
                 .format("org.apache.spark.sql.cassandra")
@@ -86,7 +119,11 @@ public class Corpus {
                 .load()
                 .where(whereClause)
                 ;
+        this.df = process(df);
+    }
 
+
+    private DataFrame process(DataFrame df){
         LOG.info("Splitting each document into words ..");
         DataFrame words = new RegexTokenizer()
                 .setPattern("[\\W_]+")
@@ -112,34 +149,46 @@ public class Corpus {
         return filteredWords;
     }
 
-    public RDD<Tuple2<Object, Vector>> getDocuments(){
+    public RDD<Tuple2<Object, Vector>> getBagOfWords(){
 
-        DataFrame df = getDataFrame();
+        if (df == null) throw new RuntimeException("No documents in corpus");
 
         if (countVectorizerModel == null){
             // Train a Count Vectorizer Model based on corpus
-            LOG.info("Limiting to top "+vocabSize+" most common words and convert to word count vector features ..");
+            LOG.info("Limiting to top "+helper.getVocabSize()+" most common words and convert to word count vector features ..");
             countVectorizerModel = new CountVectorizer()
                     .setInputCol("filtered")
                     .setOutputCol("features")
-                    .setVocabSize(vocabSize)
+                    .setVocabSize(helper.getVocabSize())
                     .setMinDF(5)    // Specifies the minimum number of different documents a term must appear in to be included in the vocabulary.
                     .fit(df);
         }
 
         int estimatedPartitions = helper.getPartitioner().estimatedFor(df);
-        LOG.info("Estimated Partitions set to: " + estimatedPartitions);
         Tuple2<Object, Vector> tuple = new Tuple2<Object,Vector>(0l, Vectors.dense(new double[]{1.0}));
 
         return countVectorizerModel
-                .transform(getDataFrame())
+                .transform(df)
                 .select("uri", "features")
                 .repartition(estimatedPartitions)
                 .map(new RowToPair(), ClassTag$.MODULE$.<Tuple2<Object, Vector>>apply(tuple.getClass()));
     }
 
     public Integer getSize(){
-        return this.uris.size();
+        return this.registry.size();
+    }
+
+    public Resource.Type getType(){
+        if ((registry != null) && (!registry.isEmpty())){
+
+            Optional<Map.Entry<Object, String>> entry = registry.entrySet().stream().findAny();
+
+            if (entry.isPresent() && entry.get().getValue().startsWith("http")){
+            return URIGenerator.typeFrom(entry.get().getValue());
+            }
+
+        }
+        return Resource.Type.ITEM;
     }
 
 }

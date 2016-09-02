@@ -25,7 +25,6 @@
     </appender>
 
     <logger name="org.librairy" level="INFO"/>
-
     <logger name="es.upm" level="INFO"/>
 
     <root level="ERROR">

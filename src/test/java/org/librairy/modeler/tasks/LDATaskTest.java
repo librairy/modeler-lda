@@ -47,7 +47,7 @@ import java.util.stream.Collectors;
         "librairy.graphdb.host = wiener.dia.fi.upm.es",
         "librairy.graphdb.port = 5030",
         "librairy.eventbus.host = local",
-        "librairy.modeler.maxiterations = 3",
+        "librairy.lda.vocabulary.size = 3",
         "librairy.vocabulary.size = 10000"
 })
 public class LDATaskTest {

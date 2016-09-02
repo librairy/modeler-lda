@@ -16,11 +16,11 @@ public class TopicModel {
 
     private final LocalLDAModel ldaModel;
 
-    private final CountVectorizerModel countVectorizerModel;
+    private final CountVectorizerModel vocabModel;
 
-    public TopicModel(String id, LocalLDAModel ldaModel, CountVectorizerModel countVectorizerModel){
+    public TopicModel(String id, LocalLDAModel ldaModel, CountVectorizerModel vocabModel){
         this.id = id;
         this.ldaModel = ldaModel;
-        this.countVectorizerModel = countVectorizerModel;
+        this.vocabModel = vocabModel;
     }
 }

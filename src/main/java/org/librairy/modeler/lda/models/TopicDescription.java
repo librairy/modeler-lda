@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Created on 31/08/16:
@@ -29,5 +30,9 @@ public class TopicDescription {
     public TopicDescription add(String word, Double weight){
         this.words.add(new WordDescription(word,weight));
         return this;
+    }
+
+    public String getContent(){
+        return this.getWords().stream().map(wd -> wd.getWord()).collect(Collectors.joining(","));
     }
 }

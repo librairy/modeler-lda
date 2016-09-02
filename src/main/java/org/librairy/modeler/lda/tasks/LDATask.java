@@ -41,22 +41,23 @@ public class LDATask implements Runnable {
         // Create corpus
         Corpus corpus = helper.getCorpusBuilder().build(domainUri, Resource.Type.ITEM);
 
-        // Create a new Topic Model
+        // Train a Topic Model based on Corpus
         TopicModel model = helper.getLdaBuilder().build(corpus);
 
-        // Persist it on data model
+        // Persist the model on database
         Map<String, String> registry = helper.getTopicsBuilder().persist(model);
 
-        // Relate items to topics
+        // Create topic distributions for Items
         helper.getDealsBuilder().build(corpus,model,registry);
 
-        // Relate parts to topics
+        // Create topic distributions for Parts
         Corpus corpusOfParts = helper.getCorpusBuilder().build(domainUri, Resource.Type.PART);
+        // -> by using existing vocabulary
         corpusOfParts.setCountVectorizerModel(corpus.getCountVectorizerModel());
         helper.getDealsBuilder().build(corpusOfParts,model,registry);
 
-        //TODO Calculate similarities based on the model
-//        helper.getSimilarityBuilder().update(domainUri);
+        //Calculate similarities based on the model
+        helper.getSimilarityBuilder().update(domainUri);
 
     }
 

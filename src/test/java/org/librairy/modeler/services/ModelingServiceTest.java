@@ -22,7 +22,9 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
-@TestPropertySource(properties = {"librairy.modeler.delay = 5000"})
+@TestPropertySource(properties = {
+        "librairy.modeler.delay = 5000"
+})
 public class ModelingServiceTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ModelingServiceTest.class);

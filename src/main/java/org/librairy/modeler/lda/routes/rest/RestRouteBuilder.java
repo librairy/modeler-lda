@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class RestRouteBuilder extends RouteBuilder {
 
-    @Value("${librairy.modeler.rest.port}")
+    @Value("${librairy.lda.rest.port}")
     protected Integer port;
 
     @Override

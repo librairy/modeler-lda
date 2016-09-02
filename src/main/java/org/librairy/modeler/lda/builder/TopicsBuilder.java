@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 /**
  * Created on 26/06/16:
@@ -69,7 +68,7 @@ public class TopicsBuilder {
         LocalLDAModel ldaModel = model.getLdaModel();
 
         Tuple2<int[], double[]>[] topicIndices = ldaModel.describeTopics(maxWords);
-        String[] vocabulary = model.getCountVectorizerModel().vocabulary();
+        String[] vocabulary = model.getVocabModel().vocabulary();
 
         int index = 0;
         for (Tuple2<int[], double[]> topicDistribution : topicIndices){
@@ -80,8 +79,6 @@ public class TopicsBuilder {
             int[] wordsId = topicDistribution._1;
             double[] weights = topicDistribution._2;
 
-
-            ConcurrentHashMap<String,Double> wordUris = new ConcurrentHashMap<>();
             for (int i=0; i< wordsId.length;i++){
                 int wid = wordsId[i];
                 String word     = vocabulary[wid];
@@ -89,6 +86,7 @@ public class TopicsBuilder {
                 topicDescription.add(word, weight);
 
             }
+
             topics.add(topicDescription);
             index++;
         }
@@ -101,7 +99,7 @@ public class TopicsBuilder {
 
         topics.parallelStream().forEach(topicDescription -> {
 
-            String content = topicDescription.getWords().stream().map(wd -> wd.getWord()).collect(Collectors.joining(","));
+            String content = topicDescription.getContent();
 
             // Save topic
             Topic topic = Resource.newTopic(content);

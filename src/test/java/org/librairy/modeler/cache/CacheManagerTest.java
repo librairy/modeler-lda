@@ -19,14 +19,6 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
 @TestPropertySource(properties = {
-        "librairy.cassandra.contactpoints = 192.168.99.100",
-        "librairy.cassandra.port = 5011",
-        "librairy.cassandra.keyspace = research",
-        "librairy.elasticsearch.contactpoints = 192.168.99.100",
-        "librairy.elasticsearch.port = 5021",
-        "librairy.neo4j.contactpoints = 192.168.99.100",
-        "librairy.neo4j.port = 5030",
-        "librairy.eventbus.host = 192.168.99.100"
 })
 public class CacheManagerTest {
 

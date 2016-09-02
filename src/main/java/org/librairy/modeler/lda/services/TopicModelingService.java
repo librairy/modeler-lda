@@ -27,8 +27,7 @@ public class TopicModelingService {
 
     private ThreadPoolTaskScheduler threadpool;
 
-
-    @Value("${librairy.modeler.delay}")
+    @Value("#{environment['LIBRAIRY_LDA_EVENT_DELAY']?:${librairy.lda.event.delay}}")
     protected Long delay;
 
     @Autowired
