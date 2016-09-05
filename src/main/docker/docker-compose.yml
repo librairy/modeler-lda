@@ -12,12 +12,8 @@ services:
          - graph-db
          - event-bus
     networks:
-         - "db"
-         - "events"
+         - "lnet"
 networks:
-  db:
+  lnet:
     external:
-      name: base_db
-  events:
-    external:
-      name: base_events
+      name: distribution_lnet
