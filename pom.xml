@@ -610,7 +610,25 @@
             <plugin>
                 <artifactId>maven-deploy-plugin</artifactId>
                 <version>2.8.1</version>
+                <executions>
+                    <execution>
+                        <id>lib-deploy</id>
+                        <goals>
+                            <goal>deploy-file</goal>
+                        </goals>
+                        <phase>deploy</phase>
+                        <configuration>
+                            <file>${project.build.directory}/${project.build.finalName}-lib.jar</file>
+                            <repositoryId>internal.repo::default::file://${project.build.directory}/mvn-repo</repositoryId>
+                            <url>file://${project.build.directory}/mvn-repo</url>
+                            <groupId>${project.groupId}</groupId>
+                            <artifactId>${project.artifactId}</artifactId>
+                            <version>${project.version}</version>
+                        </configuration>
+                    </execution>
+                </executions>
                 <configuration>
+                    <skip>true</skip>
                     <altDeploymentRepository>internal.repo::default::file://${project.build.directory}/mvn-repo</altDeploymentRepository>
                 </configuration>
             </plugin>
