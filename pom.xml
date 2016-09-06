@@ -4,7 +4,7 @@
 
 	<groupId>org.librairy</groupId>
     <artifactId>librairy-modeler-lda</artifactId>
-    <version>0.12</version>
+    <version>0.13-SNAPSHOT</version>
     <packaging>war</packaging>
     <name>modeler-lda</name>
     <description>Create Topic Models for a given domain</description>
@@ -641,7 +641,7 @@
             <plugin>
                 <groupId>com.github.github</groupId>
                 <artifactId>site-maven-plugin</artifactId>
-                <version>0.12</version>
+                <version>0.13-SNAPSHOT</version>
                 <executions>
                     <execution>
                         <id>jar-deploy</id>
