@@ -43,7 +43,7 @@ public class ItemBundledEventHandler implements EventBusSubscriber {
 
     @Override
     public void handle(Event event) {
-        LOG.info("Document created event received: " + event);
+        LOG.debug("Document created event received: " + event);
         try{
             Relation relation = event.to(Relation.class);
 

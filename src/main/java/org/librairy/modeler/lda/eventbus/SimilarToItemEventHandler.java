@@ -51,7 +51,7 @@ public class SimilarToItemEventHandler implements EventBusSubscriber {
 
     @Override
     public void handle(Event event) {
-        LOG.info("Item described by Topic Model event received: " + event);
+        LOG.debug("Item described by Topic Model event received: " + event);
         try{
             // SIMILAR_TO(ITEM) relation
             Relation relation   = event.to(Relation.class);
@@ -80,8 +80,8 @@ public class SimilarToItemEventHandler implements EventBusSubscriber {
                             .newSimilarToDocuments(document1Uri, document2Uri, domainUri);
                     similarToDocuments.setWeight(similarItemRel.getWeight());
                     similarToDocuments.setDomain(similarItemRel.getDomain());
-                    LOG.info("Saving similarity similarityBetween Documents from Items: " + similarToDocuments);
                     udm.save(similarToDocuments);
+                    LOG.info("Similarity created: " + similarToDocuments);
                 });
             });
         } catch (Exception e){

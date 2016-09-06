@@ -50,7 +50,7 @@ public class DealsWithItemEventHandler implements EventBusSubscriber {
 
     @Override
     public void handle(Event event) {
-        LOG.info("Item described by Topic Model event received: " + event);
+        LOG.debug("Item described by Topic Model event received: " + event);
         try{
             // DEALS_WITH(ITEM) relation
             Relation relation   = event.to(Relation.class);
@@ -62,8 +62,8 @@ public class DealsWithItemEventHandler implements EventBusSubscriber {
                 DealsWithFromDocument dealsWith = Relation
                         .newDealsWithFromDocument(documentUri, relation.getEndUri());
                 dealsWith.setWeight(relation.getWeight());
-                LOG.info("Saving topic distribution for a Document from Item: " + dealsWith);
                 udm.save(dealsWith);
+                LOG.info("Topic distribution created: " + dealsWith);
             });
             
         } catch (Exception e){

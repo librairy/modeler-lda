@@ -4,7 +4,7 @@
 
 	<groupId>org.librairy</groupId>
     <artifactId>librairy-modeler-lda</artifactId>
-    <version>0.12-SNAPSHOT</version>
+    <version>0.12</version>
     <packaging>war</packaging>
     <name>modeler-lda</name>
     <description>Create Topic Models for a given domain</description>

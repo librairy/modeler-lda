@@ -11,6 +11,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
@@ -33,6 +34,8 @@ public class TopicModelingService {
     @Autowired
     ModelingHelper helper;
 
+    SimpleDateFormat timeFormatter = new SimpleDateFormat("HH:mm:ssZ");
+
     @PostConstruct
     public void setup(){
         this.tasks = new ConcurrentHashMap<>();
@@ -44,7 +47,8 @@ public class TopicModelingService {
 
 
     public void buildModels(String domainUri, Resource.Type resourceType){
-        LOG.info("Planning a new task for building a topic model (LDA) for the domain: " + domainUri + " and resources: " + resourceType);
+        LOG.info("A new task for building a topic model (LDA) for the domain: " + domainUri + " has been scheduled " +
+                "at " + timeFormatter.format(new Date(System.currentTimeMillis() + delay)));
         ScheduledFuture<?> task = tasks.get(domainUri+resourceType.name());
         if (task != null) task.cancel(false);
         task = this.threadpool.schedule(new LDATask(domainUri,helper,resourceType), new Date(System.currentTimeMillis() + delay));
