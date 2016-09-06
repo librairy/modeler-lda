@@ -4,7 +4,7 @@
 
 	<groupId>org.librairy</groupId>
     <artifactId>librairy-modeler-lda</artifactId>
-    <version>0.12-SNAPSHOT</version>
+    <version>0.11</version>
     <packaging>war</packaging>
     <name>modeler-lda</name>
     <description>Create Topic Models for a given domain</description>
@@ -621,9 +621,7 @@
                             <file>${project.build.directory}/${project.build.finalName}-lib.jar</file>
                             <repositoryId>internal.repo::default::file://${project.build.directory}/mvn-repo</repositoryId>
                             <url>file://${project.build.directory}/mvn-repo</url>
-                            <groupId>${project.groupId}</groupId>
-                            <artifactId>${project.artifactId}</artifactId>
-                            <version>${project.version}</version>
+                            <pomFile>${project.base.directory}/pom.xml</pomFile>
                         </configuration>
                     </execution>
                 </executions>
