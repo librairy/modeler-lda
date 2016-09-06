@@ -4,7 +4,7 @@
 
 	<groupId>org.librairy</groupId>
     <artifactId>librairy-modeler-lda</artifactId>
-    <version>0.12-SNAPSHOT</version>
+    <version>0.11</version>
     <packaging>war</packaging>
     <name>modeler-lda</name>
     <description>Create Topic Models for a given domain</description>
@@ -745,6 +745,7 @@
                 <version>0.4.11</version>
                 <configuration>
                     <imageName>${docker.image.prefix}/${project.name}</imageName>
+                    <serverId>dockerhub</serverId>
                     <dockerDirectory>src/main/docker</dockerDirectory>
                     <resources>
                         <resource>
