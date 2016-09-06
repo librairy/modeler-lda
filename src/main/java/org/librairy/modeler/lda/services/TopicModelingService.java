@@ -51,7 +51,7 @@ public class TopicModelingService {
                 "at " + timeFormatter.format(new Date(System.currentTimeMillis() + delay)));
         ScheduledFuture<?> task = tasks.get(domainUri+resourceType.name());
         if (task != null) task.cancel(false);
-        task = this.threadpool.schedule(new LDATask(domainUri,helper,resourceType), new Date(System.currentTimeMillis() + delay));
+        task = this.threadpool.schedule(new LDATask(domainUri,helper), new Date(System.currentTimeMillis() + delay));
         tasks.put(domainUri+resourceType.name(),task);
     }
 

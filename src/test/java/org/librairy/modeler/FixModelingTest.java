@@ -44,7 +44,7 @@ public class FixModelingTest {
     public void topicModel() throws InterruptedException {
 
         String domainUri = "http://drinventor.eu/domains/4f56ab24bb6d815a48b8968a3b157470";
-        new LDATask(domainUri,helper, Resource.Type.ITEM).run();
+        new LDATask(domainUri,helper).run();
 
     }
 

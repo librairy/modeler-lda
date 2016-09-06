@@ -15,8 +15,10 @@ import org.librairy.modeler.lda.builder.CorpusBuilder;
 import org.librairy.modeler.lda.builder.DealsBuilder;
 import org.librairy.modeler.lda.builder.LDABuilder;
 import org.librairy.modeler.lda.builder.TopicsBuilder;
+import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Corpus;
 import org.librairy.modeler.lda.models.TopicModel;
+import org.librairy.modeler.lda.tasks.LDATask;
 import org.librairy.storage.generator.URIGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,17 +41,6 @@ import java.util.stream.Collectors;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
-@TestPropertySource(properties = {
-        "librairy.columndb.host = wiener.dia.fi.upm.es",
-        "librairy.columndb.port = 5011",
-        "librairy.documentdb.host = wiener.dia.fi.upm.es",
-        "librairy.documentdb.port = 5021",
-        "librairy.graphdb.host = wiener.dia.fi.upm.es",
-        "librairy.graphdb.port = 5030",
-        "librairy.eventbus.host = local",
-        "librairy.lda.vocabulary.size = 3",
-        "librairy.vocabulary.size = 10000"
-})
 public class LDATaskTest {
 
 
@@ -69,6 +60,9 @@ public class LDATaskTest {
 
     @Autowired
     URIGenerator uriGenerator;
+
+    @Autowired
+    ModelingHelper helper;
 
     String domainUri = "http://drinventor.eu/domains/4f56ab24bb6d815a48b8968a3b157470";
 
@@ -133,6 +127,15 @@ public class LDATaskTest {
         Corpus corpusOfParts = corpusBuilder.build(domainUri, Resource.Type.PART);
         corpusOfParts.setCountVectorizerModel(corpus.getCountVectorizerModel());
         dealsBuilder.build(corpusOfParts,model,registry);
+
+    }
+
+    @Test
+    public void runTask(){
+
+        String domainUri = "http://librairy.org/domains/default";
+        LDATask task = new LDATask(domainUri,helper);
+        task.run();
 
     }
 

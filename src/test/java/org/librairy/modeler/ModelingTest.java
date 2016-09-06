@@ -48,7 +48,7 @@ public class ModelingTest {
     public void run() throws InterruptedException {
 
         String domainUri = "http://librairy.org/domains/default";
-        new LDATask(domainUri,helper,Resource.Type.ITEM).run();
+        new LDATask(domainUri,helper).run();
 //
         LOG.info("Sleepping...");
         Thread.sleep(300000);

@@ -3,12 +3,10 @@ package org.librairy.modeler.lda.tasks;
 import org.librairy.model.domain.resources.Resource;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Corpus;
-import org.librairy.modeler.lda.models.TopicDescription;
 import org.librairy.modeler.lda.models.TopicModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,19 +22,16 @@ public class LDATask implements Runnable {
 
     private final String domainUri;
 
-    private final Resource.Type resourceType;
-
-    public LDATask(String domainUri, ModelingHelper modelingHelper, Resource.Type resourceType) {
+    public LDATask(String domainUri, ModelingHelper modelingHelper) {
         this.domainUri = domainUri;
         this.helper = modelingHelper;
-        this.resourceType = resourceType;
     }
 
 
     @Override
     public void run() {
 
-        LOG.info("ready to create a new topic model for domain: " + domainUri);
+        LOG.debug("trying to create a new topic model for domain: " + domainUri);
 
         // Create corpus
         Corpus corpus = helper.getCorpusBuilder().build(domainUri, Resource.Type.ITEM);
@@ -50,11 +45,15 @@ public class LDATask implements Runnable {
         // Create topic distributions for Items
         helper.getDealsBuilder().build(corpus,model,registry);
 
-        // Create topic distributions for Parts
-        Corpus corpusOfParts = helper.getCorpusBuilder().build(domainUri, Resource.Type.PART);
-        // -> by using existing vocabulary
-        corpusOfParts.setCountVectorizerModel(corpus.getCountVectorizerModel());
-        helper.getDealsBuilder().build(corpusOfParts,model,registry);
+        try{
+            // Create topic distributions for Parts
+            Corpus corpusOfParts = helper.getCorpusBuilder().build(domainUri, Resource.Type.PART);
+            // -> by using existing vocabulary
+            corpusOfParts.setCountVectorizerModel(corpus.getCountVectorizerModel());
+            helper.getDealsBuilder().build(corpusOfParts,model,registry);
+        }catch (RuntimeException e){
+            LOG.warn(e.getMessage());
+        }
 
         //Calculate similarities based on the model
         helper.getSimilarityBuilder().update(domainUri);
