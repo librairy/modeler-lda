@@ -1,30 +1,51 @@
 package org.librairy.modeler.lda.builder;
 
+import com.google.common.collect.ImmutableMap;
 import lombok.Setter;
+import org.apache.commons.beanutils.BeanUtils;
 import org.apache.spark.api.java.JavaRDD;
 import org.librairy.computing.helper.SparkHelper;
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
+import org.librairy.model.Event;
 import org.librairy.model.domain.relations.Relation;
 import org.librairy.model.domain.relations.Relationship;
 import org.librairy.model.domain.relations.SimilarTo;
+import org.librairy.model.domain.relations.SimilarToItems;
 import org.librairy.model.domain.resources.Resource;
+import org.librairy.model.modules.EventBus;
+import org.librairy.model.modules.RoutingKey;
+import org.librairy.model.utils.ResourceUtils;
 import org.librairy.modeler.lda.models.SimilarResource;
 import org.librairy.modeler.lda.models.TopicDistribution;
 import org.librairy.storage.UDM;
+import org.librairy.storage.executor.ParallelExecutor;
 import org.librairy.storage.generator.URIGenerator;
+import org.librairy.storage.system.column.domain.SimilarToColumn;
 import org.librairy.storage.system.column.repository.UnifiedColumnRepository;
+import org.librairy.storage.system.column.templates.ColumnTemplate;
+import org.librairy.storage.system.graph.cache.GraphCache;
+import org.librairy.storage.system.graph.domain.edges.Edge;
+import org.librairy.storage.system.graph.domain.nodes.Node;
+import org.librairy.storage.system.graph.repository.edges.UnifiedEdgeGraphRepository;
+import org.librairy.storage.system.graph.repository.edges.UnifiedEdgeGraphRepositoryFactory;
+import org.librairy.storage.system.graph.template.TemplateExecutor;
+import org.librairy.storage.system.graph.template.TemplateFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import scala.Tuple2;
 
+import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * Created on 26/06/16:
@@ -42,79 +63,94 @@ public class SimilarityBuilder {
     @Autowired @Setter
     UnifiedColumnRepository columnRepository;
 
+    @Autowired
+    ColumnTemplate columnTemplate;
+
+    @Autowired
+    TemplateFactory factory;
+
+    @Autowired
+    GraphCache cache;
+
+    @Autowired
+    EventBus eventBus;
+
     @Autowired @Setter
     URIGenerator uriGenerator;
 
     @Autowired @Setter
     SparkHelper sparkHelper;
 
-
-    public void update(String domainUri){
-
-        // Clean Similarities
-        deleteExistingSimilarities(Relation.Type.SIMILAR_TO_DOCUMENTS, domainUri);
-        deleteExistingSimilarities(Relation.Type.SIMILAR_TO_ITEMS, domainUri);
-        deleteExistingSimilarities(Relation.Type.SIMILAR_TO_PARTS, domainUri);
-
-        // Document Similarities
-        // inferred from Item similarity ( see SimilarToItemEventHandler)
-
-        // Items Similarities
-        calculateSimilaritiesBetween(Resource.Type.ITEM,domainUri);
-
-        // Parts Similarities
-        calculateSimilaritiesBetween(Resource.Type.PART,domainUri);
-
-    }
-
-    private void deleteExistingSimilarities(Relation.Type type, String domainUri){
-        LOG.debug("deleting existing " + type + " relations ..");
-        udm.find(type).from(Resource.Type.DOMAIN, domainUri)
-                .parallelStream()
-                .forEach(relation -> udm.delete(type).byUri(relation.getUri()));
-    }
+    @Autowired
+    TemplateExecutor graphExecutor;
 
 
-    private void calculateSimilaritiesBetween(Resource.Type type, String domainUri){
+    public void discover(String domainUri, Resource.Type type){
 
-        LOG.info("Calculating similarities similarityBetween "+type+" in domain: " + domainUri);
+        LOG.info("Discovering similarities between "+type.route()+" in domain: " + domainUri +" ..");
+
+
         List<Resource> resources = udm.find(type).from(Resource.Type.DOMAIN, domainUri);
 
-        if (resources.isEmpty()) return;
-
+        if (resources.isEmpty()){
+            LOG.info("No "+type.route()+" found in domain: " + domainUri);
+            return;
+        }
         JavaRDD<Resource> resourcesRDD = sparkHelper.getContext().parallelize(resources);
 
         List<Tuple2<Resource, Resource>> pairs = resourcesRDD.cartesian(resourcesRDD)
                 .filter(x -> x._1().getUri().compareTo(x._2().getUri()) > 0)
                 .collect();
 
-        LOG.info("Calculating similarities...");
-
         Relation.Type relType = dealsFrom(type);
 
-        pairs.parallelStream().forEach( pair -> {
+        if (!pairs.isEmpty()){
+            ParallelExecutor executor = new ParallelExecutor();
 
-            List<Relationship> p1 = udm.find(relType)
-                    .from(type, pair._1.getUri())
-                    .stream()
-                    .map(rel -> new Relationship(rel.getEndUri(), rel.getWeight()))
-                    .collect(Collectors.toList());
-            List<Relationship> p2 = udm.find(relType)
-                    .from(type, pair._2.getUri())
-                    .stream()
-                    .map(rel -> new Relationship(rel.getEndUri(), rel.getWeight()))
-                    .collect(Collectors.toList());
+            for (Tuple2<Resource, Resource> pair: pairs){
+                executor.execute(() -> {
 
-            Double similarity = similarityBetween(p1, p2);
+                    List<Relationship> p1 = new ArrayList<Relationship>();
+                    columnRepository.findBy(relType,pair._1.getResourceType().key(),pair._1.getUri()).forEach(rel
+                            -> p1.add(new Relationship(rel.getEndUri(), rel.getWeight())));
 
-            LOG.info("Attaching SIMILAR_TO in "+ type + " based on " + pair);
-            SimilarTo simRel1 = newSimilarTo(type,pair._1.getUri(),pair._2.getUri(), domainUri);
-            simRel1.setWeight(similarity);
-            simRel1.setDomain(domainUri);
-            udm.save(simRel1);
+                    List<Relationship> p2 = new ArrayList<Relationship>();
+                    columnRepository.findBy(relType,pair._2.getResourceType().key(),pair._2.getUri()).forEach(rel
+                            -> p2.add(new Relationship(rel.getEndUri(), rel.getWeight())));
+
+                    Double similarity = similarityBetween(p1, p2);
+
+                    LOG.debug("created SIMILAR_TO relation between " + pair);
+                    SimilarTo simRel1 = newSimilarTo(type,pair._1.getUri(),pair._2.getUri(), domainUri);
+                    simRel1.setWeight(similarity);
+                    simRel1.setDomain(domainUri);
+                    simRel1.setUri(uriGenerator.basedOnContent(type,pair._1.getUri()+""+pair._2.getUri()+""+domainUri));
+//                    udm.save(simRel1);
+                    columnRepository.save(simRel1);
+
+                    // publish event
+                    eventBus.post(Event.from(ResourceUtils.map(simRel1,Relation.class)), RoutingKey.of(simRel1.getType
+                            (), Relation.State.CREATED));
+
+                });
+            }
+            executor.awaitTermination(1, TimeUnit.HOURS);
+        }
+        LOG.info("persisting similarities on graph database..");
+        Relation.Type simRelType = similarFrom(type);
+
+        AtomicInteger counter = new AtomicInteger();
+        columnRepository.findBy(simRelType, "domain", domainUri).forEach(rel-> {
+
+            if (!URIGenerator.typeFrom(rel.getStartUri()).equals(type)) return;
+
+            counter.incrementAndGet();
+            SimilarToColumn columnRel = (SimilarToColumn) rel;
+            Relation simRel = (Relation) ResourceUtils.map(columnRel, Relation.classOf(simRelType));
+            factory.of(simRelType).save(simRel);
         });
+        LOG.info(counter.get() + " similarities discovered!!");
     }
-
 
     public List<SimilarResource> topSimilars(Resource.Type type, String domainUri, Integer n,  List<TopicDistribution>
             topicsDistribution){
@@ -131,8 +167,6 @@ public class SimilarityBuilder {
                 return -o1.getWeight().compareTo(o2.getWeight());
             }
         };
-
-        List<Resource> items = udm.find(type).from(Resource.Type.DOMAIN, domainUri);
 
         return udm.find(type)
                 .from(Resource.Type.DOMAIN, domainUri)
@@ -158,9 +192,27 @@ public class SimilarityBuilder {
         ;
     }
 
+
+    public void delete(String domainUri){
+
+        LOG.info("Deleting previous similar-to relations from column-database...");
+        columnRepository.findBy(Relation.Type.SIMILAR_TO_ITEMS, "domain", domainUri).forEach(rel-> {
+            Relation.Type relType = similarFrom(URIGenerator.typeFrom(rel.getStartUri()));
+            columnRepository.delete(relType,rel.getUri());
+        });
+
+        LOG.info("Deleting previous similar-to relations from graph-database...");
+        graphExecutor.execute("match ()-[r:SIMILAR_TO { domain : {0} }]->() delete r", ImmutableMap.of("0",
+                domainUri));
+        LOG.info("similar-to relations deleted");
+    }
+
+
     public Double similarityBetween(List<Relationship> relationships1, List<Relationship> relationships2){
 
-        if (relationships1.isEmpty() || relationships2.isEmpty()) return 0.0;
+        if ((relationships1.isEmpty() || relationships2.isEmpty())
+                || ((relationships1.size() != relationships2.size()
+        ))) return 0.0;
 
         Comparator<Relationship> byUri = (e1, e2) ->e1.getUri().compareTo(e2.getUri());
 
@@ -172,12 +224,22 @@ public class SimilarityBuilder {
         return JensenShannonSimilarity.apply(weights1, weights2);
     }
 
+
+    private Relation.Type similarFrom(Resource.Type type){
+        switch (type){
+            case ITEM: return Relation.Type.SIMILAR_TO_ITEMS;
+            case DOCUMENT: return Relation.Type.SIMILAR_TO_DOCUMENTS;
+            case PART: return Relation.Type.SIMILAR_TO_PARTS;
+            default: throw new RuntimeException("Type : " + type + " not handled to discover similarities");
+        }
+    }
+
     private Relation.Type dealsFrom(Resource.Type type){
         switch (type){
             case ITEM: return Relation.Type.DEALS_WITH_FROM_ITEM;
             case DOCUMENT: return Relation.Type.DEALS_WITH_FROM_DOCUMENT;
             case PART: return Relation.Type.DEALS_WITH_FROM_PART;
-            default: throw new RuntimeException("Type : " + type + " not handled to calculate similarities");
+            default: throw new RuntimeException("Type : " + type + " not handled to discover similarities");
         }
     }
 
@@ -186,7 +248,7 @@ public class SimilarityBuilder {
             case ITEM: return Relation.newSimilarToItems(uri1, uri2, domainUri);
             case DOCUMENT: return Relation.newSimilarToDocuments(uri1, uri2, domainUri);
             case PART: return Relation.newSimilarToParts(uri1, uri2, domainUri);
-            default: throw new RuntimeException("Type : " + type + " not handled to calculate similarities");
+            default: throw new RuntimeException("Type : " + type + " not handled to discover similarities");
         }
     }
 

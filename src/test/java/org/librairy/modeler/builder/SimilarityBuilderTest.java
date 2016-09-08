@@ -31,8 +31,6 @@ import java.util.stream.Collectors;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
-@TestPropertySource(properties = {
-})
 public class SimilarityBuilderTest {
 
 
@@ -73,6 +71,13 @@ public class SimilarityBuilderTest {
         LOG.info("Calculating similarities similarityBetween parts in domain: " + domainUri);
         calculateSimilaritiesBetweenParts(domainUri);
 
+    }
+
+
+    @Test
+    public void delete(){
+        String domainUri = "http://librairy.org/domains/default";
+        builder.delete(domainUri);
     }
 
 

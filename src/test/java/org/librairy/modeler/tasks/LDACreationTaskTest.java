@@ -4,21 +4,13 @@ import es.cbadenes.lab.test.IntegrationTest;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
-import org.librairy.model.domain.relations.EmergesIn;
-import org.librairy.model.domain.relations.MentionsFromTopic;
-import org.librairy.model.domain.relations.Relation;
 import org.librairy.model.domain.resources.Resource;
-import org.librairy.model.domain.resources.Topic;
-import org.librairy.model.domain.resources.Word;
 import org.librairy.modeler.lda.Config;
-import org.librairy.modeler.lda.builder.CorpusBuilder;
-import org.librairy.modeler.lda.builder.DealsBuilder;
-import org.librairy.modeler.lda.builder.LDABuilder;
-import org.librairy.modeler.lda.builder.TopicsBuilder;
+import org.librairy.modeler.lda.builder.*;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Corpus;
 import org.librairy.modeler.lda.models.TopicModel;
-import org.librairy.modeler.lda.tasks.LDATask;
+import org.librairy.modeler.lda.tasks.LDACreationTask;
 import org.librairy.storage.generator.URIGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,7 +21,6 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -41,10 +32,13 @@ import java.util.stream.Collectors;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
-public class LDATaskTest {
+@TestPropertySource(properties = {
+        "librairy.lda.event.delay = 60000"
+})
+public class LDACreationTaskTest {
 
 
-    private static final Logger LOG = LoggerFactory.getLogger(LDATaskTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LDACreationTaskTest.class);
 
     @Autowired
     LDABuilder ldaBuilder;
@@ -57,6 +51,9 @@ public class LDATaskTest {
 
     @Autowired
     TopicsBuilder topicsBuilder;
+
+    @Autowired
+    SimilarityBuilder similarityBuilder;
 
     @Autowired
     URIGenerator uriGenerator;
@@ -131,12 +128,23 @@ public class LDATaskTest {
     }
 
     @Test
-    public void runTask(){
+    public void runTask() throws InterruptedException {
 
         String domainUri = "http://librairy.org/domains/default";
-        LDATask task = new LDATask(domainUri,helper);
+        LDACreationTask task = new LDACreationTask(domainUri, helper);
         task.run();
 
+        LOG.info("################################## Task completed!!!!");
+        long timeToSleep = 6000000;
+        LOG.info("Waiting for: " + timeToSleep);
+        Thread.currentThread().sleep(timeToSleep);
+    }
+
+    @Test
+    public void buildSimilarityRelations(){
+        //Calculate similarities based on the model
+        String domainUri = "http://librairy.org/domains/default";
+        helper.getSimilarityBuilder().discover(domainUri, Resource.Type.ITEM);
     }
 
 }

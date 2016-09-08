@@ -155,7 +155,7 @@ public class Corpus {
 
         if (countVectorizerModel == null){
             // Train a Count Vectorizer Model based on corpus
-            LOG.info("Limiting to top "+helper.getVocabSize()+" most common words and convert to word count vector features ..");
+            LOG.info("Limiting to top "+helper.getVocabSize()+" most common words and creating a count vector model ..");
             countVectorizerModel = new CountVectorizer()
                     .setInputCol("filtered")
                     .setOutputCol("features")

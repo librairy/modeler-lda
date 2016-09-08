@@ -14,15 +14,15 @@ import java.util.Map;
  *
  * @author cbadenes
  */
-public class LDATask implements Runnable {
+public class LDACreationTask implements Runnable {
 
-    private static final Logger LOG = LoggerFactory.getLogger(LDATask.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LDACreationTask.class);
 
     private final ModelingHelper helper;
 
     private final String domainUri;
 
-    public LDATask(String domainUri, ModelingHelper modelingHelper) {
+    public LDACreationTask(String domainUri, ModelingHelper modelingHelper) {
         this.domainUri = domainUri;
         this.helper = modelingHelper;
     }
@@ -31,33 +31,22 @@ public class LDATask implements Runnable {
     @Override
     public void run() {
 
-        LOG.debug("trying to create a new topic model for domain: " + domainUri);
-
-        // Create corpus
+        LOG.info("creating a corpus to build a topic model in domain: " + domainUri);
         Corpus corpus = helper.getCorpusBuilder().build(domainUri, Resource.Type.ITEM);
 
         // Train a Topic Model based on Corpus
+        LOG.info("training the model ..");
         TopicModel model = helper.getLdaBuilder().build(corpus);
 
         // Persist the model on database
+        LOG.info("persisting the model on database ..");
         Map<String, String> registry = helper.getTopicsBuilder().persist(model);
 
-        // Create topic distributions for Items
+        // Calculate topic distributions for Items
+        LOG.info("calculating the topics distribution for each textual item ..");
         helper.getDealsBuilder().build(corpus,model,registry);
 
-        try{
-            // Create topic distributions for Parts
-            Corpus corpusOfParts = helper.getCorpusBuilder().build(domainUri, Resource.Type.PART);
-            // -> by using existing vocabulary
-            corpusOfParts.setCountVectorizerModel(corpus.getCountVectorizerModel());
-            helper.getDealsBuilder().build(corpusOfParts,model,registry);
-        }catch (RuntimeException e){
-            LOG.warn(e.getMessage());
-        }
-
-        //Calculate similarities based on the model
-        helper.getSimilarityBuilder().update(domainUri);
-
+        LOG.info("LDA model created and stored successfully");
     }
 
 
