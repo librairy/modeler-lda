@@ -6,7 +6,7 @@ import org.librairy.model.domain.relations.Relation;
 import org.librairy.model.domain.resources.Resource;
 import org.librairy.modeler.lda.Config;
 import org.librairy.modeler.lda.helper.ModelingHelper;
-import org.librairy.modeler.lda.tasks.LDATask;
+import org.librairy.modeler.lda.tasks.LDACreationTask;
 import org.librairy.storage.UDM;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -44,7 +44,7 @@ public class FixModelingTest {
     public void topicModel() throws InterruptedException {
 
         String domainUri = "http://drinventor.eu/domains/4f56ab24bb6d815a48b8968a3b157470";
-        new LDATask(domainUri,helper).run();
+        new LDACreationTask(domainUri, helper).run();
 
     }
 
@@ -62,7 +62,7 @@ public class FixModelingTest {
     @Test
     public void summary() throws IOException {
 
-        LOG.info("Ready to build a summary");
+        LOG.info("Ready to discover a summary");
 
         FileWriter writer = new FileWriter("target/repository-documents.csv");
         String separator = ";";

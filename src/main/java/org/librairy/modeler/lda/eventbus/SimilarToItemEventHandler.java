@@ -1,7 +1,6 @@
 package org.librairy.modeler.lda.eventbus;
 
 import org.librairy.model.Event;
-import org.librairy.model.domain.relations.DealsWithFromDocument;
 import org.librairy.model.domain.relations.Relation;
 import org.librairy.model.domain.relations.SimilarToDocuments;
 import org.librairy.model.domain.relations.SimilarToItems;
@@ -9,7 +8,7 @@ import org.librairy.model.modules.BindingKey;
 import org.librairy.model.modules.EventBus;
 import org.librairy.model.modules.EventBusSubscriber;
 import org.librairy.model.modules.RoutingKey;
-import org.librairy.modeler.lda.services.TopicModelingService;
+import org.librairy.modeler.lda.services.ModelingService;
 import org.librairy.storage.UDM;
 import org.librairy.storage.system.column.repository.UnifiedColumnRepository;
 import org.slf4j.Logger;
@@ -32,7 +31,7 @@ public class SimilarToItemEventHandler implements EventBusSubscriber {
     protected EventBus eventBus;
 
     @Autowired
-    TopicModelingService topicModelingService;
+    ModelingService modelingService;
 
     @Autowired
     UnifiedColumnRepository columnRepository;
@@ -69,7 +68,7 @@ public class SimilarToItemEventHandler implements EventBusSubscriber {
             String item2Uri      = similarItemRel.getEndUri();
             String domainUri     = similarItemRel.getDomain();
 
-            // set SIMILAR_TO(DOCUMENT)
+            // inference SIMILAR_TO(DOCUMENT) from Item
             columnRepository.findBy(Relation.Type.BUNDLES, "item", item1Uri).forEach( rel -> {
                 String document1Uri = rel.getStartUri();
 
@@ -81,7 +80,7 @@ public class SimilarToItemEventHandler implements EventBusSubscriber {
                     similarToDocuments.setWeight(similarItemRel.getWeight());
                     similarToDocuments.setDomain(similarItemRel.getDomain());
                     udm.save(similarToDocuments);
-                    LOG.info("Similarity created: " + similarToDocuments);
+                    LOG.debug("Similarity created: " + similarToDocuments);
                 });
             });
         } catch (Exception e){

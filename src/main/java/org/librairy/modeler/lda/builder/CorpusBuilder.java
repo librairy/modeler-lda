@@ -1,6 +1,7 @@
 package org.librairy.modeler.lda.builder;
 
 import org.librairy.model.domain.resources.Resource;
+import org.librairy.modeler.lda.exceptions.EmptyResultException;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Corpus;
 import org.librairy.storage.UDM;
@@ -41,7 +42,7 @@ public class CorpusBuilder {
                 .map(res -> res.getUri())
                 .collect(Collectors.toList());
 
-        if (uris.isEmpty()) throw new RuntimeException("No "+type.route()+" found in domain: " + domainUri);
+        if (uris.isEmpty()) throw new EmptyResultException("No "+type.route()+" found in domain: " + domainUri);
 
         String domainId = URIGenerator.retrieveId(domainUri);
 

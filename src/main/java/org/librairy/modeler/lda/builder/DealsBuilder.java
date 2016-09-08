@@ -9,6 +9,7 @@ import org.librairy.model.domain.resources.Resource;
 import org.librairy.modeler.lda.models.Corpus;
 import org.librairy.modeler.lda.models.TopicModel;
 import org.librairy.storage.UDM;
+import org.librairy.storage.executor.ParallelExecutor;
 import org.librairy.storage.generator.URIGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +19,7 @@ import scala.Tuple2;
 
 import java.util.Arrays;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created on 26/06/16:
@@ -40,7 +42,7 @@ public class DealsBuilder {
 
         String domainUri = uriGenerator.from(Resource.Type.DOMAIN, corpus.getId());
 
-        LOG.info("Linking "+corpus.getType().route()+" to topics in domain: " + domainUri);
+        LOG.info("Building topics distribution for "+corpus.getType().route()+" in domain: " + domainUri);
 
         // Documents
         RDD<Tuple2<Object, Vector>> documents = corpus.getBagOfWords().cache();
@@ -56,31 +58,40 @@ public class DealsBuilder {
 
         Tuple2<Object, Vector>[] topicsDistributionArray = (Tuple2<Object, Vector>[]) topicsDistribution.collect();
 
-        Arrays.stream(topicsDistributionArray).parallel().forEach(distribution -> {
+        LOG.info("Saving topics distribution ..");
+        if (topicsDistributionArray.length>0){
+            ParallelExecutor executor = new ParallelExecutor();
+            for (Tuple2<Object, Vector> distribution: topicsDistributionArray){
+                executor.execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        String uri = documentsUri.get(distribution._1);
+                        double[] weights = distribution._2.toArray();
+                        for (int i = 0; i< weights.length; i++ ){
 
-            String uri = documentsUri.get(distribution._1);
-            double[] weights = distribution._2.toArray();
-            for (int i = 0; i< weights.length; i++ ){
-
-                String topicUri = topicRegistry.get(String.valueOf(i));
-                DealsWith dealsWith;
-                switch(corpus.getType()){
-                    case ITEM:
-                        dealsWith = Relation.newDealsWithFromItem(uri,topicUri);
-                        break;
-                    case PART:
-                        dealsWith = Relation.newDealsWithFromPart(uri,topicUri);
-                        break;
-                    case DOCUMENT:
-                        dealsWith = Relation.newDealsWithFromDocument(uri,topicUri);
-                        break;
-                    default: continue;
-                }
-                dealsWith.setWeight(weights[i]);
-                LOG.info("Saving: " + dealsWith);
-                udm.save(dealsWith);
+                            String topicUri = topicRegistry.get(String.valueOf(i));
+                            DealsWith dealsWith;
+                            switch(corpus.getType()){
+                                case ITEM:
+                                    dealsWith = Relation.newDealsWithFromItem(uri,topicUri);
+                                    break;
+                                case PART:
+                                    dealsWith = Relation.newDealsWithFromPart(uri,topicUri);
+                                    break;
+                                case DOCUMENT:
+                                    dealsWith = Relation.newDealsWithFromDocument(uri,topicUri);
+                                    break;
+                                default: continue;
+                            }
+                            dealsWith.setWeight(weights[i]);
+                            LOG.debug("Saving: " + dealsWith);
+                            udm.save(dealsWith);
+                        }
+                    }
+                });
             }
-        });
-
+            executor.awaitTermination(30l, TimeUnit.MINUTES);
+        }
+        LOG.info("Topics distribution saved!!");
     }
 }

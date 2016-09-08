@@ -1,7 +1,6 @@
 package org.librairy.modeler.lda.eventbus;
 
 import org.librairy.model.Event;
-import org.librairy.model.domain.relations.DealsWithFromDocument;
 import org.librairy.model.domain.relations.Relation;
 import org.librairy.model.domain.resources.Resource;
 import org.librairy.model.modules.BindingKey;
@@ -22,9 +21,9 @@ import javax.annotation.PostConstruct;
  * Created by cbadenes on 11/01/16.
  */
 @Component
-public class DealsWithItemEventHandler implements EventBusSubscriber {
+public class DealsWithPartEventHandler implements EventBusSubscriber {
 
-    private static final Logger LOG = LoggerFactory.getLogger(DealsWithItemEventHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(DealsWithPartEventHandler.class);
 
     @Autowired
     protected EventBus eventBus;
@@ -40,8 +39,8 @@ public class DealsWithItemEventHandler implements EventBusSubscriber {
 
     @PostConstruct
     public void init(){
-        BindingKey bindingKey = BindingKey.of(RoutingKey.of(Relation.Type.DEALS_WITH_FROM_ITEM, Relation.State.CREATED),
-                "lda-modeler-deals-with-item");
+        BindingKey bindingKey = BindingKey.of(RoutingKey.of(Relation.Type.DEALS_WITH_FROM_PART, Relation.State.CREATED),
+                "lda-modeler-deals-with-part");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");
@@ -49,26 +48,14 @@ public class DealsWithItemEventHandler implements EventBusSubscriber {
 
     @Override
     public void handle(Event event) {
-        LOG.debug("Item described by Topic Model event received: " + event);
+        LOG.info("New topics distribution from part event received: " + event);
         try{
-            // DEALS_WITH(ITEM) relation
             Relation relation   = event.to(Relation.class);
-            String itemUri      = relation.getStartUri();
             String topicUri     = relation.getEndUri();
-
-            // Inference DEALS_WITH(DOCUMENT) from Item
-            columnRepository.findBy(Relation.Type.BUNDLES, "item", itemUri).forEach( rel -> {
-                String documentUri = rel.getStartUri();
-                DealsWithFromDocument dealsWith = Relation
-                        .newDealsWithFromDocument(documentUri, relation.getEndUri());
-                dealsWith.setWeight(relation.getWeight());
-                udm.save(dealsWith);
-                LOG.debug("Topic distribution created: " + dealsWith);
-            });
 
             // Schedule discover similarities
             String domainUri = columnRepository.findBy(Relation.Type.EMERGES_IN, "topic", topicUri).iterator().next().getEndUri();
-            similarityService.discover(domainUri, Resource.Type.ITEM,10000);
+            similarityService.discover(domainUri, Resource.Type.PART, 10000);
             
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added

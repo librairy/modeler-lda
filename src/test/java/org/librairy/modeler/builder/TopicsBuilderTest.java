@@ -95,6 +95,7 @@ public class TopicsBuilderTest {
     @Test
     public void clean(){
 
+        String domainURI = "http://librairy.org/domains/default";
         topicsBuilder.delete(domainURI);
 
         LOG.info("topics deleted!");

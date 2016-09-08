@@ -46,7 +46,7 @@ public class RestRouteBuilder extends RouteBuilder {
                 .to("bean:topicModelingService?method=remove(${header.uri})")
 
                 .put("/{id}").description("Update an existing analysis").type(Analysis.class).outType(Source.class)
-                .to("bean:topicModelingService?method=update")
+                .to("bean:topicModelingService?method=discover")
 
         ;
 

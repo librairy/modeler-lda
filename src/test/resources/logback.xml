@@ -8,6 +8,7 @@
     </appender>
 
     <logger name="org.librairy" level="INFO"/>
+    <logger name="org.librairy.modeler" level="INFO"/>
     <logger name="org.apache.spark" level="WARN"/>
     <logger name="org.springframework.data.neo4j.mapping.Neo4jPersistentProperty" level="ERROR"/>
 
