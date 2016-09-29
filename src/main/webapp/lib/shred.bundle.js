@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2016. Universidad Politecnica de Madrid
+ *
+ * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
+ *
+ */
+
 var require = function (file, cwd) {
     var resolved = require.resolve(file, cwd || '/');
     var mod = require.modules[resolved];

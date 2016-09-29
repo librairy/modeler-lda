@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2016. Universidad Politecnica de Madrid
+ *
+ * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
+ *
+ */
+
 // Underscore.js 1.3.3
 // (c) 2009-2012 Jeremy Ashkenas, DocumentCloud Inc.
 // Underscore is freely distributable under the MIT license.

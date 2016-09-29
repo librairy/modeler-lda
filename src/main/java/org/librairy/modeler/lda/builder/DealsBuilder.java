@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2016. Universidad Politecnica de Madrid
+ *
+ * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
+ *
+ */
+
 package org.librairy.modeler.lda.builder;
 
 import org.apache.spark.mllib.clustering.LocalLDAModel;

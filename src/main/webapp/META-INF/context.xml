@@ -1,2 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ~ Copyright (c) 2016. Universidad Politecnica de Madrid
+  ~
+  ~ @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
+  ~
+  -->
+
 <Context path="/${project.build.finalName}"/>
