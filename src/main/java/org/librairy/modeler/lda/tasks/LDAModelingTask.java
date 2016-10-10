@@ -56,7 +56,7 @@ public class LDAModelingTask implements Runnable {
             // Load topic URIs
             Map<String, String> registry = helper.getTopicsBuilder().composeRegistry(model);
 
-            // Calculate topic distributions for Items
+            // Calculate topic distributions for Parts
             helper.getDealsBuilder().build(corpus,model,registry);
         }catch (EmptyResultException e){
             LOG.info(e.getMessage());

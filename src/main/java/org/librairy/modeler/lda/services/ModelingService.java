@@ -52,7 +52,7 @@ public class ModelingService {
         this.modelingTasks = new ConcurrentHashMap<>();
 
         this.threadpool = new ThreadPoolTaskScheduler();
-        this.threadpool.setPoolSize(50);
+        this.threadpool.setPoolSize(1);
         this.threadpool.initialize();
     }
 
