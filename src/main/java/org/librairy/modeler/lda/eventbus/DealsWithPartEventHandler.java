@@ -55,7 +55,7 @@ public class DealsWithPartEventHandler implements EventBusSubscriber {
 
     @Override
     public void handle(Event event) {
-        LOG.info("New topics distribution from part event received: " + event);
+        LOG.debug("New topics distribution from part event received: " + event);
         try{
             Relation relation   = event.to(Relation.class);
             String topicUri     = relation.getEndUri();
@@ -65,7 +65,6 @@ public class DealsWithPartEventHandler implements EventBusSubscriber {
             similarityService.discover(domainUri, Resource.Type.PART, 10000);
             
         } catch (Exception e){
-            // TODO Notify to event-bus when source has not been added
             LOG.error("Error scheduling a new topic model for Items from domain: " + event, e);
         }
     }
