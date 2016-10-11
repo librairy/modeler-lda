@@ -15,8 +15,11 @@ import org.librairy.model.modules.BindingKey;
 import org.librairy.model.modules.EventBus;
 import org.librairy.model.modules.EventBusSubscriber;
 import org.librairy.model.modules.RoutingKey;
+import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.services.ModelingService;
+import org.librairy.modeler.lda.tasks.SimilarDocTask;
 import org.librairy.storage.UDM;
+import org.librairy.storage.executor.ParallelExecutor;
 import org.librairy.storage.system.column.repository.UnifiedColumnRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,13 +41,9 @@ public class SimilarToItemEventHandler implements EventBusSubscriber {
     protected EventBus eventBus;
 
     @Autowired
-    ModelingService modelingService;
+    ModelingHelper helper;
 
-    @Autowired
-    UnifiedColumnRepository columnRepository;
-
-    @Autowired
-    UDM udm;
+    ParallelExecutor executor;
 
     @PostConstruct
     public void init(){
@@ -52,6 +51,7 @@ public class SimilarToItemEventHandler implements EventBusSubscriber {
                 "lda-modeler-similar-to-item");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
+        executor = new ParallelExecutor();
         LOG.info("registered successfully");
     }
 
@@ -62,34 +62,7 @@ public class SimilarToItemEventHandler implements EventBusSubscriber {
             // SIMILAR_TO(ITEM) relation
             Relation relation   = event.to(Relation.class);
 
-            Optional<Relation> res = udm.read(Relation.Type.SIMILAR_TO_ITEMS).byUri(relation
-                    .getUri());
-
-            if (!res.isPresent()){
-                LOG.warn("SIMILAR_To relation event received but uri not found: " + relation);
-                return;
-            }
-
-            SimilarToItems similarItemRel = res.get().asSimilarToItems();
-            String item1Uri      = similarItemRel.getStartUri();
-            String item2Uri      = similarItemRel.getEndUri();
-            String domainUri     = similarItemRel.getDomain();
-
-            // inference SIMILAR_TO(DOCUMENT) from Item
-            columnRepository.findBy(Relation.Type.BUNDLES, "item", item1Uri).forEach( rel -> {
-                String document1Uri = rel.getStartUri();
-
-                columnRepository.findBy(Relation.Type.BUNDLES, "item", item2Uri).forEach( rel2 -> {
-                    String document2Uri = rel2.getStartUri();
-
-                    SimilarToDocuments similarToDocuments = Relation
-                            .newSimilarToDocuments(document1Uri, document2Uri, domainUri);
-                    similarToDocuments.setWeight(similarItemRel.getWeight());
-                    similarToDocuments.setDomain(similarItemRel.getDomain());
-                    udm.save(similarToDocuments);
-                    LOG.debug("Similarity created: " + similarToDocuments);
-                });
-            });
+            executor.execute(new SimilarDocTask(relation,helper));
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added
             LOG.error("Error scheduling a new topic model for Items from domain: " + event, e);
