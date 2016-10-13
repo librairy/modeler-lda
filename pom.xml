@@ -11,7 +11,7 @@
 
 	<groupId>org.librairy</groupId>
     <artifactId>librairy-modeler-lda</artifactId>
-    <version>0.21-SNAPSHOT</version>
+    <version>0.20</version>
     <packaging>war</packaging>
     <name>modeler-lda</name>
     <description>Create Topic Models for a given domain</description>
@@ -92,6 +92,7 @@
         <jgrapht.version>0.9.0</jgrapht.version>
         <junit.version>4.12</junit.version>
         <librairy.metrics.version>1.8</librairy.metrics.version>
+        <librairy.computing.version>0.11</librairy.computing.version>
         <librairy.boot.version>0.28</librairy.boot.version>
         <log4j.version>1.2.17</log4j.version>
         <log4j.slf4j.version>1.7.14</log4j.slf4j.version>
@@ -138,6 +139,23 @@
                 <version>${librairy.metrics.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.librairy</groupId>
+                <artifactId>librairy-metrics</artifactId>
+                <version>${librairy.metrics.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.librairy</groupId>
+                <artifactId>librairy-computing</artifactId>
+                <version>${librairy.computing.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.librairy</groupId>
+                <artifactId>librairy-computing</artifactId>
+                <version>${librairy.computing.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.librairy</groupId>
