@@ -160,6 +160,8 @@ public class Corpus {
 
         if (df == null) throw new RuntimeException("No documents in corpus");
 
+        Integer minDf = (!registry.isEmpty())? Double.valueOf(Math.ceil(registry.size()*0.00009)).intValue() : 1;
+
         if (countVectorizerModel == null){
             // Train a Count Vectorizer Model based on corpus
             LOG.info("Limiting to top "+helper.getVocabSize()+" most common words and creating a count vector model ..");
@@ -167,7 +169,8 @@ public class Corpus {
                     .setInputCol("filtered")
                     .setOutputCol("features")
                     .setVocabSize(helper.getVocabSize())
-                    .setMinDF(5)    // Specifies the minimum number of different documents a term must appear in to be included in the vocabulary.
+                    .setMinDF(minDf)    // Specifies the minimum number of different documents a term must appear in to
+                    // be included in the vocabulary.
                     .fit(df);
         }
 
