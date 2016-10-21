@@ -24,13 +24,13 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
-@TestPropertySource(properties = {
-        "librairy.columndb.host = wiener.dia.fi.upm.es",
-        "librairy.documentdb.host = wiener.dia.fi.upm.es",
-        "librairy.graphdb.host = wiener.dia.fi.upm.es",
-        "librairy.eventbus.host = wiener.dia.fi.upm.es",
-        "librairy.uri = drinventor.eu" //librairy.org
-})
+//@TestPropertySource(properties = {
+//        "librairy.columndb.host = wiener.dia.fi.upm.es",
+//        "librairy.documentdb.host = wiener.dia.fi.upm.es",
+//        "librairy.graphdb.host = wiener.dia.fi.upm.es",
+//        "librairy.eventbus.host = wiener.dia.fi.upm.es",
+//        "librairy.uri = drinventor.eu" //librairy.org
+//})
 public class DeployTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(DeployTest.class);
@@ -39,7 +39,7 @@ public class DeployTest {
     public void run() throws InterruptedException {
 
         LOG.info("Sleepping...");
-        Thread.sleep(3000000);
+        Thread.sleep(Integer.MAX_VALUE);
         LOG.info("Wake Up!");
     }
 }

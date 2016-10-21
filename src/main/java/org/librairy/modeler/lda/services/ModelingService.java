@@ -65,7 +65,7 @@ public class ModelingService {
         task = this.threadpool.schedule(new LDACreationTask(domainUri, helper), new Date(System.currentTimeMillis() + delay));
         buildingTasks.put(domainUri,task);
 
-        LOG.info("Cleaning previous topic models if exist");
+        LOG.debug("Cleaning previous topic models if exist");
         topicsBuilder.delete(domainUri);
     }
 

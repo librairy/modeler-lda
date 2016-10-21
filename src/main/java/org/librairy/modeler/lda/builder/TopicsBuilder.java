@@ -84,7 +84,7 @@ public class TopicsBuilder {
         int index = 0;
         for (Tuple2<int[], double[]> topicDistribution : topicIndices){
 
-            LOG.info("Reading topic" + index);
+            LOG.debug("Reading topic" + index);
             TopicDescription topicDescription = new TopicDescription(String.valueOf(index));
 
             int[] wordsId = topicDistribution._1;
