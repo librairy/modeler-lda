@@ -16,6 +16,7 @@ import org.librairy.storage.generator.URIGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -43,6 +44,12 @@ public class LDAModelingTask implements Runnable {
         LOG.debug("trying to use an existing topic model to discover topic distributions in domain: " + domainUri);
 
         try{
+            // Check if exist topics in domain
+            List<Resource> topics = helper.getUdm().find(Resource.Type.TOPIC).from(Resource.Type.DOMAIN,
+                    domainUri);
+
+            if (topics.isEmpty()) return;
+
             // Create corpus
             Corpus corpus = helper.getCorpusBuilder().build(domainUri, Resource.Type.PART);
 

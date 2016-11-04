@@ -162,6 +162,7 @@ public class Corpus {
 
         Integer minDf = (!registry.isEmpty())? Double.valueOf(Math.ceil(registry.size()*0.00009)).intValue() : 1;
 
+        LOG.info("MinDF="+minDf);
         if (countVectorizerModel == null){
             // Train a Count Vectorizer Model based on corpus
             LOG.info("Limiting to top "+helper.getVocabSize()+" most common words and creating a count vector model ..");

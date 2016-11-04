@@ -71,7 +71,7 @@ public class ModelingService {
 
 
     public void inferDistributions(String domainUri, Resource.Type resourceType, long delay){
-        LOG.debug("Scheduled discover topic distributions from an existing topic model in domain: " +
+        LOG.info("Scheduled discover topic distributions from an existing topic model in domain: " +
                 domainUri + " at " + timeFormatter.format(new Date(System.currentTimeMillis() + delay)));
         ScheduledFuture<?> task = modelingTasks.get(domainUri+resourceType.name());
         if (task != null) task.cancel(false);

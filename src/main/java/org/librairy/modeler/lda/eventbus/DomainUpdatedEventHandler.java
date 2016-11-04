@@ -52,10 +52,10 @@ public class DomainUpdatedEventHandler implements EventBusSubscriber {
 
     @Override
     public void handle(Event event) {
-        LOG.debug("Item bundled event received: " + event);
         try{
             Resource resource = event.to(Resource.class);
 
+            LOG.info("Creating a new Topic Model for an updated domain: " + resource.getUri());
             modelingService.train(resource.getUri(),delay);
 
         } catch (Exception e){
