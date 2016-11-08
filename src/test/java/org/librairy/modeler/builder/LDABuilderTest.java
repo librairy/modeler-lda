@@ -131,7 +131,7 @@ public class LDABuilderTest {
 
         TopicModel topicModel = ldaBuilder.load(domainId);
 
-        Corpus corpus = new Corpus("test",helper);
+        Corpus corpus = new Corpus("test", Resource.Type.ANY, helper);
 
         // Load Text
         Text text = new Text();
@@ -152,7 +152,7 @@ public class LDABuilderTest {
         LocalLDAModel localLDAModel = topicModel.getLdaModel();
 
         // Topics distribution for documents
-        Map<Object, String> documentsUri = corpus.getRegistry();
+        Map<Long, String> documentsUri = corpus.getRegistry();
 
         // Topics distribution
         List<Tuple2<Object, Vector>> topicsDistributionArray = localLDAModel.topicDistributions(documents).toJavaRDD().collect();

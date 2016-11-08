@@ -37,7 +37,8 @@ public class BuildSimilarityTask implements Runnable {
     @Override
     public void run() {
 
-        LOG.debug("trying to discover topic model-based similarities in domain: " + domainUri);
+        LOG.debug("trying to discover topic model-based similarities in domain: " + domainUri + " for " + resourceType
+                .route());
         helper.getSimilarityBuilder().discover(domainUri, resourceType);
 
     }

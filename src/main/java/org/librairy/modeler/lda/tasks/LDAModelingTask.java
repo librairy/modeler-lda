@@ -41,7 +41,7 @@ public class LDAModelingTask implements Runnable {
     @Override
     public void run() {
 
-        LOG.debug("trying to use an existing topic model to discover topic distributions in domain: " + domainUri);
+        LOG.info("trying to use an existing topic model to discover topic distributions in domain: " + domainUri);
 
         try{
             // Check if exist topics in domain

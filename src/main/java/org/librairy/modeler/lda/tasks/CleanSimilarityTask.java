@@ -7,7 +7,6 @@
 
 package org.librairy.modeler.lda.tasks;
 
-import org.librairy.model.domain.resources.Resource;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

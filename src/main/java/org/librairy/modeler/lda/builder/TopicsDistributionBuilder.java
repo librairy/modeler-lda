@@ -58,7 +58,7 @@ public class TopicsDistributionBuilder {
         TopicModel topicModel = ldaBuilder.load(domainId);
 
         // Create a minimal corpus
-        Corpus corpus = new Corpus("from-inference",helper);
+        Corpus corpus = new Corpus("from-inference", Resource.Type.ANY, helper);
         corpus.loadTexts(texts);
 
         // Use vocabulary from existing model

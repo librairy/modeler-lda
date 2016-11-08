@@ -17,10 +17,7 @@ import org.apache.spark.ml.feature.StopWordsRemover;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.rdd.RDD;
-import org.apache.spark.sql.DataFrame;
-import org.apache.spark.sql.Row;
-import org.apache.spark.sql.RowFactory;
-import org.apache.spark.sql.SQLContext;
+import org.apache.spark.sql.*;
 import org.apache.spark.sql.cassandra.CassandraSQLContext;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
@@ -52,20 +49,23 @@ public class Corpus {
 
     private static final Logger LOG = LoggerFactory.getLogger(Corpus.class);
 
+    private final Resource.Type type;
+
     String id;
-    Map<Object,String> registry;
+    Map<Long, String> registry;
     ModelingHelper helper;
     CountVectorizerModel countVectorizerModel;
     DataFrame df;
 
-    public Corpus(String id, ModelingHelper helper){
+    public Corpus(String id, Resource.Type type, ModelingHelper helper){
         this.id = id;
         this.helper = helper;
+        this.type = type;
     }
 
     public void updateRegistry(List<String> ids){
         this.registry = new ConcurrentHashMap<>();
-        ids.parallelStream().forEach(id -> registry.put(RowToPair.from(id),id));
+        ids.stream().forEach(id -> registry.put(RowToPair.from(id),id));
     }
 
     public void loadTexts(List<Text> texts){
@@ -96,6 +96,59 @@ public class Corpus {
 
         this.df = process(df);
     }
+
+    public void loadDomain(String domainUri){
+
+        // Create a Data Frame from Cassandra query
+        CassandraSQLContext cc = new CassandraSQLContext(helper.getSparkHelper().getContext().sc());
+
+        DataFrame containsDF = cc
+                .read()
+                .format("org.apache.spark.sql.cassandra")
+                .schema(DataTypes
+                        .createStructType(new StructField[] {
+                                DataTypes.createStructField("starturi", DataTypes.StringType, false),
+                                DataTypes.createStructField("enduri", DataTypes.StringType, false)
+                        }))
+                .option("inferSchema", "false") // Automatically infer data types
+                .option("charset", "UTF-8")
+                .option("mode","DROPMALFORMED")
+                .options(ImmutableMap.of("table", "contains", "keyspace", "research"))
+                .load()
+                .where("starturi='"+domainUri+"'")
+                .filter(org.apache.spark.sql.functions.col("enduri").contains("/"+type.route()+"/"))
+                ;
+
+
+        registry = containsDF
+                .toJavaRDD()
+                .mapToPair(row -> new Tuple2<Long,String>(RowToPair.from(row.getString(1)),row.getString(1)))
+                .collectAsMap();
+
+        DataFrame resourcesDF = cc
+                .read()
+                .format("org.apache.spark.sql.cassandra")
+                .schema(DataTypes
+                        .createStructType(new StructField[] {
+                                DataTypes.createStructField(Resource.URI, DataTypes.StringType, false),
+                                DataTypes.createStructField(Item.TOKENS, DataTypes.StringType, false)
+                        }))
+                .option("inferSchema", "false") // Automatically infer data types
+                .option("charset", "UTF-8")
+                .option("mode","DROPMALFORMED")
+                .options(ImmutableMap.of("table", type.route(), "keyspace", "research"))
+                .load()
+                ;
+
+
+        DataFrame resourcesInDomaindf = containsDF.
+                join(resourcesDF, containsDF.col("enduri").equalTo(resourcesDF.col("uri")));
+
+        this.df = process(resourcesInDomaindf);
+
+
+    }
+
 
     public void loadResources(List<String> uris){
 
@@ -160,9 +213,6 @@ public class Corpus {
 
         if (df == null) throw new RuntimeException("No documents in corpus");
 
-        Integer minDf = (!registry.isEmpty())? Double.valueOf(Math.ceil(registry.size()*0.00009)).intValue() : 1;
-
-        LOG.info("MinDF="+minDf);
         if (countVectorizerModel == null){
             // Train a Count Vectorizer Model based on corpus
             LOG.info("Limiting to top "+helper.getVocabSize()+" most common words and creating a count vector model ..");
@@ -170,7 +220,7 @@ public class Corpus {
                     .setInputCol("filtered")
                     .setOutputCol("features")
                     .setVocabSize(helper.getVocabSize())
-                    .setMinDF(minDf)    // Specifies the minimum number of different documents a term must appear in to
+                    .setMinDF(1)    // Specifies the minimum number of different documents a term must appear in to
                     // be included in the vocabulary.
                     .fit(df);
         }
@@ -189,17 +239,17 @@ public class Corpus {
         return this.registry.size();
     }
 
-    public Resource.Type getType(){
-        if ((registry != null) && (!registry.isEmpty())){
-
-            Optional<Map.Entry<Object, String>> entry = registry.entrySet().stream().findAny();
-
-            if (entry.isPresent() && entry.get().getValue().startsWith("http")){
-            return URIGenerator.typeFrom(entry.get().getValue());
-            }
-
-        }
-        return Resource.Type.ITEM;
-    }
+//    public Resource.Type getType(){
+//        if ((registry != null) && (!registry.isEmpty())){
+//
+//            Optional<Map.Entry<Object, String>> entry = registry.entrySet().stream().findAny();
+//
+//            if (entry.isPresent() && entry.get().getValue().startsWith("http")){
+//            return URIGenerator.typeFrom(entry.get().getValue());
+//            }
+//
+//        }
+//        return Resource.Type.ITEM;
+//    }
 
 }

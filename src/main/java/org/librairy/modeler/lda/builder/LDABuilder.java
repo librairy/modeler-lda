@@ -81,7 +81,7 @@ public class LDABuilder {
                 ;
 
         LOG.info("Building a new LDA Model (iter="+maxIterations+") "+ldaParameters+" from "+
-                corpus.getSize() + " documents");
+                corpus.getType().route());
         Instant startModel  = Instant.now();
         LDAModel ldaModel   = lda.run(documents);
         Instant endModel    = Instant.now();

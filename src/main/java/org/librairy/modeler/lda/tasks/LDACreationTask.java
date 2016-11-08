@@ -7,8 +7,6 @@
 
 package org.librairy.modeler.lda.tasks;
 
-import com.google.common.collect.Iterators;
-import org.librairy.model.domain.relations.Relation;
 import org.librairy.model.domain.resources.Resource;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Corpus;

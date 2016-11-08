@@ -15,7 +15,6 @@ import org.librairy.modeler.lda.tasks.LDAModelingTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Component;
 
@@ -52,7 +51,7 @@ public class ModelingService {
         this.modelingTasks = new ConcurrentHashMap<>();
 
         this.threadpool = new ThreadPoolTaskScheduler();
-        this.threadpool.setPoolSize(1);
+        this.threadpool.setPoolSize(500);
         this.threadpool.initialize();
     }
 
@@ -61,7 +60,10 @@ public class ModelingService {
         LOG.info("Scheduled creation of a new topic model (LDA) for the domain: " + domainUri + " at " + timeFormatter
                 .format(new Date(System.currentTimeMillis() + delay)));
         ScheduledFuture<?> task = buildingTasks.get(domainUri);
-        if (task != null) task.cancel(false);
+        if (task != null) {
+            task.cancel(true);
+            this.threadpool.getScheduledThreadPoolExecutor().purge();
+        }
         task = this.threadpool.schedule(new LDACreationTask(domainUri, helper), new Date(System.currentTimeMillis() + delay));
         buildingTasks.put(domainUri,task);
 
@@ -74,7 +76,10 @@ public class ModelingService {
         LOG.info("Scheduled discover topic distributions from an existing topic model in domain: " +
                 domainUri + " at " + timeFormatter.format(new Date(System.currentTimeMillis() + delay)));
         ScheduledFuture<?> task = modelingTasks.get(domainUri+resourceType.name());
-        if (task != null) task.cancel(false);
+        if (task != null) {
+            task.cancel(false);
+            this.threadpool.getScheduledThreadPoolExecutor().purge();
+        }
         task = this.threadpool.schedule(new LDAModelingTask(domainUri,helper), new Date(System.currentTimeMillis() + delay));
         modelingTasks.put(domainUri+resourceType.name(),task);
     }

@@ -75,7 +75,7 @@ public class SimilarityBuilderTest {
 //        });
 
         // Items Similarities
-        LOG.info("Calculating similarities similarityBetween parts in domain: " + domainUri);
+        LOG.info("Calculating similarities between parts in domain: " + domainUri);
         calculateSimilaritiesBetweenParts(domainUri);
 
     }

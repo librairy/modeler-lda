@@ -25,6 +25,7 @@ import javax.annotation.PostConstruct;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 
 /**
@@ -54,7 +55,7 @@ public class SimilarityService {
         this.cleaningTasks = new ConcurrentHashMap<>();
 
         this.threadpool = new ThreadPoolTaskScheduler();
-        this.threadpool.setPoolSize(50);
+        this.threadpool.setPoolSize(500);
         this.threadpool.initialize();
     }
 
@@ -64,16 +65,24 @@ public class SimilarityService {
                 domainUri +
                 " at " + timeFormatter.format(new Date(System.currentTimeMillis() + delay)));
         ScheduledFuture<?> task = buildingTasks.get(domainUri+resourceType.name());
-        if (task != null) task.cancel(false);
-        task = this.threadpool.schedule(new BuildSimilarityTask(domainUri,resourceType, helper), new Date(System.currentTimeMillis() + delay));
+        if (task != null){
+            task.cancel(true);
+            this.threadpool.getScheduledThreadPoolExecutor().purge();
+        }
+        task = this.threadpool.schedule(new BuildSimilarityTask(domainUri,resourceType, helper), new Date(System
+                    .currentTimeMillis() + delay));
         buildingTasks.put(domainUri+resourceType.name(),task);
     }
 
 
     public void clean(String domainUri, long delay){
-        LOG.debug("Scheduled cleaning similar-to relations in domain: " + domainUri + " at " + timeFormatter.format(new Date(System.currentTimeMillis() + delay)));
+        LOG.debug("Scheduled cleaning similar-to relations in domain: " + domainUri + " at " + timeFormatter.format(new
+                Date(System.currentTimeMillis() + delay)));
         ScheduledFuture<?> task = cleaningTasks.get(domainUri);
-        if (task != null) task.cancel(false);
+        if (task != null) {
+            task.cancel(true);
+            this.threadpool.getScheduledThreadPoolExecutor().purge();
+        }
         task = this.threadpool.schedule(new CleanSimilarityTask(domainUri,helper), new Date(System.currentTimeMillis() + delay));
         cleaningTasks.put(domainUri,task);
     }

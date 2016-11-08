@@ -152,7 +152,9 @@ public class TopicsBuilder {
                 }
             });
         }
-        executor.awaitTermination(5, TimeUnit.MINUTES);
+        while(!executor.awaitTermination(1, TimeUnit.HOURS)){
+            LOG.warn("waiting for pool ends..");
+        }
         LOG.info(topics.size() + " topics have been saved");
         return topicRegistry;
     }
@@ -212,7 +214,9 @@ public class TopicsBuilder {
                     }
                 });
             }
-            pExecutor.awaitTermination(30, TimeUnit.MINUTES);
+            while(!pExecutor.awaitTermination(1, TimeUnit.HOURS)){
+                LOG.warn("waiting for pool ends..");
+            }
 
             // Topics deleted in this thread to avoid deadlock
             Iterator<Relation> it = rels.iterator();

@@ -47,7 +47,7 @@ public class TopicCreatedEventHandler implements EventBusSubscriber {
     @PostConstruct
     public void init(){
         BindingKey bindingKey = BindingKey.of(RoutingKey.of(Relation.Type.EMERGES_IN, Relation.State.CREATED),
-                "lda-modeler-topic-created");
+                "modeler.lda.topic.created");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");
@@ -63,11 +63,12 @@ public class TopicCreatedEventHandler implements EventBusSubscriber {
             // BUNDLES relation
             String domainUri = relation.getEndUri();
 
+            // Schedule clean of existing similarity relations
+            similarityService.clean(domainUri, 3000);
+
             // Schedule topic modeling for PARTS
             modelingService.inferDistributions(domainUri, Resource.Type.PART, 10000);
 
-            // Schedule clean of existing similarity relations
-            similarityService.clean(domainUri, 10000);
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added

@@ -47,7 +47,7 @@ public class ItemUpdatedEventHandler implements EventBusSubscriber {
     @PostConstruct
     public void init(){
         BindingKey bindingKey = BindingKey.of(RoutingKey.of(Resource.Type.ITEM, Resource.State.UPDATED),
-                "lda-modeler-item-updated");
+                "modeler.lda.item.updated");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");

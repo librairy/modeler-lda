@@ -49,7 +49,8 @@ public class DealsBuilder {
 
         String domainUri = uriGenerator.from(Resource.Type.DOMAIN, corpus.getId());
 
-        LOG.info("Building topics distribution for "+corpus.getType().route()+" in domain: " + domainUri);
+        LOG.info("Building topic distributions for "+corpus.getType().route()+" in domain: " +
+                domainUri);
 
         // Documents
         RDD<Tuple2<Object, Vector>> documents = corpus.getBagOfWords().cache();
@@ -58,14 +59,16 @@ public class DealsBuilder {
         LocalLDAModel localLDAModel = topicModel.getLdaModel();
 
         // Topics distribution for documents
-        Map<Object, String> documentsUri = corpus.getRegistry();
+        Map<Long, String> documentsUri = corpus.getRegistry();
 
         // Topics distribution
         RDD<Tuple2<Object, Vector>> topicsDistribution = localLDAModel.topicDistributions(documents);
 
         Tuple2<Object, Vector>[] topicsDistributionArray = (Tuple2<Object, Vector>[]) topicsDistribution.collect();
 
-        LOG.info("Saving topics distribution ..");
+
+
+        LOG.info("Saving topic distributions of " + corpus.getSize() + " " + corpus.getType().route() + " ..");
         if (topicsDistributionArray.length>0){
             ParallelExecutor executor = new ParallelExecutor();
             for (Tuple2<Object, Vector> distribution: topicsDistributionArray){
@@ -97,8 +100,10 @@ public class DealsBuilder {
                     }
                 });
             }
-            executor.awaitTermination(30l, TimeUnit.MINUTES);
+            while(!executor.awaitTermination(1, TimeUnit.HOURS)){
+                LOG.warn("waiting for pool ends..");
+            }
         }
-        LOG.info("Topics distribution saved!!");
+        LOG.info("Topics distribution of " + corpus.getType().route() + " saved!!");
     }
 }

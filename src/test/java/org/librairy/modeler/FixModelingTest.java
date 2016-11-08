@@ -12,6 +12,7 @@ import es.cbadenes.lab.test.IntegrationTest;
 import org.librairy.model.domain.relations.Relation;
 import org.librairy.model.domain.resources.Resource;
 import org.librairy.modeler.lda.Config;
+import org.librairy.modeler.lda.builder.SimilarityBuilder;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.tasks.LDACreationTask;
 import org.librairy.storage.UDM;
@@ -34,8 +35,8 @@ import java.io.IOException;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
-@TestPropertySource(properties = {
-})
+//@TestPropertySource(properties = {
+//})
 public class FixModelingTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(FixModelingTest.class);
@@ -45,6 +46,18 @@ public class FixModelingTest {
 
     @Autowired
     UDM udm;
+
+    @Autowired
+    SimilarityBuilder similarityBuilder;
+
+    @Test
+    public void calculateSimilarities() throws InterruptedException {
+
+        String domainUri = "http://librairy.org/domains/default";
+
+        similarityBuilder.discover(domainUri, Resource.Type.PART);
+
+    }
 
 
     @Test
