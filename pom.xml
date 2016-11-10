@@ -11,7 +11,7 @@
 
 	<groupId>org.librairy</groupId>
     <artifactId>librairy-modeler-lda</artifactId>
-    <version>0.30-SNAPSHOT</version>
+    <version>0.30</version>
     <packaging>war</packaging>
     <name>modeler-lda</name>
     <description>Create Topic Models for a given domain</description>
@@ -618,7 +618,7 @@
                     </dependency>
                 </dependencies>
                 <configuration>
-                    <argLine>-Xmx5024m</argLine>
+                    <!--<argLine>-Xmx5024m</argLine>-->
                     <includes>
                         <include>**/*.class</include>
                     </includes>

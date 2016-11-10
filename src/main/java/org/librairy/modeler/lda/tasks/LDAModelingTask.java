@@ -41,14 +41,10 @@ public class LDAModelingTask implements Runnable {
     @Override
     public void run() {
 
-        LOG.info("trying to use an existing topic model to discover topic distributions in domain: " + domainUri);
+        LOG.info("trying to use an existing topic model to infer topic distributions for PARTS in domain: " +
+                domainUri);
 
         try{
-            // Check if exist topics in domain
-            List<Resource> topics = helper.getUdm().find(Resource.Type.TOPIC).from(Resource.Type.DOMAIN,
-                    domainUri);
-
-            if (topics.isEmpty()) return;
 
             // Create corpus
             Corpus corpus = helper.getCorpusBuilder().build(domainUri, Resource.Type.PART);

@@ -59,9 +59,7 @@ public class ItemUpdatedEventHandler implements EventBusSubscriber {
         try{
             Resource resource = event.to(Resource.class);
 
-            udm.find(Resource.Type.DOMAIN).from(Resource.Type.ITEM,resource.getUri()).forEach(domain -> {
-                modelingService.train(domain.getUri(),delay);
-            });
+            udm.find(Resource.Type.DOMAIN).from(Resource.Type.ITEM,resource.getUri()).forEach(domain -> modelingService.train(domain.getUri(),delay));
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added

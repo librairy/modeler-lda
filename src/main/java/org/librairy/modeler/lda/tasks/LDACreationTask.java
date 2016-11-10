@@ -37,7 +37,6 @@ public class LDACreationTask implements Runnable {
 
     @Override
     public void run() {
-
         LOG.info("creating a corpus to build a topic model in domain: " + domainUri);
         Corpus corpus = helper.getCorpusBuilder().build(domainUri, Resource.Type.ITEM);
 
@@ -54,6 +53,8 @@ public class LDACreationTask implements Runnable {
         helper.getDealsBuilder().build(corpus,model,registry);
 
         LOG.info("LDA model created and stored successfully");
+
+        new LDAModelingTask(domainUri, helper).run();
     }
 
 

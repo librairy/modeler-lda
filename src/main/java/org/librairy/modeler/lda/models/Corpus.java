@@ -119,7 +119,6 @@ public class Corpus {
                 .filter(org.apache.spark.sql.functions.col("enduri").contains("/"+type.route()+"/"))
                 ;
 
-
         registry = containsDF
                 .toJavaRDD()
                 .mapToPair(row -> new Tuple2<Long,String>(RowToPair.from(row.getString(1)),row.getString(1)))
