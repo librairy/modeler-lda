@@ -48,16 +48,16 @@ import java.util.stream.Collectors;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
-@TestPropertySource(properties = {
-        "librairy.columndb.host = wiener.dia.fi.upm.es",
-        "librairy.columndb.port = 5011",
-        "librairy.documentdb.host = wiener.dia.fi.upm.es",
-        "librairy.documentdb.port = 5021",
-        "librairy.graphdb.host = wiener.dia.fi.upm.es",
-        "librairy.graphdb.port = 5030",
-        "librairy.lda.maxiterations = 3",
-        "librairy.lda.vocabulary.size = 10000"
-})
+//@TestPropertySource(properties = {
+//        "librairy.columndb.host = wiener.dia.fi.upm.es",
+//        "librairy.columndb.port = 5011",
+//        "librairy.documentdb.host = wiener.dia.fi.upm.es",
+//        "librairy.documentdb.port = 5021",
+//        "librairy.graphdb.host = wiener.dia.fi.upm.es",
+//        "librairy.graphdb.port = 5030",
+//        "librairy.lda.maxiterations = 3",
+//        "librairy.lda.vocabulary.size = 10000"
+//})
 public class LDABuilderTest {
 
 
@@ -79,12 +79,12 @@ public class LDABuilderTest {
     ModelingHelper helper;
 
 
-    String domainURI = "http://drinventor.eu/domains/4f56ab24bb6d815a48b8968a3b157470";
+    String domainURI = "http://librairy.org/domains/default";
 
     @Test
     public void buildByDomain(){
 
-        Corpus corpus = corpusBuilder.build(domainURI, Resource.Type.ITEM);
+        Corpus corpus = corpusBuilder.build(domainURI, Arrays.asList(new Resource.Type[]{Resource.Type.ITEM}));
 
         TopicModel topicModel = ldaBuilder.build(corpus);
 
@@ -92,27 +92,27 @@ public class LDABuilderTest {
 
     }
 
-    @Test
-    public void buildByUris(){
-
-        List<String> uris = Arrays.asList(new String[]{
-                "http://drinventor.eu/items/9c8b49fbc507cfe9903fc9f08dc2a8c8",
-                "http://drinventor.eu/items/ec934613dfb9acddd68f89c579f24aff",
-                "http://drinventor.eu/items/7da1c096e73093f6404cd28946d313a6",
-                "http://drinventor.eu/items/71b295f128318469a3f04d25ae8b18c",
-                "http://drinventor.eu/items/cc9ca0ab0fe51b6ec99c09a2cba75249",
-                "http://drinventor.eu/items/2073b01f3c011e62903d27f8549167a8",
-                "http://drinventor.eu/items/6cead06fa9b7ec59daf55d186f1085b3",
-                "http://drinventor.eu/items/2906920d70fb1fc1a67d171245160e02",
-                "http://drinventor.eu/items/548b6e832a232c101f8d9ab3a16d6d95",
-                "http://drinventor.eu/items/d75ddc6e097d193a5cfee8396aab8e21"
-        });
-
-        Corpus corpus = corpusBuilder.build("test",uris);
-
-        ldaBuilder.build(corpus);
-
-    }
+//    @Test
+//    public void buildByUris(){
+//
+//        List<String> uris = Arrays.asList(new String[]{
+//                "http://drinventor.eu/items/9c8b49fbc507cfe9903fc9f08dc2a8c8",
+//                "http://drinventor.eu/items/ec934613dfb9acddd68f89c579f24aff",
+//                "http://drinventor.eu/items/7da1c096e73093f6404cd28946d313a6",
+//                "http://drinventor.eu/items/71b295f128318469a3f04d25ae8b18c",
+//                "http://drinventor.eu/items/cc9ca0ab0fe51b6ec99c09a2cba75249",
+//                "http://drinventor.eu/items/2073b01f3c011e62903d27f8549167a8",
+//                "http://drinventor.eu/items/6cead06fa9b7ec59daf55d186f1085b3",
+//                "http://drinventor.eu/items/2906920d70fb1fc1a67d171245160e02",
+//                "http://drinventor.eu/items/548b6e832a232c101f8d9ab3a16d6d95",
+//                "http://drinventor.eu/items/d75ddc6e097d193a5cfee8396aab8e21"
+//        });
+//
+//        Corpus corpus = corpusBuilder.build("test",uris);
+//
+//        ldaBuilder.build(corpus);
+//
+//    }
 
     @Test
     public void load(){
@@ -131,7 +131,7 @@ public class LDABuilderTest {
 
         TopicModel topicModel = ldaBuilder.load(domainId);
 
-        Corpus corpus = new Corpus("test", Resource.Type.ANY, helper);
+        Corpus corpus = new Corpus("test", Arrays.asList(new Resource.Type[]{Resource.Type.ANY}), helper);
 
         // Load Text
         Text text = new Text();

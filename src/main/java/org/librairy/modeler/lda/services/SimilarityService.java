@@ -12,12 +12,9 @@ import org.librairy.modeler.lda.builder.TopicsBuilder;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.tasks.BuildSimilarityTask;
 import org.librairy.modeler.lda.tasks.CleanSimilarityTask;
-import org.librairy.modeler.lda.tasks.LDACreationTask;
-import org.librairy.modeler.lda.tasks.LDAModelingTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.stereotype.Component;
 
@@ -25,7 +22,6 @@ import javax.annotation.PostConstruct;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 
 /**

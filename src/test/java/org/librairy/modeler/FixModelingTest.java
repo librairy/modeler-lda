@@ -14,7 +14,7 @@ import org.librairy.model.domain.resources.Resource;
 import org.librairy.modeler.lda.Config;
 import org.librairy.modeler.lda.builder.SimilarityBuilder;
 import org.librairy.modeler.lda.helper.ModelingHelper;
-import org.librairy.modeler.lda.tasks.LDACreationTask;
+import org.librairy.modeler.lda.tasks.LDATrainingTask;
 import org.librairy.storage.UDM;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -23,7 +23,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.io.FileWriter;
@@ -64,7 +63,7 @@ public class FixModelingTest {
     public void topicModel() throws InterruptedException {
 
         String domainUri = "http://drinventor.eu/domains/4f56ab24bb6d815a48b8968a3b157470";
-        new LDACreationTask(domainUri, helper).run();
+        new LDATrainingTask(domainUri, helper).run();
 
     }
 

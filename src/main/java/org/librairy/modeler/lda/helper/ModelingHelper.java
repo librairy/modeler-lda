@@ -11,6 +11,7 @@ import lombok.Data;
 import org.librairy.computing.cluster.Partitioner;
 import org.librairy.computing.helper.SparkHelper;
 import org.librairy.computing.helper.StorageHelper;
+import org.librairy.model.modules.EventBus;
 import org.librairy.modeler.lda.builder.*;
 import org.librairy.storage.UDM;
 import org.librairy.storage.generator.URIGenerator;
@@ -55,6 +56,18 @@ public class ModelingHelper {
 
     @Autowired
     TopicsBuilder topicsBuilder;
+
+    @Autowired
+    WorkspaceBuilder workspaceBuilder;
+
+    @Autowired
+    SQLHelper sqlHelper;
+
+    @Autowired
+    CassandraHelper cassandraHelper;
+
+    @Autowired
+    EventBus eventBus;
 
     @Autowired
     UDM udm;

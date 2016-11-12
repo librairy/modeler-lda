@@ -16,6 +16,7 @@ import org.librairy.storage.generator.URIGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -47,7 +48,8 @@ public class LDAModelingTask implements Runnable {
         try{
 
             // Create corpus
-            Corpus corpus = helper.getCorpusBuilder().build(domainUri, Resource.Type.PART);
+            Corpus corpus = helper.getCorpusBuilder().build(domainUri, Arrays.asList(new Resource.Type[]{Resource
+                    .Type.PART}));
 
             // Load existing model
             String domainId = URIGenerator.retrieveId(domainUri);
@@ -60,7 +62,7 @@ public class LDAModelingTask implements Runnable {
             Map<String, String> registry = helper.getTopicsBuilder().composeRegistry(model);
 
             // Calculate topic distributions for Parts
-            helper.getDealsBuilder().build(corpus,model,registry);
+            helper.getDealsBuilder().build(corpus,model);
         }catch (EmptyResultException e){
             LOG.info(e.getMessage());
         }

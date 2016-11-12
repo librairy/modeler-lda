@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import scala.Tuple2;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -58,7 +59,7 @@ public class TopicsDistributionBuilder {
         TopicModel topicModel = ldaBuilder.load(domainId);
 
         // Create a minimal corpus
-        Corpus corpus = new Corpus("from-inference", Resource.Type.ANY, helper);
+        Corpus corpus = new Corpus("from-inference", Arrays.asList(new Resource.Type[]{Resource.Type.ANY}), helper);
         corpus.loadTexts(texts);
 
         // Use vocabulary from existing model

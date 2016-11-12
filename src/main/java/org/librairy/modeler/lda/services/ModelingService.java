@@ -10,7 +10,7 @@ package org.librairy.modeler.lda.services;
 import org.librairy.model.domain.resources.Resource;
 import org.librairy.modeler.lda.builder.TopicsBuilder;
 import org.librairy.modeler.lda.helper.ModelingHelper;
-import org.librairy.modeler.lda.tasks.LDACreationTask;
+import org.librairy.modeler.lda.tasks.LDATrainingTask;
 import org.librairy.modeler.lda.tasks.LDAModelingTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,11 +64,11 @@ public class ModelingService {
             task.cancel(true);
             this.threadpool.getScheduledThreadPoolExecutor().purge();
         }
-        task = this.threadpool.schedule(new LDACreationTask(domainUri, helper), new Date(System.currentTimeMillis() + delay));
+        task = this.threadpool.schedule(new LDATrainingTask(domainUri, helper), new Date(System.currentTimeMillis() + delay));
         buildingTasks.put(domainUri,task);
 
-        LOG.debug("Cleaning previous topic models if exist");
-        topicsBuilder.delete(domainUri);
+//        LOG.debug("Cleaning previous topic models if exist");
+//        topicsBuilder.delete(domainUri);
     }
 
 

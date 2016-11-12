@@ -7,6 +7,7 @@
 
 package org.librairy.modeler.lda.models;
 
+import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.google.common.collect.ImmutableMap;
 import lombok.Data;
 import org.apache.spark.api.java.JavaRDD;
@@ -17,13 +18,18 @@ import org.apache.spark.ml.feature.StopWordsRemover;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.rdd.RDD;
-import org.apache.spark.sql.*;
-import org.apache.spark.sql.cassandra.CassandraSQLContext;
+import org.apache.spark.sql.Column;
+import org.apache.spark.sql.DataFrame;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.librairy.model.domain.resources.Item;
 import org.librairy.model.domain.resources.Resource;
+import org.librairy.modeler.lda.dao.SessionManager;
+import org.librairy.modeler.lda.dao.ShapeRow;
+import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.functions.RowToPair;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.storage.generator.URIGenerator;
@@ -35,9 +41,10 @@ import scala.reflect.ClassTag$;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+
+import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 
 /**
  * Created on 31/08/16:
@@ -49,18 +56,20 @@ public class Corpus {
 
     private static final Logger LOG = LoggerFactory.getLogger(Corpus.class);
 
-    private final Resource.Type type;
+    private final List<Resource.Type> types;
 
     String id;
     Map<Long, String> registry;
     ModelingHelper helper;
     CountVectorizerModel countVectorizerModel;
     DataFrame df;
+    RDD<Tuple2<Object, Vector>> bow;
+    private long size;
 
-    public Corpus(String id, Resource.Type type, ModelingHelper helper){
+    public Corpus(String id, List<Resource.Type> types, ModelingHelper helper){
         this.id = id;
         this.helper = helper;
-        this.type = type;
+        this.types = types;
     }
 
     public void updateRegistry(List<String> ids){
@@ -89,20 +98,24 @@ public class Corpus {
                         DataTypes.createStructField(Item.TOKENS, DataTypes.StringType, false)
                 });
 
-        SQLContext sqlContext = new SQLContext(helper.getSparkHelper().getContext());
-
-
-        DataFrame df = sqlContext.createDataFrame(jrdd, schema);
+        DataFrame df = helper.getSqlHelper().getContext().createDataFrame(jrdd, schema);
 
         this.df = process(df);
     }
 
     public void loadDomain(String domainUri){
 
-        // Create a Data Frame from Cassandra query
-        CassandraSQLContext cc = new CassandraSQLContext(helper.getSparkHelper().getContext().sc());
+        Column condition = org.apache.spark.sql.functions.col("enduri").contains("/"+types.get(0).route()+"/");
 
-        DataFrame containsDF = cc
+        if (types.size() > 1){
+            for (int i=1; i< types.size(); i++){
+                condition = condition.or(org.apache.spark.sql.functions.col("enduri").contains("/"+types.get(i).route
+                        ()+"/"));
+            }
+        }
+
+        // Create a Data Frame from Cassandra query
+        DataFrame containsDF = helper.getCassandraHelper().getContext()
                 .read()
                 .format("org.apache.spark.sql.cassandra")
                 .schema(DataTypes
@@ -116,15 +129,30 @@ public class Corpus {
                 .options(ImmutableMap.of("table", "contains", "keyspace", "research"))
                 .load()
                 .where("starturi='"+domainUri+"'")
-                .filter(org.apache.spark.sql.functions.col("enduri").contains("/"+type.route()+"/"))
+                .filter(condition)
                 ;
 
-        registry = containsDF
+        // Save in database;
+        JavaRDD<ShapeRow> rows = containsDF
                 .toJavaRDD()
-                .mapToPair(row -> new Tuple2<Long,String>(RowToPair.from(row.getString(1)),row.getString(1)))
-                .collectAsMap();
+                .map(row -> {
+                    ShapeRow shapeRow = new ShapeRow();
+                    shapeRow.setUri(row.getString(1));
+                    shapeRow.setId(RowToPair.from(row.getString(1)));
+                    return shapeRow;
+                });
 
-        DataFrame resourcesDF = cc
+        this.size = rows.count();
+
+        // Save in database
+        LOG.info("saving elements id to database..");
+        CassandraJavaUtil.javaFunctions(rows)
+                .writerBuilder(SessionManager.getKeyspaceFromId(id), ShapesDao.TABLE, mapToRow(ShapeRow.class))
+                .saveToCassandra();
+        LOG.info("saved!");
+
+
+        DataFrame resourcesDF = helper.getCassandraHelper().getContext()
                 .read()
                 .format("org.apache.spark.sql.cassandra")
                 .schema(DataTypes
@@ -135,10 +163,32 @@ public class Corpus {
                 .option("inferSchema", "false") // Automatically infer data types
                 .option("charset", "UTF-8")
                 .option("mode","DROPMALFORMED")
-                .options(ImmutableMap.of("table", type.route(), "keyspace", "research"))
+                .options(ImmutableMap.of("table", types.get(0).route(), "keyspace", "research"))
                 .load()
                 ;
 
+
+
+
+        if (types.size() > 1){
+            for (int i=1; i< types.size(); i++){
+                DataFrame partialDF = helper.getCassandraHelper().getContext()
+                        .read()
+                        .format("org.apache.spark.sql.cassandra")
+                        .schema(DataTypes
+                                .createStructType(new StructField[] {
+                                        DataTypes.createStructField(Resource.URI, DataTypes.StringType, false),
+                                        DataTypes.createStructField(Item.TOKENS, DataTypes.StringType, false)
+                                }))
+                        .option("inferSchema", "false") // Automatically infer data types
+                        .option("charset", "UTF-8")
+                        .option("mode","DROPMALFORMED")
+                        .options(ImmutableMap.of("table", types.get(i).route(), "keyspace", "research"))
+                        .load()
+                        ;
+                resourcesDF = resourcesDF.unionAll(partialDF);
+            }
+        }
 
         DataFrame resourcesInDomaindf = containsDF.
                 join(resourcesDF, containsDF.col("enduri").equalTo(resourcesDF.col("uri")));
@@ -153,10 +203,6 @@ public class Corpus {
 
         updateRegistry(uris);
 
-
-        // Create a Data Frame from Cassandra query
-        CassandraSQLContext cc = new CassandraSQLContext(helper.getSparkHelper().getContext().sc());
-
         // Define a schema
         StructType schema = DataTypes
                 .createStructType(new StructField[] {
@@ -167,7 +213,7 @@ public class Corpus {
         String whereClause = "uri in (" + uris.stream().map(uri -> "'"+uri+"'").collect(Collectors.joining(", ")) + ")";
 
         Resource.Type type = URIGenerator.typeFrom(uris.get(0));
-        DataFrame df = cc
+        DataFrame df = helper.getCassandraHelper().getContext()
                 .read()
                 .format("org.apache.spark.sql.cassandra")
                 .schema(schema)
@@ -210,6 +256,8 @@ public class Corpus {
 
     public RDD<Tuple2<Object, Vector>> getBagOfWords(){
 
+        if (bow != null) return bow;
+
         if (df == null) throw new RuntimeException("No documents in corpus");
 
         if (countVectorizerModel == null){
@@ -227,15 +275,18 @@ public class Corpus {
         int estimatedPartitions = helper.getPartitioner().estimatedFor(df);
         Tuple2<Object, Vector> tuple = new Tuple2<Object,Vector>(0l, Vectors.dense(new double[]{1.0}));
 
-        return countVectorizerModel
+         bow = countVectorizerModel
                 .transform(df)
                 .select("uri", "features")
                 .repartition(estimatedPartitions)
-                .map(new RowToPair(), ClassTag$.MODULE$.<Tuple2<Object, Vector>>apply(tuple.getClass()));
+                .map(new RowToPair(), ClassTag$.MODULE$.<Tuple2<Object, Vector>>apply(tuple.getClass()))
+        ;
+
+        return bow;
     }
 
-    public Integer getSize(){
-        return this.registry.size();
+    public Long getSize(){
+        return this.size;
     }
 
 //    public Resource.Type getType(){

@@ -24,6 +24,8 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
+import java.util.Arrays;
+
 /**
  * Created on 01/09/16:
  *
@@ -58,7 +60,7 @@ public class NSGAOptimizerTest {
     @Test
     public void buildByDomain(){
 
-        Corpus corpus = corpusBuilder.build(domainURI, Resource.Type.ITEM);
+        Corpus corpus = corpusBuilder.build(domainURI, Arrays.asList(new Resource.Type[]{Resource.Type.ITEM}));
 
         LDAParameters parameters = optimizer.getParametersFor(corpus);
 
