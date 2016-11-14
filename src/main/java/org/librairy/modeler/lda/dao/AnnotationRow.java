@@ -10,26 +10,28 @@ package org.librairy.modeler.lda.dao;
 import lombok.Data;
 
 import java.io.Serializable;
-import java.util.List;
 
 /**
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
  */
 @Data
-public class DistributionRow implements Serializable{
+public class AnnotationRow implements Serializable{
 
     private String resource_uri;
     private String resource_type;
-    private String topic_uri;
+    private String type;
+    private String value;
     private String date;
     private Double score;
     private Long combined_key;
 
-    public DistributionRow(String resUri, String resType, String topicUri, String date, Double score){
-        this.combined_key = Long.valueOf((resUri+"-"+topicUri).hashCode());
+    public AnnotationRow(String resUri, String resType, String annotationType, String annotationValue, Double score,
+                         String date){
+        this.combined_key = Long.valueOf((resUri+"-"+annotationType+"-"+annotationType).hashCode());
         this.resource_uri = resUri;
         this.resource_type = resType;
-        this.topic_uri = topicUri;
+        this.type = annotationType;
+        this.value = annotationValue;
         this.date = date;
         this.score = score;
     }

@@ -11,15 +11,9 @@ import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.google.common.collect.ImmutableMap;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
-import org.apache.spark.api.java.function.PairFunction;
-import org.apache.spark.sql.DataFrame;
-import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.librairy.model.Event;
-import org.librairy.model.domain.resources.Item;
-import org.librairy.model.domain.resources.Resource;
 import org.librairy.model.modules.BindingKey;
 import org.librairy.model.modules.EventBus;
 import org.librairy.model.modules.EventBusSubscriber;
@@ -32,22 +26,14 @@ import org.librairy.modeler.lda.dao.*;
 import org.librairy.modeler.lda.functions.RowToShape;
 import org.librairy.modeler.lda.functions.RowToTopic;
 import org.librairy.modeler.lda.helper.CassandraHelper;
-import org.librairy.modeler.lda.models.Corpus;
 import org.librairy.modeler.lda.models.InternalResource;
-import org.librairy.modeler.lda.models.TopicModel;
 import org.librairy.storage.generator.URIGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import scala.Tuple2;
 
 import javax.annotation.PostConstruct;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 
@@ -55,9 +41,9 @@ import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
  * Created by cbadenes on 11/01/16.
  */
 @Component
-public class LdaCreatedEventHandler implements EventBusSubscriber {
+public class LdaShapesCreatedEventHandler implements EventBusSubscriber {
 
-    private static final Logger LOG = LoggerFactory.getLogger(LdaCreatedEventHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LdaShapesCreatedEventHandler.class);
 
     @Autowired
     protected EventBus eventBus;
@@ -76,7 +62,7 @@ public class LdaCreatedEventHandler implements EventBusSubscriber {
 
     @PostConstruct
     public void init(){
-        BindingKey bindingKey = BindingKey.of(RoutingKey.of("lda.created"), "modeler.lda.created");
+        BindingKey bindingKey = BindingKey.of(RoutingKey.of("lda.shapes.created"), "lda.shapes.created");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");
@@ -84,7 +70,7 @@ public class LdaCreatedEventHandler implements EventBusSubscriber {
 
     @Override
     public void handle(Event event) {
-        LOG.info("lda created event received: " + event);
+        LOG.info("lda shapes created event received: " + event);
         try{
             String domainUri = event.to(String.class);
 
@@ -139,6 +125,8 @@ public class LdaCreatedEventHandler implements EventBusSubscriber {
                     .writerBuilder(SessionManager.getKeyspaceFromUri(domainUri), DistributionsDao.TABLE, mapToRow(DistributionRow.class))
                     .saveToCassandra();
             LOG.info("saved!");
+
+            eventBus.post(Event.from(domainUri), RoutingKey.of("lda.distributions.created"));
 
 
         } catch (Exception e){

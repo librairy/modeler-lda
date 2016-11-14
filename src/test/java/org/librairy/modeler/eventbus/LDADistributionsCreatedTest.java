@@ -15,7 +15,6 @@ import org.librairy.model.Event;
 import org.librairy.model.modules.EventBus;
 import org.librairy.model.modules.RoutingKey;
 import org.librairy.modeler.lda.Config;
-import org.librairy.modeler.lda.services.ModelingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,9 +27,9 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
-public class LDACreatedTest {
+public class LDADistributionsCreatedTest {
 
-    private static final Logger LOG = LoggerFactory.getLogger(LDACreatedTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LDADistributionsCreatedTest.class);
 
     @Autowired
     EventBus eventBus;
@@ -40,7 +39,7 @@ public class LDACreatedTest {
 
         String domainUri = "http://librairy.org/domains/default";
 
-        eventBus.post(Event.from(domainUri), RoutingKey.of("lda.created"));
+        eventBus.post(Event.from(domainUri), RoutingKey.of("lda.distributions.created"));
 
         LOG.info("Sleepping...");
         Thread.sleep(Integer.MAX_VALUE);

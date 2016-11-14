@@ -40,7 +40,7 @@ public class DistributionsDao extends  AbstractDao{
     public void initialize(String domainUri){
         LOG.info("creating LDA distributions table for domain: " + domainUri);
         getSession(domainUri).execute("create table if not exists "+table+"(" +
-                COMBINED_KEY+" text, " +
+                COMBINED_KEY+" bigint, " +
                 RESOURCE_URI+" text, " +
                 RESOURCE_TYPE+" text, " +
                 TOPIC_URI+" text, " +

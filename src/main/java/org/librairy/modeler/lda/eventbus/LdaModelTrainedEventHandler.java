@@ -31,9 +31,9 @@ import java.util.Arrays;
  * Created by cbadenes on 11/01/16.
  */
 @Component
-public class LdaTrainedEventHandler implements EventBusSubscriber {
+public class LdaModelTrainedEventHandler implements EventBusSubscriber {
 
-    private static final Logger LOG = LoggerFactory.getLogger(LdaTrainedEventHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LdaModelTrainedEventHandler.class);
 
     @Autowired
     protected EventBus eventBus;
@@ -49,7 +49,7 @@ public class LdaTrainedEventHandler implements EventBusSubscriber {
 
     @PostConstruct
     public void init(){
-        BindingKey bindingKey = BindingKey.of(RoutingKey.of("lda.trained"), "modeler.lda.trained");
+        BindingKey bindingKey = BindingKey.of(RoutingKey.of("lda.model.trained"), "modeler.lda.model.trained");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");
@@ -57,7 +57,7 @@ public class LdaTrainedEventHandler implements EventBusSubscriber {
 
     @Override
     public void handle(Event event) {
-        LOG.info("lda trained event received: " + event);
+        LOG.info("lda model trained event received: " + event);
         try{
             String domainUri = event.to(String.class);
 
@@ -74,7 +74,7 @@ public class LdaTrainedEventHandler implements EventBusSubscriber {
             // Calculate topic distributions for Parts
             dealsBuilder.build(corpus,model);
 
-            eventBus.post(Event.from(domainUri), RoutingKey.of("lda.created"));
+            eventBus.post(Event.from(domainUri), RoutingKey.of("lda.shapes.created"));
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added

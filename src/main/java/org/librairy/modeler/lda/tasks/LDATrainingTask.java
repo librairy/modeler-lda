@@ -38,17 +38,22 @@ public class LDATrainingTask implements Runnable {
 
     @Override
     public void run() {
-        LOG.info("Prepare workspace for domain: " + domainUri);
-        helper.getWorkspaceBuilder().initialize(domainUri);
+        try{
+            LOG.info("Prepare workspace for domain: " + domainUri);
+            helper.getWorkspaceBuilder().initialize(domainUri);
 
-        LOG.info("creating a corpus to build a topic model in domain: " + domainUri);
-        Corpus corpus = helper.getCorpusBuilder().build(domainUri, Arrays.asList(new Resource.Type[]{Resource.Type.ITEM}));
+            LOG.info("creating a corpus to build a topic model in domain: " + domainUri);
+            Corpus corpus = helper.getCorpusBuilder().build(domainUri, Arrays.asList(new Resource.Type[]{Resource.Type.ITEM}));
 
-        // Train a Topic Model based on Corpus
-        LOG.info("training the model ..");
-        helper.getLdaBuilder().build(corpus);
+            // Train a Topic Model based on Corpus
+            LOG.info("training the model ..");
+            helper.getLdaBuilder().build(corpus);
 
-        helper.getEventBus().post(Event.from(domainUri), RoutingKey.of("lda.trained"));
+            helper.getEventBus().post(Event.from(domainUri), RoutingKey.of("lda.model.trained"));
+        }catch (Exception e){
+            LOG.warn("Execution stopped: " + e.getMessage());
+        }
+
 
 //
 //        LOG.info("new LDA model created and stored successfully");

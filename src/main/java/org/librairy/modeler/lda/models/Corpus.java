@@ -280,6 +280,7 @@ public class Corpus {
                 .select("uri", "features")
                 .repartition(estimatedPartitions)
                 .map(new RowToPair(), ClassTag$.MODULE$.<Tuple2<Object, Vector>>apply(tuple.getClass()))
+                .cache()
         ;
 
         return bow;
