@@ -44,6 +44,7 @@ public class AnnotationsDao extends  AbstractDao{
         getSession(domainUri).execute("create table if not exists "+table+"(" +
                 COMBINED_KEY +" bigint, " +
                 RESOURCE_URI +" text, " +
+                RESOURCE_TYPE +" text, " +
                 TYPE+" text, " +
                 VALUE+" text, " +
                 SCORE+" double, " +
