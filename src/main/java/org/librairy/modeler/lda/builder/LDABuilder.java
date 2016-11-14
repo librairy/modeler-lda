@@ -22,14 +22,11 @@ import org.librairy.computing.helper.SparkHelper;
 import org.librairy.computing.helper.StorageHelper;
 import org.librairy.model.domain.resources.Resource;
 import org.librairy.model.utils.TimeUtils;
-import org.librairy.modeler.lda.dao.SessionManager;
-import org.librairy.modeler.lda.dao.ShapeRow;
+import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.TopicRow;
 import org.librairy.modeler.lda.dao.TopicsDao;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Corpus;
-import org.librairy.modeler.lda.models.SimilarToRow;
-import org.librairy.modeler.lda.models.TopicDescription;
 import org.librairy.modeler.lda.models.TopicModel;
 import org.librairy.modeler.lda.optimizers.LDAOptimizer;
 import org.librairy.modeler.lda.optimizers.LDAParameters;
@@ -44,9 +41,7 @@ import scala.Tuple2;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
-import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 
@@ -109,7 +104,7 @@ public class LDABuilder {
                 .zipWithIndex()
                 .map(pair -> {
                     TopicRow topicRow = new TopicRow();
-                    topicRow.setUri(URIGenerator.apply(Resource.Type.TOPIC, "topic" + pair._2 + System.currentTimeMillis
+                    topicRow.setUri(URIGenerator.fromContent(Resource.Type.TOPIC, "topic" + pair._2 + System.currentTimeMillis
                             ()));
                     topicRow.setId(pair._2);
                     topicRow.setDate(TimeUtils.asISO());

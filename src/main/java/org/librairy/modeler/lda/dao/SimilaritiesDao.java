@@ -47,8 +47,6 @@ public class SimilaritiesDao extends  AbstractDao{
                 "primary key (("+RESOURCE_URI_1+","+RESOURCE_URI_2+"),"+RESOURCE_TYPE_1+","+RESOURCE_TYPE_2+"," +
                 ""+SCORE+"))" +
                 "with clustering order by ("+RESOURCE_TYPE_1+" ASC,"+RESOURCE_TYPE_2+" ASC,"+SCORE+" DESC);");
-        getSession(domainUri).execute("create index on "+table+" ("+RESOURCE_TYPE_1+");");
-        getSession(domainUri).execute("create index on "+table+" ("+RESOURCE_TYPE_2+");");
     }
 
 

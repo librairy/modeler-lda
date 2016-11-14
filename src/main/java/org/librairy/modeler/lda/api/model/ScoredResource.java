@@ -20,4 +20,12 @@ public class ScoredResource {
     private String description;
 
     private Double score;
+
+    public ScoredResource(){}
+
+    public ScoredResource(String uri, String description, Double score){
+        this.uri = uri;
+        this.description = description;
+        this.score = score;
+    }
 }

@@ -9,6 +9,7 @@ package org.librairy.modeler.lda.api.model;
 
 import lombok.Data;
 import org.librairy.model.domain.resources.Resource;
+import org.librairy.storage.generator.URIGenerator;
 
 /**
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
@@ -16,9 +17,13 @@ import org.librairy.model.domain.resources.Resource;
 @Data
 public class Criteria {
 
-    Integer max;
+    String domainUri = URIGenerator.fromId(Resource.Type.DOMAIN,"default");
 
-    Double threshold;
+    Integer max = 10;
 
-    Resource.Type types;
+    Double threshold = 0.5;
+
+    // todo
+//    Resource.Type types = Resource.Type.ANY;
+
 }

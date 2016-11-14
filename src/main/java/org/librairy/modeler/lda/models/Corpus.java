@@ -27,7 +27,7 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.librairy.model.domain.resources.Item;
 import org.librairy.model.domain.resources.Resource;
-import org.librairy.modeler.lda.dao.SessionManager;
+import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.ShapeRow;
 import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.functions.RowToPair;

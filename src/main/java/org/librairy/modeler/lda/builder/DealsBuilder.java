@@ -22,7 +22,7 @@ import org.apache.spark.sql.types.StructType;
 import org.librairy.computing.helper.SparkHelper;
 import org.librairy.model.domain.resources.Resource;
 import org.librairy.model.utils.TimeUtils;
-import org.librairy.modeler.lda.dao.SessionManager;
+import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.helper.CassandraHelper;
 import org.librairy.modeler.lda.helper.SQLHelper;

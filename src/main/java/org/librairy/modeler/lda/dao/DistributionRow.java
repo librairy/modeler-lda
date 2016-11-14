@@ -23,10 +23,8 @@ public class DistributionRow implements Serializable{
     private String topic_uri;
     private String date;
     private Double score;
-    private Long combined_key;
 
     public DistributionRow(String resUri, String resType, String topicUri, String date, Double score){
-        this.combined_key = Long.valueOf((resUri+"-"+topicUri).hashCode());
         this.resource_uri = resUri;
         this.resource_type = resType;
         this.topic_uri = topicUri;

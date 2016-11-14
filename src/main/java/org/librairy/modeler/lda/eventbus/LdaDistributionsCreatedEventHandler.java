@@ -9,12 +9,8 @@ package org.librairy.modeler.lda.eventbus;
 
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.google.common.collect.ImmutableMap;
-import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.api.java.function.FlatMapFunction;
-import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.sql.DataFrame;
-import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.librairy.model.Event;
@@ -22,27 +18,19 @@ import org.librairy.model.modules.BindingKey;
 import org.librairy.model.modules.EventBus;
 import org.librairy.model.modules.EventBusSubscriber;
 import org.librairy.model.modules.RoutingKey;
-import org.librairy.model.utils.TimeUtils;
+import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.builder.CorpusBuilder;
 import org.librairy.modeler.lda.builder.DealsBuilder;
 import org.librairy.modeler.lda.builder.LDABuilder;
 import org.librairy.modeler.lda.dao.*;
 import org.librairy.modeler.lda.functions.RowToAnnotation;
-import org.librairy.modeler.lda.functions.RowToShape;
-import org.librairy.modeler.lda.functions.RowToTopic;
 import org.librairy.modeler.lda.helper.CassandraHelper;
-import org.librairy.modeler.lda.models.InternalResource;
-import org.librairy.storage.generator.URIGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import scala.Tuple2;
 
 import javax.annotation.PostConstruct;
-
-import java.util.stream.IntStream;
-import java.util.stream.StreamSupport;
 
 import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 

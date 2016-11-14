@@ -5,7 +5,7 @@
  *
  */
 
-package org.librairy.modeler.lda.dao;
+package org.librairy.modeler.lda.api;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;

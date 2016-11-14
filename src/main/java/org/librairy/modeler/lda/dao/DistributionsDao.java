@@ -19,8 +19,6 @@ public class DistributionsDao extends  AbstractDao{
 
     private static final Logger LOG = LoggerFactory.getLogger(DistributionsDao.class);
 
-    public static final String COMBINED_KEY = "combined_key";
-
     public static final String RESOURCE_URI = "resource_uri";
 
     public static final String RESOURCE_TYPE = "resource_type";
@@ -40,16 +38,13 @@ public class DistributionsDao extends  AbstractDao{
     public void initialize(String domainUri){
         LOG.info("creating LDA distributions table for domain: " + domainUri);
         getSession(domainUri).execute("create table if not exists "+table+"(" +
-                COMBINED_KEY+" bigint, " +
                 RESOURCE_URI+" text, " +
                 RESOURCE_TYPE+" text, " +
                 TOPIC_URI+" text, " +
                 SCORE+" double, " +
                 DATE+" text, " +
-                "primary key (("+COMBINED_KEY+"), "+RESOURCE_TYPE+","+SCORE+"))" +
-                "with clustering order by ("+RESOURCE_TYPE+" ASC, "+SCORE+" DESC);");
-        getSession(domainUri).execute("create index on "+table+" ("+RESOURCE_URI+");");
-        getSession(domainUri).execute("create index on "+table+" ("+TOPIC_URI+");");
+                "primary key ("+TOPIC_URI+", "+SCORE+","+RESOURCE_URI+"))" +
+                "with clustering order by ("+SCORE+" DESC, "+RESOURCE_URI+" ASC"+ ");");
     }
 
 

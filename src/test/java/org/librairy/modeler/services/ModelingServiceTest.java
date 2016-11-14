@@ -27,7 +27,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
 @TestPropertySource(properties = {
-        "librairy.lda.optimizer = nsga",
+        "librairy.lda.optimizer = basic",
         "librairy.lda.maxevaluations = 10"
 })
 public class ModelingServiceTest {

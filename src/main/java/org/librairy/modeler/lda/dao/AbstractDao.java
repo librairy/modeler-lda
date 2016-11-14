@@ -8,6 +8,7 @@
 package org.librairy.modeler.lda.dao;
 
 import com.datastax.driver.core.Session;
+import org.librairy.modeler.lda.api.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

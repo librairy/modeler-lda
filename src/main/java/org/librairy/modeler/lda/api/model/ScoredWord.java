@@ -13,10 +13,17 @@ import lombok.Data;
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
  */
 @Data
-public class ScoredTag {
+public class ScoredWord {
 
-    private String tag;
+    private String word;
 
     private Double score;
+
+    public ScoredWord(){}
+
+    public ScoredWord(String word, Double score){
+        this.word = word;
+        this.score  = score;
+    }
 
 }

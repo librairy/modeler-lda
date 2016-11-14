@@ -19,12 +19,9 @@ public class ScoredTopic {
 
     private String uri;
 
-    private String relevance;
+    private Double relevance;
 
     private String description;
 
-    private List<String> elements;
-
-    private List<Double> scores;
-
+    private List<ScoredWord> words;
 }
