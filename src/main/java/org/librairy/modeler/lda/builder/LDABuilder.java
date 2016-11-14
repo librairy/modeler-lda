@@ -149,6 +149,7 @@ public class LDABuilder {
                 corpus.getTypes());
         Instant startModel  = Instant.now();
         LDAModel ldaModel   = lda.run(documents);
+
         Instant endModel    = Instant.now();
         LOG.info("LDA Model created in: "       + ChronoUnit.MINUTES.between(startModel,endModel) + "min " + (ChronoUnit
                 .SECONDS.between(startModel,endModel)%60) + "secs");

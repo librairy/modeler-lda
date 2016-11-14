@@ -26,6 +26,10 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
+@TestPropertySource(properties = {
+        "librairy.lda.optimizer = nsga",
+        "librairy.lda.maxevaluations = 10"
+})
 public class ModelingServiceTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ModelingServiceTest.class);
