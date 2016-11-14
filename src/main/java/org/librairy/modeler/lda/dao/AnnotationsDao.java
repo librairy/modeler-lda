@@ -49,7 +49,7 @@ public class AnnotationsDao extends  AbstractDao{
                 VALUE+" text, " +
                 SCORE+" double, " +
                 DATE+" text, " +
-                "primary key (("+COMBINED_KEY+"),"+RESOURCE_URI+","+RESOURCE_TYPE+"))" +
+                "primary key (("+COMBINED_KEY+"),"+RESOURCE_URI+","+RESOURCE_TYPE+","+SCORE+"))" +
                 "with clustering order by ("+RESOURCE_URI+" ASC, " + RESOURCE_TYPE + " ASC, "+SCORE+" DESC);");
     }
 
