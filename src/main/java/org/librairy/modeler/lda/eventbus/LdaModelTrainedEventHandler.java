@@ -71,7 +71,7 @@ public class LdaModelTrainedEventHandler implements EventBusSubscriber {
             // Use of existing vocabulary
             corpus.setCountVectorizerModel(model.getVocabModel());
 
-            // Calculate topic distributions for Parts
+            // Calculate topic distributions for Items and Parts
             dealsBuilder.build(corpus,model);
 
             eventBus.post(Event.from(domainUri), RoutingKey.of("lda.shapes.created"));

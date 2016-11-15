@@ -19,6 +19,8 @@ public class ScoredTopic {
 
     private String uri;
 
+    private Long id;
+
     private Double relevance;
 
     private String description;

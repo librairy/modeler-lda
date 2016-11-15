@@ -51,7 +51,8 @@ public class LDATrainingTask implements Runnable {
 
             helper.getEventBus().post(Event.from(domainUri), RoutingKey.of("lda.model.trained"));
         }catch (Exception e){
-            LOG.warn("Execution stopped: " + e.getMessage());
+            if (e instanceof InterruptedException) LOG.warn("Execution canceled");
+            else LOG.error("Error on execution", e);
         }
 
 

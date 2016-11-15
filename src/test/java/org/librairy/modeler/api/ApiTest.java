@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.util.List;
@@ -31,6 +32,13 @@ import java.util.List;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = ApiConfig.class)
+@TestPropertySource(properties = {
+        "librairy.columndb.host = zavijava.dia.fi.upm.es",
+        "librairy.documentdb.host = zavijava.dia.fi.upm.es",
+        "librairy.graphdb.host = zavijava.dia.fi.upm.es",
+        "librairy.eventbus.host = zavijava.dia.fi.upm.es"
+//        "librairy.uri = drinventor.eu" //librairy.org
+})
 public class ApiTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ApiTest.class);
@@ -53,7 +61,33 @@ public class ApiTest {
     @Test
     public void tags(){
 
-        String resourceUri = "http://librairy.org/parts/5227bd0abfbe38d7288b4786";
+        String documentUri = "http://librairy.org/documents/bpQYqx9C4HW";
+        String itemUri = "http://librairy.org/items/fd798de0e08bdce63359a2074a799877";
+
+        /**
+         * http://librairy.org/parts/5227c498bfbe38d7288b5171
+         http://librairy.org/parts/5227c498bfbe38d7288b5170
+         http://librairy.org/parts/5227c498bfbe38d7288b516f
+         http://librairy.org/parts/5227c498bfbe38d7288b516e
+         http://librairy.org/parts/5227c498bfbe38d7288b516d
+         http://librairy.org/parts/5227c498bfbe38d7288b516c
+         http://librairy.org/parts/5227c498bfbe38d7288b516b
+         http://librairy.org/parts/5227c498bfbe38d7288b516a
+         http://librairy.org/parts/5227c498bfbe38d7288b5169
+         http://librairy.org/parts/5227c498bfbe38d7288b5168
+         http://librairy.org/parts/5227c498bfbe38d7288b5167
+         http://librairy.org/parts/5227c498bfbe38d7288b5166
+         http://librairy.org/parts/5227c498bfbe38d7288b5165
+         http://librairy.org/parts/5227c498bfbe38d7288b5164
+         http://librairy.org/parts/5227c498bfbe38d7288b5163
+         http://librairy.org/parts/5227c498bfbe38d7288b5162
+         http://librairy.org/parts/5227c498bfbe38d7288b5161
+         http://librairy.org/parts/5227c498bfbe38d7288b5160
+         http://librairy.org/parts/5227c498bfbe38d7288b515f
+         http://librairy.org/parts/5227c498bfbe38d7288b515e
+         */
+
+        String resourceUri = "http://librairy.org/parts/5227c498bfbe38d7288b516c";
         List<ScoredWord> tags = api.getTags(resourceUri, new Criteria());
 
         tags.forEach(tag -> LOG.info("Tag: " + tag));

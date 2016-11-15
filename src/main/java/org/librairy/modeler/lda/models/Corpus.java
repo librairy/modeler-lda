@@ -132,7 +132,7 @@ public class Corpus {
                 .filter(condition)
                 ;
 
-        // Save in database;
+        // Initialize SHAPE table in database;
         JavaRDD<ShapeRow> rows = containsDF
                 .toJavaRDD()
                 .map(row -> {
@@ -144,7 +144,6 @@ public class Corpus {
 
         this.size = rows.count();
 
-        // Save in database
         LOG.info("saving elements id to database..");
         CassandraJavaUtil.javaFunctions(rows)
                 .writerBuilder(SessionManager.getKeyspaceFromId(id), ShapesDao.TABLE, mapToRow(ShapeRow.class))
@@ -282,7 +281,7 @@ public class Corpus {
                 .map(new RowToPair(), ClassTag$.MODULE$.<Tuple2<Object, Vector>>apply(tuple.getClass()))
                 .cache()
         ;
-
+        
         return bow;
     }
 

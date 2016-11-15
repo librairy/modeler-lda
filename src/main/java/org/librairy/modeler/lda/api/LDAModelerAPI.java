@@ -82,7 +82,7 @@ public class LDAModelerAPI {
         List<ScoredTopic> topics = new ArrayList<>();
 
         for (int i=0; i < scores.size(); i++){
-            ScoredTopic scoredTopic = getTopicDistribution(criteria.getDomainUri(), i, criteria.getMax());
+            ScoredTopic scoredTopic = getTopicDistribution(criteria.getDomainUri(), Long.valueOf(i), criteria.getMax());
             scoredTopic.setRelevance(scores.get(i));
             scoredTopic.setDescription(String.valueOf(i));
             topics.add(scoredTopic);
@@ -91,7 +91,27 @@ public class LDAModelerAPI {
         return topics.stream().sorted((t1,t2)->-t1.getRelevance().compareTo(t2.getRelevance())).collect(Collectors.toList());
     }
 
-    private ScoredTopic getTopicDistribution(String domainUri, Integer topicId, Integer maxSize){
+    public List<ScoredTopic> getTopics(Criteria criteria){
+
+        String query = "select "+ TopicsDao.ID
+                + " from " + TopicsDao.TABLE+";";
+
+
+        LOG.info("Executing query: " + query);
+        ResultSet result = sessionManager.getSession(criteria.getDomainUri()).execute(query);
+
+        List<Row> rows = result.all();
+
+        if (rows == null ) return Collections.emptyList();
+
+
+        return rows.stream().map(row -> getTopicDistribution(criteria.getDomainUri(), row.getLong(0),criteria.getMax()))
+                .collect
+                (Collectors.toList());
+    }
+
+
+    private ScoredTopic getTopicDistribution(String domainUri, Long topicId, Integer maxSize){
 
         ScoredTopic topic = new ScoredTopic();
 
@@ -112,6 +132,7 @@ public class LDAModelerAPI {
         List<Double> scores = row.getList(2, Double.class);
 
         topic.setUri(topicUri);
+        topic.setId(topicId);
         List<ScoredWord> scoredWords = new ArrayList<>();
         for (int i=0; i< maxSize; i++){
             scoredWords.add(new ScoredWord(words.get(i),scores.get(i)));
@@ -127,7 +148,6 @@ public class LDAModelerAPI {
         String query = "select "+ AnnotationsDao.VALUE + "," + AnnotationsDao.SCORE
                 + " from " + AnnotationsDao.TABLE
                 + " where " + AnnotationsDao.RESOURCE_URI+"='"+resourceUri+"'"
-                + " order by "+ DistributionsDao.SCORE + " DESC"
                 + " ALLOW FILTERING;";
 
 
@@ -140,6 +160,7 @@ public class LDAModelerAPI {
 
         return rows
                 .stream()
+                .filter(row -> row.getDouble(1)>0.0)
                 .collect(Collectors.groupingBy(t -> t.getString(0), Collectors.averagingDouble(r -> r.getDouble(1))))
                 .entrySet()
                 .stream()

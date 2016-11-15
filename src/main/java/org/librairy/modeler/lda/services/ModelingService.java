@@ -7,11 +7,8 @@
 
 package org.librairy.modeler.lda.services;
 
-import org.librairy.model.domain.resources.Resource;
-import org.librairy.modeler.lda.builder.TopicsBuilder;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.tasks.LDATrainingTask;
-import org.librairy.modeler.lda.tasks.LDAModelingTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,22 +30,17 @@ public class ModelingService {
     private static final Logger LOG = LoggerFactory.getLogger(ModelingService.class);
 
     private ConcurrentHashMap<String,ScheduledFuture<?>> buildingTasks;
-    private ConcurrentHashMap<String,ScheduledFuture<?>> modelingTasks;
 
     private ThreadPoolTaskScheduler threadpool;
 
     @Autowired
     ModelingHelper helper;
 
-    @Autowired
-    TopicsBuilder topicsBuilder;
-
     SimpleDateFormat timeFormatter = new SimpleDateFormat("HH:mm:ssZ");
 
     @PostConstruct
     public void setup(){
         this.buildingTasks = new ConcurrentHashMap<>();
-        this.modelingTasks = new ConcurrentHashMap<>();
 
         this.threadpool = new ThreadPoolTaskScheduler();
         this.threadpool.setPoolSize(500);
@@ -67,21 +59,7 @@ public class ModelingService {
         task = this.threadpool.schedule(new LDATrainingTask(domainUri, helper), new Date(System.currentTimeMillis() + delay));
         buildingTasks.put(domainUri,task);
 
-//        LOG.debug("Cleaning previous topic models if exist");
-//        topicsBuilder.delete(domainUri);
     }
 
-
-    public void inferDistributions(String domainUri, Resource.Type resourceType, long delay){
-        LOG.info("Scheduled discover topic distributions from an existing topic model in domain: " +
-                domainUri + " at " + timeFormatter.format(new Date(System.currentTimeMillis() + delay)));
-        ScheduledFuture<?> task = modelingTasks.get(domainUri+resourceType.name());
-        if (task != null) {
-            task.cancel(false);
-            this.threadpool.getScheduledThreadPoolExecutor().purge();
-        }
-        task = this.threadpool.schedule(new LDAModelingTask(domainUri,helper), new Date(System.currentTimeMillis() + delay));
-        modelingTasks.put(domainUri+resourceType.name(),task);
-    }
 
 }

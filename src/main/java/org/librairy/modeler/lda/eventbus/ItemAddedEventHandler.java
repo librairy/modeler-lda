@@ -25,15 +25,14 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Created by cbadenes on 11/01/16.
  */
 @Component
-public class ItemUpdatedEventHandler implements EventBusSubscriber {
+public class ItemAddedEventHandler implements EventBusSubscriber {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ItemUpdatedEventHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ItemAddedEventHandler.class);
 
     @Autowired
     protected EventBus eventBus;
@@ -44,44 +43,23 @@ public class ItemUpdatedEventHandler implements EventBusSubscriber {
     @Value("#{environment['LIBRAIRY_LDA_EVENT_DELAY']?:${librairy.lda.event.delay}}")
     protected Long delay;
 
-    @Autowired
-    UDM udm;
-
-    @Autowired
-    UnifiedColumnRepository unifiedColumnRepository;
-
-    ConcurrentHashMap<String,Object> records;
-
     @PostConstruct
     public void init(){
-        BindingKey bindingKey = BindingKey.of(RoutingKey.of(Resource.Type.ITEM, Resource.State.UPDATED),
+        BindingKey bindingKey = BindingKey.of(RoutingKey.of(Relation.Type.CONTAINS_TO_ITEM, Relation.State.CREATED),
                 "modeler.lda.item.updated");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
-        records = new ConcurrentHashMap<>();
         LOG.info("registered successfully");
     }
 
     @Override
     public void handle(Event event) {
 
-        if (!records.isEmpty() && (System.currentTimeMillis()- (Long) records.get("time") < 5000)){
-            ((Iterable<Relation>) records.get("domains"))
-                    .forEach(rel -> modelingService.train(rel.getStartUri(), delay));
-            return;
-        }
-
         LOG.debug("Item bundled event received: " + event);
         try{
-            Resource resource = event.to(Resource.class);
+            Relation relation = event.to(Relation.class);
 
-            Iterable<Relation> domains = unifiedColumnRepository
-                    .findBy(Relation.Type.CONTAINS_TO_ITEM, "end", resource.getUri());
-
-            domains.forEach(rel -> modelingService.train(rel.getStartUri(), delay));
-
-            records.put("time", System.currentTimeMillis());
-            records.put("domains", domains);
+            modelingService.train(relation.getStartUri(), delay);
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added
