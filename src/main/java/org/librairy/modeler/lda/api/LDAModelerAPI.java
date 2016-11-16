@@ -39,6 +39,22 @@ public class LDAModelerAPI {
     SessionManager sessionManager;
 
 
+    public String getItemFromDocument(String uri){
+        // TODO handle criteria.type
+        String query = "select enduri from research.bundles where starturi='"+uri+"';";
+
+
+        LOG.info("Executing query: " + query);
+        ResultSet result = sessionManager.getSession().execute(query);
+
+        Row row = result.one();
+
+        if (row == null ) return "";
+
+        return row.getString(0);
+    }
+
+
     public List<ScoredResource> getMostRelevantResources(String topicUri, Criteria criteria){
 
         // TODO handle criteria.type
