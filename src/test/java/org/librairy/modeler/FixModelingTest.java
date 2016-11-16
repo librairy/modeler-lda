@@ -9,13 +9,13 @@ package org.librairy.modeler;
 
 import com.google.common.base.Strings;
 import es.cbadenes.lab.test.IntegrationTest;
-import org.librairy.model.domain.relations.Relation;
-import org.librairy.model.domain.resources.Resource;
+import org.librairy.boot.model.domain.relations.Relation;
+import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.modeler.lda.Config;
 import org.librairy.modeler.lda.builder.SimilarityBuilder;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.tasks.LDATrainingTask;
-import org.librairy.storage.UDM;
+import org.librairy.boot.storage.UDM;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;

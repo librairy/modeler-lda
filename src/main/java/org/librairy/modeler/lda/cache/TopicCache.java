@@ -10,8 +10,8 @@ package org.librairy.modeler.lda.cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import org.librairy.model.domain.relations.Relation;
-import org.librairy.storage.system.column.repository.UnifiedColumnRepository;
+import org.librairy.boot.model.domain.relations.Relation;
+import org.librairy.boot.storage.system.column.repository.UnifiedColumnRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 

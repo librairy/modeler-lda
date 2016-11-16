@@ -7,8 +7,8 @@
 
 package org.librairy.modeler.lda.functions;
 
-import org.librairy.model.domain.relations.Relation;
-import org.librairy.model.domain.resources.Resource;
+import org.librairy.boot.model.domain.relations.Relation;
+import org.librairy.boot.model.domain.resources.Resource;
 
 import java.io.Serializable;
 

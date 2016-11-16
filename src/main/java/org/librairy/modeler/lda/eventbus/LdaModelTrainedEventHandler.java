@@ -7,18 +7,18 @@
 
 package org.librairy.modeler.lda.eventbus;
 
-import org.librairy.model.Event;
-import org.librairy.model.domain.resources.Resource;
-import org.librairy.model.modules.BindingKey;
-import org.librairy.model.modules.EventBus;
-import org.librairy.model.modules.EventBusSubscriber;
-import org.librairy.model.modules.RoutingKey;
+import org.librairy.boot.model.Event;
+import org.librairy.boot.model.domain.resources.Resource;
+import org.librairy.boot.model.modules.BindingKey;
+import org.librairy.boot.model.modules.EventBus;
+import org.librairy.boot.model.modules.EventBusSubscriber;
+import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.builder.CorpusBuilder;
 import org.librairy.modeler.lda.builder.DealsBuilder;
 import org.librairy.modeler.lda.builder.LDABuilder;
 import org.librairy.modeler.lda.models.Corpus;
 import org.librairy.modeler.lda.models.TopicModel;
-import org.librairy.storage.generator.URIGenerator;
+import org.librairy.boot.storage.generator.URIGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

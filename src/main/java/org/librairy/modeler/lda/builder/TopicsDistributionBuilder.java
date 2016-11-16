@@ -9,11 +9,11 @@ package org.librairy.modeler.lda.builder;
 
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.rdd.RDD;
-import org.librairy.model.domain.resources.Resource;
+import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.*;
-import org.librairy.storage.UDM;
-import org.librairy.storage.generator.URIGenerator;
+import org.librairy.boot.storage.UDM;
+import org.librairy.boot.storage.generator.URIGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

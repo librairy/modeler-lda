@@ -7,17 +7,16 @@
 
 package org.librairy.modeler.lda.builder;
 
-import org.librairy.model.domain.resources.Resource;
+import org.librairy.boot.model.domain.resources.Resource;
+import org.librairy.boot.storage.UDM;
+import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Corpus;
-import org.librairy.storage.UDM;
-import org.librairy.storage.generator.URIGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**

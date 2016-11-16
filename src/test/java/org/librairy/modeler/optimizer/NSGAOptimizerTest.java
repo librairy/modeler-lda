@@ -11,7 +11,7 @@ import es.cbadenes.lab.test.IntegrationTest;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
-import org.librairy.model.domain.resources.Resource;
+import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.modeler.lda.Config;
 import org.librairy.modeler.lda.builder.CorpusBuilder;
 import org.librairy.modeler.lda.models.Corpus;

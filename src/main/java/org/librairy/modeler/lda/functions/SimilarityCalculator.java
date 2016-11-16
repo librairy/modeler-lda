@@ -8,7 +8,7 @@
 package org.librairy.modeler.lda.functions;
 
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
-import org.librairy.model.domain.relations.Relationship;
+import org.librairy.boot.model.domain.relations.Relationship;
 
 import java.io.Serializable;
 import java.util.Comparator;

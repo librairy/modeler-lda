@@ -9,9 +9,9 @@ package org.librairy.modeler.lda.routes.rest;
 
 import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.model.rest.RestBindingMode;
-import org.librairy.model.domain.resources.Analysis;
-import org.librairy.model.domain.resources.Domain;
-import org.librairy.model.domain.resources.Source;
+import org.librairy.boot.model.domain.resources.Analysis;
+import org.librairy.boot.model.domain.resources.Domain;
+import org.librairy.boot.model.domain.resources.Source;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 

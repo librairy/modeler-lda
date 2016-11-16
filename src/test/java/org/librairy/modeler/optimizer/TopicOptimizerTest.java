@@ -36,13 +36,13 @@ import java.util.stream.Collectors;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = ApiConfig.class)
-//@TestPropertySource(properties = {
-//        "librairy.columndb.host = zavijava.dia.fi.upm.es",
-//        "librairy.documentdb.host = zavijava.dia.fi.upm.es",
-//        "librairy.graphdb.host = zavijava.dia.fi.upm.es",
-//        "librairy.eventbus.host = zavijava.dia.fi.upm.es"
-////        "librairy.uri = drinventor.eu" //librairy.org
-//})
+@TestPropertySource(properties = {
+        "librairy.columndb.host = zavijava.dia.fi.upm.es",
+        "librairy.documentdb.host = zavijava.dia.fi.upm.es",
+        "librairy.graphdb.host = zavijava.dia.fi.upm.es",
+        "librairy.eventbus.host = zavijava.dia.fi.upm.es"
+//        "librairy.uri = drinventor.eu" //librairy.org
+})
 public class TopicOptimizerTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(TopicOptimizerTest.class);
@@ -58,8 +58,8 @@ public class TopicOptimizerTest {
 
         List<ScoredTopic> topics = api.getTopics(criteria);
 
-        ExtendedKendallsTauDistance<String> measure = new ExtendedKendallsTauDistance<>();
 
+        LOG.info("creating rankings from topics...");
         List<Ranking<String>> rankings = topics.stream().map(st -> {
             Ranking<String> ranking = new Ranking<String>();
             st.getWords().forEach(sw -> ranking.add(sw.getWord(), sw.getScore()));
@@ -68,14 +68,21 @@ public class TopicOptimizerTest {
         }).collect(Collectors.toList());
 
 
+        LOG.info("pairing rankings..");
         Permutations<Ranking<String>> permutations = new Permutations<>();
         Set<Pair<Ranking<String>>> pairs = permutations.sorted(rankings);
 
-
+        LOG.info("calculating distances..");
+        ExtendedKendallsTauDistance<String> measure = new ExtendedKendallsTauDistance<>();
         pairs.forEach( pair -> {
             Double distance = measure.calculate(pair.getI(), pair.getJ(), (w1, w2) -> 0.5);
             LOG.info("Distance ["+pair.getI().getId() + " - " + pair.getJ().getId() + " ] = " + distance);
         });
+
+//        pairs
+//                .stream()
+//                .map( pair -> new PairDistance(pair.getI().getId(), pair.getJ().getId(),measure.calculate(pair.getI(), pair.getJ(), (w1, w2) -> 0.5) ))
+//                .sorted((p1,p2) -> p1.get)
 
 
 

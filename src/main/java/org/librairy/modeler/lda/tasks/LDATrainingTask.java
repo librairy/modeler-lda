@@ -7,9 +7,9 @@
 
 package org.librairy.modeler.lda.tasks;
 
-import org.librairy.model.Event;
-import org.librairy.model.domain.resources.Resource;
-import org.librairy.model.modules.RoutingKey;
+import org.librairy.boot.model.Event;
+import org.librairy.boot.model.domain.resources.Resource;
+import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Corpus;
 import org.slf4j.Logger;

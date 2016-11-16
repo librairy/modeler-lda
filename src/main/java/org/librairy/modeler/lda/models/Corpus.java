@@ -25,14 +25,14 @@ import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
-import org.librairy.model.domain.resources.Item;
-import org.librairy.model.domain.resources.Resource;
+import org.librairy.boot.model.domain.resources.Item;
+import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.ShapeRow;
 import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.functions.RowToPair;
 import org.librairy.modeler.lda.helper.ModelingHelper;
-import org.librairy.storage.generator.URIGenerator;
+import org.librairy.boot.storage.generator.URIGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -140,7 +140,8 @@ public class Corpus {
                     shapeRow.setUri(row.getString(1));
                     shapeRow.setId(RowToPair.from(row.getString(1)));
                     return shapeRow;
-                });
+                })
+                .cache();
 
         this.size = rows.count();
 
@@ -165,8 +166,6 @@ public class Corpus {
                 .options(ImmutableMap.of("table", types.get(0).route(), "keyspace", "research"))
                 .load()
                 ;
-
-
 
 
         if (types.size() > 1){

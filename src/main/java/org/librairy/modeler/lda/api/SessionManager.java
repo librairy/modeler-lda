@@ -9,7 +9,7 @@ package org.librairy.modeler.lda.api;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.Session;
-import org.librairy.storage.generator.URIGenerator;
+import org.librairy.boot.storage.generator.URIGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.cassandra.config.CassandraClusterFactoryBean;
 import org.springframework.stereotype.Component;

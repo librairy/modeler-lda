@@ -8,8 +8,8 @@
 package org.librairy.modeler.lda.api.model;
 
 import lombok.Data;
-import org.librairy.model.domain.resources.Resource;
-import org.librairy.storage.generator.URIGenerator;
+import org.librairy.boot.model.domain.resources.Resource;
+import org.librairy.boot.storage.generator.URIGenerator;
 
 /**
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>

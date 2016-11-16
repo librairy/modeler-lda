@@ -10,9 +10,9 @@ package org.librairy.modeler.lda.functions;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 import org.apache.spark.sql.Row;
-import org.librairy.model.utils.TimeUtils;
+import org.librairy.boot.model.utils.TimeUtils;
 import org.librairy.modeler.lda.dao.AnnotationRow;
-import org.librairy.storage.generator.URIGenerator;
+import org.librairy.boot.storage.generator.URIGenerator;
 import scala.Tuple2;
 
 import java.io.Serializable;
