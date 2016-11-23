@@ -8,6 +8,9 @@
 package org.librairy.modeler.lda.builder;
 
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 import org.apache.commons.lang.ArrayUtils;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.broadcast.Broadcast;
@@ -38,9 +41,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import scala.Tuple2;
 
+import javax.annotation.PostConstruct;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
@@ -72,6 +78,31 @@ public class LDABuilder {
 
     @Value("#{environment['LIBRAIRY_LDA_WORDS_PER_TOPIC']?:${librairy.lda.topic.words}}")
     Integer maxWords;
+
+    private LoadingCache<String, TopicModel> cache;
+
+    @PostConstruct
+    public void setup(){
+        this.cache = CacheBuilder.newBuilder()
+                .maximumSize(1000)
+                .expireAfterWrite(10, TimeUnit.MINUTES)
+                .build(
+                        new CacheLoader<String, TopicModel>() {
+                            public TopicModel load(String id) {
+                                // Load the model
+                                String modelPath = storageHelper.absolutePath(storageHelper.path(id,"lda/model"));
+                                LOG.info("loading lda model from :" + modelPath);
+                                LocalLDAModel localLDAModel = LocalLDAModel.load(sparkHelper.getContext().sc(), modelPath);
+
+                                //Load the CountVectorizerModel
+                                String vocabPath = storageHelper.absolutePath(storageHelper.path(id,"lda/vocabulary"));
+                                LOG.info("loading lda vocabulary from :" + vocabPath);
+                                CountVectorizerModel vocabModel = CountVectorizerModel.load(vocabPath);
+                                return new TopicModel(id,localLDAModel, vocabModel);
+                            }
+                        });
+
+    }
 
     public TopicModel build(Corpus corpus){
 
@@ -116,7 +147,7 @@ public class LDABuilder {
                 });
 
         // Save in database
-        LOG.info("saving topics to database..");
+        LOG.info("saving topics from " + URIGenerator.fromId(Resource.Type.DOMAIN, corpusId) + " to database..");
         CassandraJavaUtil.javaFunctions(rows)
                 .writerBuilder(SessionManager.getKeyspaceFromId(corpusId), TopicsDao.TABLE, mapToRow(TopicRow.class))
                 .saveToCassandra();
@@ -185,18 +216,11 @@ public class LDABuilder {
     }
 
     public TopicModel load(String id){
-
-        // Load the model
-        String modelPath = storageHelper.absolutePath(storageHelper.path(id,"lda/model"));
-        LOG.info("loading lda model from :" + modelPath);
-        LocalLDAModel localLDAModel = LocalLDAModel.load(sparkHelper.getContext().sc(), modelPath);
-
-        //Load the CountVectorizerModel
-        String vocabPath = storageHelper.absolutePath(storageHelper.path(id,"lda/vocabulary"));
-        LOG.info("loading lda vocabulary from :" + vocabPath);
-        CountVectorizerModel vocabModel = CountVectorizerModel.load(vocabPath);
-        return new TopicModel(id,localLDAModel, vocabModel);
-
+        try {
+            return this.cache.get(id);
+        } catch (ExecutionException e) {
+            throw new RuntimeException("Error getting model and vocabulary from domain: " + id);
+        }
     }
 
 }

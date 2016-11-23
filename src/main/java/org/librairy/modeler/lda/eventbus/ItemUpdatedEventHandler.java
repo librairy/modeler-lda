@@ -14,9 +14,9 @@ import org.librairy.boot.model.modules.BindingKey;
 import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
-import org.librairy.modeler.lda.services.ModelingService;
 import org.librairy.boot.storage.UDM;
 import org.librairy.boot.storage.system.column.repository.UnifiedColumnRepository;
+import org.librairy.modeler.lda.services.ModelingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +25,6 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Created by cbadenes on 11/01/16.

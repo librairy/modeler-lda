@@ -11,12 +11,15 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import org.librairy.modeler.lda.api.model.Criteria;
 import org.librairy.modeler.lda.api.model.ScoredResource;
-import org.librairy.modeler.lda.api.model.ScoredWord;
 import org.librairy.modeler.lda.api.model.ScoredTopic;
-import org.librairy.modeler.lda.dao.AnnotationsDao;
-import org.librairy.modeler.lda.dao.DistributionsDao;
-import org.librairy.modeler.lda.dao.ShapesDao;
-import org.librairy.modeler.lda.dao.TopicsDao;
+import org.librairy.modeler.lda.api.model.ScoredWord;
+import org.librairy.modeler.lda.dao.*;
+import org.librairy.modeler.lda.helper.ModelingHelper;
+import org.librairy.modeler.lda.models.Comparison;
+import org.librairy.modeler.lda.models.Field;
+import org.librairy.modeler.lda.models.Text;
+import org.librairy.modeler.lda.tasks.LDAComparisonTask;
+import org.librairy.modeler.lda.tasks.LDATextTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +41,8 @@ public class LDAModelerAPI {
     @Autowired
     SessionManager sessionManager;
 
+    @Autowired
+    ModelingHelper helper;
 
     public String getItemFromDocument(String uri){
         // TODO handle criteria.type
@@ -160,6 +165,7 @@ public class LDAModelerAPI {
 
     public List<ScoredWord> getTags(String resourceUri, Criteria criteria){
 
+        // todo avoid ALLOW FILTERING
         // todo handle type='tags' and criteria.type
         String query = "select "+ AnnotationsDao.VALUE + "," + AnnotationsDao.SCORE
                 + " from " + AnnotationsDao.TABLE
@@ -188,12 +194,52 @@ public class LDAModelerAPI {
     }
 
     public List<ScoredResource> getSimilarResources(String resourceUri, Criteria criteria){
-        return null;
+
+        String query = "select "+ SimilaritiesDao.RESOURCE_URI_2 + "," + SimilaritiesDao.SCORE
+                + " from " + SimilaritiesDao.TABLE
+                + " where " + SimilaritiesDao.RESOURCE_URI_1+"='"+resourceUri+"'"
+                + " and score > " + criteria.getThreshold()
+                + " order by score desc"
+                + " limit " + criteria.getMax()+";";
+
+
+        LOG.info("Executing query: " + query);
+        ResultSet result = sessionManager.getSession(criteria.getDomainUri()).execute(query);
+
+        List<Row> rows = result.all();
+
+        if (rows == null || rows.isEmpty()) return Collections.emptyList();
+
+        return rows
+                .stream()
+                .map(row -> new ScoredResource(row.getString(0),"",row.getDouble(1)))
+                .collect(Collectors.toList());
+
     }
+
+    public List<ScoredResource> getSimilarResources(Text text, Criteria criteria){
+
+        LOG.info("Getting similar resources to a given text by criteria: " + criteria);
+        return new LDATextTask(helper)
+                .getSimilar(text, criteria.getMax(), criteria.getDomainUri(), criteria.getTypes())
+                .stream()
+                .map(simRes -> new ScoredResource(simRes.getUri(), "", simRes.getWeight()))
+                .collect(Collectors.toList());
+    }
+
+    public List<Comparison<Field>> compareTopicsFrom(List<String> domains, Criteria criteria){
+
+        LOG.info("Comparing domains by criteria: " + criteria);
+        return new LDAComparisonTask(helper)
+                .compareTopics(domains, criteria.getMax(), criteria.getThreshold());
+    }
+
 
     public List<ScoredResource> getDiscoveryPath(String startUri, String endUri, Criteria criteria){
         return null;
     }
+
+
 
 
 }

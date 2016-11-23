@@ -16,6 +16,7 @@ import org.librairy.modeler.lda.builder.*;
 import org.librairy.boot.storage.UDM;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.boot.storage.system.column.repository.UnifiedColumnRepository;
+import org.librairy.modeler.lda.utils.UnifiedExecutor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -65,6 +66,9 @@ public class ModelingHelper {
 
     @Autowired
     CassandraHelper cassandraHelper;
+
+    @Autowired
+    UnifiedExecutor unifiedExecutor;
 
     @Autowired
     EventBus eventBus;

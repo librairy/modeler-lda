@@ -17,6 +17,9 @@ import org.librairy.modeler.lda.api.model.Criteria;
 import org.librairy.modeler.lda.api.model.ScoredResource;
 import org.librairy.modeler.lda.api.model.ScoredTopic;
 import org.librairy.modeler.lda.api.model.ScoredWord;
+import org.librairy.modeler.lda.models.Comparison;
+import org.librairy.modeler.lda.models.Field;
+import org.librairy.modeler.lda.models.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +27,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -32,13 +36,13 @@ import java.util.List;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = ApiConfig.class)
-@TestPropertySource(properties = {
-        "librairy.columndb.host = zavijava.dia.fi.upm.es",
-        "librairy.documentdb.host = zavijava.dia.fi.upm.es",
-        "librairy.graphdb.host = zavijava.dia.fi.upm.es",
-        "librairy.eventbus.host = zavijava.dia.fi.upm.es"
-//        "librairy.uri = drinventor.eu" //librairy.org
-})
+//@TestPropertySource(properties = {
+//        "librairy.columndb.host = zavijava.dia.fi.upm.es",
+//        "librairy.documentdb.host = zavijava.dia.fi.upm.es",
+//        "librairy.graphdb.host = zavijava.dia.fi.upm.es",
+//        "librairy.eventbus.host = zavijava.dia.fi.upm.es"
+////        "librairy.uri = drinventor.eu" //librairy.org
+//})
 public class ApiTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ApiTest.class);
@@ -49,12 +53,49 @@ public class ApiTest {
     @Test
     public void mostRelevantResources(){
 
-        String topic = "http://librairy.org/topics/4b63ec0843be247f948d16d5947da581";
+        String topic = "http://librairy.org/topics/f5d024c8871719cd9ae0754d3f4ffbad";
         List<ScoredResource> resources = api.getMostRelevantResources
                 (topic, new Criteria());
 
         LOG.info("Resources: " + resources);
 
+    }
+
+
+    @Test
+    public void similarResourcesFromUri(){
+
+        String uri = "http://librairy.org/parts/5227aa9dbfbe38ad1c8b457f";
+        List<ScoredResource> resources = api.getSimilarResources(uri,new Criteria());
+
+        resources.forEach(res -> LOG.info("Resource: " + res));
+
+    }
+
+    @Test
+    public void similarResourcesFromText(){
+
+        Text text = new Text("sample","Remember, as you use CQL, that query planning is not meant to be one of its strengths. Cassandra code typically makes the assumption that you have huge amounts of data, so it will try to avoid doing any queries that might end up being expensive. In the RMDBS world, you structure your data according to intrinsic relationships (3rd normal form, etc), whereas in Cassandra, you structure your data according to the queries you expect to need. Denormalization is (forgive the pun) the norm.");
+        List<ScoredResource> resources = api.getSimilarResources(text,new Criteria());
+
+        resources.forEach(res -> LOG.info("Resource: " + res));
+    }
+
+    @Test
+    public void compareDomains(){
+
+        List<String> domains = Arrays.asList(new String[]{
+           "http://librairy.org/domains/90b559119ab48e8cf4310bf92f6b4eab",
+           "http://librairy.org/domains/d4067b8f01c5ea966a202774bdadea5c",
+           "http://librairy.org/domains/634586c47c4f893ccd90ff23937e8548",
+           "http://librairy.org/domains/default"
+        });
+
+        List<Comparison<Field>> comparisons = api
+                .compareTopicsFrom(domains, new Criteria());
+
+
+        comparisons.forEach(comp -> LOG.info("Comparison: " + comp));
     }
 
 

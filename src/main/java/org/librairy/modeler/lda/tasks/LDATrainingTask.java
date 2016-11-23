@@ -26,6 +26,8 @@ public class LDATrainingTask implements Runnable {
 
     private static final Logger LOG = LoggerFactory.getLogger(LDATrainingTask.class);
 
+    public static final String ROUTING_KEY_ID = "lda.model.trained";
+
     private final ModelingHelper helper;
 
     private final String domainUri;
@@ -38,28 +40,26 @@ public class LDATrainingTask implements Runnable {
 
     @Override
     public void run() {
-        try{
-            LOG.info("Prepare workspace for domain: " + domainUri);
-            helper.getWorkspaceBuilder().initialize(domainUri);
 
-            LOG.info("creating a corpus to build a topic model in domain: " + domainUri);
-            Corpus corpus = helper.getCorpusBuilder().build(domainUri, Arrays.asList(new Resource.Type[]{Resource.Type.ITEM}));
+        helper.getUnifiedExecutor().execute(() -> {
+            try{
+                LOG.info("Prepare workspace for domain: " + domainUri);
+                helper.getWorkspaceBuilder().initialize(domainUri);
 
-            // Train a Topic Model based on Corpus
-            LOG.info("training the model ..");
-            helper.getLdaBuilder().build(corpus);
+                LOG.info("creating a corpus to build a topic model in domain: " + domainUri);
+                Corpus corpus = helper.getCorpusBuilder().build(domainUri, Arrays.asList(new Resource.Type[]{Resource.Type.ITEM}));
 
-            helper.getEventBus().post(Event.from(domainUri), RoutingKey.of("lda.model.trained"));
-        }catch (Exception e){
-            if (e instanceof InterruptedException) LOG.warn("Execution canceled");
-            else LOG.error("Error on execution", e);
-        }
+                // Train a Topic Model based on Corpus
+                LOG.info("training the model ..");
+                helper.getLdaBuilder().build(corpus);
 
+                helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
+            }catch (Exception e){
+                if (e instanceof InterruptedException) LOG.warn("Execution canceled");
+                else LOG.error("Error on execution", e);
+            }
+        });
 
-//
-//        LOG.info("new LDA model created and stored successfully");
-//
-//        new LDAModelingTask(domainUri, helper).run();
     }
 
 

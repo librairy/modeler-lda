@@ -145,7 +145,7 @@ public class Corpus {
 
         this.size = rows.count();
 
-        LOG.info("saving elements id to database..");
+        LOG.info("saving "+this.size+" elements id to database..");
         CassandraJavaUtil.javaFunctions(rows)
                 .writerBuilder(SessionManager.getKeyspaceFromId(id), ShapesDao.TABLE, mapToRow(ShapeRow.class))
                 .saveToCassandra();
@@ -196,34 +196,6 @@ public class Corpus {
 
     }
 
-
-    public void loadResources(List<String> uris){
-
-        updateRegistry(uris);
-
-        // Define a schema
-        StructType schema = DataTypes
-                .createStructType(new StructField[] {
-                        DataTypes.createStructField(Resource.URI, DataTypes.StringType, false),
-                        DataTypes.createStructField(Item.TOKENS, DataTypes.StringType, false)
-                });
-
-        String whereClause = "uri in (" + uris.stream().map(uri -> "'"+uri+"'").collect(Collectors.joining(", ")) + ")";
-
-        Resource.Type type = URIGenerator.typeFrom(uris.get(0));
-        DataFrame df = helper.getCassandraHelper().getContext()
-                .read()
-                .format("org.apache.spark.sql.cassandra")
-                .schema(schema)
-                .option("inferSchema", "false") // Automatically infer data types
-                .option("charset", "UTF-8")
-                .option("mode","DROPMALFORMED")
-                .options(ImmutableMap.of("table", type.route(), "keyspace", "research"))
-                .load()
-                .where(whereClause)
-                ;
-        this.df = process(df);
-    }
 
 
     private DataFrame process(DataFrame df){

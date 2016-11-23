@@ -31,8 +31,10 @@ public class SimilaritiesDao extends  AbstractDao{
 
     public static final String DATE = "date";
 
+    public static final String TABLE = "similarities";
+
     public SimilaritiesDao() {
-        super("similarities");
+        super(TABLE);
     }
 
     public void initialize(String domainUri){
@@ -44,9 +46,9 @@ public class SimilaritiesDao extends  AbstractDao{
                 RESOURCE_TYPE_2+" text, " +
                 SCORE+" double, " +
                 DATE+" text, " +
-                "primary key (("+RESOURCE_URI_1+","+RESOURCE_URI_2+"),"+RESOURCE_TYPE_1+","+RESOURCE_TYPE_2+"," +
-                ""+SCORE+"))" +
-                "with clustering order by ("+RESOURCE_TYPE_1+" ASC,"+RESOURCE_TYPE_2+" ASC,"+SCORE+" DESC);");
+                "primary key ("+RESOURCE_URI_1+", "+SCORE+","+RESOURCE_URI_2+"))" +
+                "with clustering order by ("+SCORE+" DESC, "+RESOURCE_URI_2+" ASC"+ ");");
+
     }
 
 

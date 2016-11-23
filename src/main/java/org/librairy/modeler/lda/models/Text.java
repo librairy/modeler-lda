@@ -22,4 +22,12 @@ public class Text implements Serializable{
     private String id;
 
     private String content;
+
+    public Text(){
+    }
+
+    public Text(String id, String content){
+        this.id = id;
+        this.content = content;
+    }
 }

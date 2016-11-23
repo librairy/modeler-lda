@@ -17,7 +17,25 @@ import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
  * Created by cbadenes on 11/01/16.
  */
 @Configuration("modeler.lda.api")
-@ComponentScan({"org.librairy.boot.storage.system.column","org.librairy.modeler.lda.api"})
+@ComponentScan({
+        "org.librairy.boot.storage.system.column",
+        "org.librairy.modeler.lda.api",
+        "org.librairy.modeler.lda.builder",
+        "org.librairy.modeler.lda.cache",
+        "org.librairy.modeler.lda.dao",
+        "org.librairy.modeler.lda.exceptions",
+        "org.librairy.modeler.lda.functions",
+        "org.librairy.modeler.lda.helper",
+        "org.librairy.modeler.lda.models",
+        "org.librairy.modeler.lda.optimizers",
+        "org.librairy.modeler.lda.services",
+        "org.librairy.modeler.lda.tasks",
+        "org.librairy.modeler.lda.utils",
+        "org.librairy.computing.cluster",
+        "org.librairy.computing.helper",
+        "org.librairy.computing.storage",
+        "org.librairy.computing.tasks"
+})
 @PropertySource({"classpath:lda-modeler.properties","classpath:boot.properties","classpath:computing.properties"})
 public class ApiConfig {
 

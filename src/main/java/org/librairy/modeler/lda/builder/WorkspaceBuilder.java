@@ -57,6 +57,12 @@ public class WorkspaceBuilder {
         annotationsDao.initialize(domainUri);
 
         similaritiesDao.initialize(domainUri);
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
 }

@@ -24,14 +24,14 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
-@TestPropertySource(properties = {
-        "librairy.computing.task.size = 200",
-        "librairy.columndb.host = zavijava.dia.fi.upm.es",
-        "librairy.documentdb.host = zavijava.dia.fi.upm.es",
-        "librairy.graphdb.host = zavijava.dia.fi.upm.es",
-        "librairy.eventbus.host = zavijava.dia.fi.upm.es"
-//        "librairy.uri = drinventor.eu" //librairy.org
-})
+//@TestPropertySource(properties = {
+//        "librairy.computing.task.size = 200",
+//        "librairy.columndb.host = zavijava.dia.fi.upm.es",
+//        "librairy.documentdb.host = zavijava.dia.fi.upm.es",
+//        "librairy.graphdb.host = zavijava.dia.fi.upm.es",
+//        "librairy.eventbus.host = zavijava.dia.fi.upm.es"
+////        "librairy.uri = drinventor.eu" //librairy.org
+//})
 public class DeployTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(DeployTest.class);
