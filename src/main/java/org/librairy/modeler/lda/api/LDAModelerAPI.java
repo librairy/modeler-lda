@@ -115,7 +115,8 @@ public class LDAModelerAPI {
     public List<ScoredTopic> getTopics(Criteria criteria){
 
         String query = "select "+ TopicsDao.ID
-                + " from " + TopicsDao.TABLE+";";
+                + " from " + TopicsDao.TABLE
+                +";";
 
 
         LOG.info("Executing query: " + query);

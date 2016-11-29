@@ -23,6 +23,8 @@ public class ShapesDao extends  AbstractDao{
 
     public static final String RESOURCE_ID = "id";
 
+    public static final String RESOURCE_TYPE = "type";
+
     public static final String VECTOR = "vector";
 
     public static final String DATE = "date";
@@ -38,10 +40,12 @@ public class ShapesDao extends  AbstractDao{
         getSession(domainUri).execute("create table if not exists "+table+"(" +
                 RESOURCE_ID +" bigint, " +
                 RESOURCE_URI +" text, " +
+                RESOURCE_TYPE +" text, " +
                 VECTOR+" list<double>, " +
                 DATE+" text, " +
                 "primary key ("+RESOURCE_ID+"));");
         getSession(domainUri).execute("create index on "+table+" ("+RESOURCE_URI+");");
+        getSession(domainUri).execute("create index on "+table+" ("+RESOURCE_TYPE+");");
 
     }
 

@@ -8,6 +8,7 @@
 package org.librairy.modeler.lda.dao;
 
 import lombok.Data;
+import org.librairy.boot.storage.generator.URIGenerator;
 
 import java.io.Serializable;
 import java.util.List;
@@ -22,4 +23,9 @@ public class ShapeRow implements Serializable{
     private Long id;
     private List<Double> vector;
     private String date;
+    private String type;
+
+    public String getType(){
+        return URIGenerator.typeFrom(uri).key();
+    }
 }
