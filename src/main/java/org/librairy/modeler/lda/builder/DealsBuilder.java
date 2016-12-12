@@ -49,16 +49,7 @@ public class DealsBuilder {
     private static Logger LOG = LoggerFactory.getLogger(DealsBuilder.class);
 
     @Autowired
-    UDM udm;
-
-    @Autowired
     URIGenerator uriGenerator;
-
-    @Autowired
-    SparkHelper sparkHelper;
-
-    @Autowired
-    CassandraHelper cassandraHelper;
 
     @Autowired
     SQLHelper sqlHelper;

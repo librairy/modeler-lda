@@ -13,7 +13,9 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.modeler.lda.Config;
-import org.librairy.modeler.lda.builder.*;
+import org.librairy.modeler.lda.builder.CorpusBuilder;
+import org.librairy.modeler.lda.builder.DealsBuilder;
+import org.librairy.modeler.lda.builder.LDABuilder;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Comparison;
 import org.librairy.modeler.lda.models.Field;
@@ -51,12 +53,6 @@ public class LDAComparisonTaskTest {
 
     @Autowired
     DealsBuilder dealsBuilder;
-
-    @Autowired
-    TopicsBuilder topicsBuilder;
-
-    @Autowired
-    SimilarityBuilder similarityBuilder;
 
     @Autowired
     URIGenerator uriGenerator;

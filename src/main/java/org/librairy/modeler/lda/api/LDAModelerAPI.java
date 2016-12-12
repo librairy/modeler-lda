@@ -9,6 +9,7 @@ package org.librairy.modeler.lda.api;
 
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
+import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.modeler.lda.api.model.Criteria;
 import org.librairy.modeler.lda.api.model.ScoredResource;
 import org.librairy.modeler.lda.api.model.ScoredTopic;
@@ -43,6 +44,7 @@ public class LDAModelerAPI {
 
     @Autowired
     ModelingHelper helper;
+
 
     public String getItemFromDocument(String uri){
         // TODO handle criteria.type
@@ -196,13 +198,21 @@ public class LDAModelerAPI {
 
     public List<ScoredResource> getSimilarResources(String resourceUri, Criteria criteria){
 
-        String query = "select "+ SimilaritiesDao.RESOURCE_URI_2 + "," + SimilaritiesDao.SCORE
-                + " from " + SimilaritiesDao.TABLE
-                + " where " + SimilaritiesDao.RESOURCE_URI_1+"='"+resourceUri+"'"
-                + " and score > " + criteria.getThreshold()
-                + " order by score desc"
-                + " limit " + criteria.getMax()+";";
+        StringBuilder queryBuilder = new StringBuilder().append("select ")
+                .append(SimilaritiesDao.RESOURCE_URI_2).append(", ").append(SimilaritiesDao.SCORE)
+                .append(" from ").append(SimilaritiesDao.TABLE)
+                .append(" where ").append(SimilaritiesDao.RESOURCE_URI_1).append("='").append(resourceUri).append("' ");
 
+        if (!criteria.getTypes().isEmpty()){
+            queryBuilder = queryBuilder.append(" and ").append(SimilaritiesDao.RESOURCE_TYPE_2).append("='").append
+                    (criteria.getTypes().get(0).key()).append("' ");
+        }
+
+        queryBuilder = queryBuilder.append(" and score > ").append(criteria.getThreshold())
+                .append(" order by ").append(SimilaritiesDao.SCORE).append(" desc")
+                .append(" limit ").append(criteria.getMax()).append(";");
+
+        String query = queryBuilder.toString();
 
         LOG.info("Executing query: " + query);
         ResultSet result = sessionManager.getSession(criteria.getDomainUri()).execute(query);
@@ -213,7 +223,7 @@ public class LDAModelerAPI {
 
         return rows
                 .stream()
-                .map(row -> new ScoredResource(row.getString(0),"",row.getDouble(1)))
+                .map(row -> new ScoredResource(row.getString(0), URIGenerator.typeFrom(row.getString(0)).key(),row.getDouble(1)))
                 .collect(Collectors.toList());
 
     }
@@ -239,8 +249,6 @@ public class LDAModelerAPI {
     public List<ScoredResource> getDiscoveryPath(String startUri, String endUri, Criteria criteria){
         return null;
     }
-
-
 
 
 }

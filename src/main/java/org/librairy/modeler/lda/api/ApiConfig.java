@@ -19,6 +19,8 @@ import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 @Configuration("modeler.lda.api")
 @ComponentScan({
         "org.librairy.boot.storage.system.column",
+        "org.librairy.boot.eventbus",
+        "org.librairy.boot.storage.generator",
         "org.librairy.modeler.lda.api",
         "org.librairy.modeler.lda.builder",
         "org.librairy.modeler.lda.cache",

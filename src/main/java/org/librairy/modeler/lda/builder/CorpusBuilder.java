@@ -30,9 +30,6 @@ public class CorpusBuilder {
     private static Logger LOG = LoggerFactory.getLogger(CorpusBuilder.class);
 
     @Autowired
-    UDM udm;
-
-    @Autowired
     ModelingHelper helper;
 
 

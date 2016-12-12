@@ -11,6 +11,7 @@ import es.cbadenes.lab.test.IntegrationTest;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
+import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.modeler.lda.api.ApiConfig;
 import org.librairy.modeler.lda.api.LDAModelerAPI;
 import org.librairy.modeler.lda.api.model.Criteria;
@@ -66,7 +67,14 @@ public class ApiTest {
     public void similarResourcesFromUri(){
 
         String uri = "http://librairy.org/parts/5227aa9dbfbe38ad1c8b457f";
-        List<ScoredResource> resources = api.getSimilarResources(uri,new Criteria());
+
+
+        Criteria criteria = new Criteria();
+        criteria.setMax(20);
+        criteria.setThreshold(0.5);
+//        criteria.setTypes(Arrays.asList(new Resource.Type[]{Resource.Type.ITEM}));
+
+        List<ScoredResource> resources = api.getSimilarResources(uri,criteria);
 
         resources.forEach(res -> LOG.info("Resource: " + res));
 

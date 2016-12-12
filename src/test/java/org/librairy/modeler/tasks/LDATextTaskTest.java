@@ -14,13 +14,12 @@ import org.junit.runner.RunWith;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.modeler.lda.Config;
-import org.librairy.modeler.lda.builder.*;
+import org.librairy.modeler.lda.builder.CorpusBuilder;
+import org.librairy.modeler.lda.builder.DealsBuilder;
+import org.librairy.modeler.lda.builder.LDABuilder;
 import org.librairy.modeler.lda.helper.ModelingHelper;
-import org.librairy.modeler.lda.models.Comparison;
-import org.librairy.modeler.lda.models.Field;
 import org.librairy.modeler.lda.models.SimilarResource;
 import org.librairy.modeler.lda.models.Text;
-import org.librairy.modeler.lda.tasks.LDAComparisonTask;
 import org.librairy.modeler.lda.tasks.LDATextTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,12 +54,6 @@ public class LDATextTaskTest {
 
     @Autowired
     DealsBuilder dealsBuilder;
-
-    @Autowired
-    TopicsBuilder topicsBuilder;
-
-    @Autowired
-    SimilarityBuilder similarityBuilder;
 
     @Autowired
     URIGenerator uriGenerator;

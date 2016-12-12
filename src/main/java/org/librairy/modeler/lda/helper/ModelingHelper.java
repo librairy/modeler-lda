@@ -8,14 +8,16 @@
 package org.librairy.modeler.lda.helper;
 
 import lombok.Data;
+import org.librairy.boot.model.modules.EventBus;
 import org.librairy.computing.cluster.Partitioner;
 import org.librairy.computing.helper.SparkHelper;
 import org.librairy.computing.helper.StorageHelper;
-import org.librairy.boot.model.modules.EventBus;
-import org.librairy.modeler.lda.builder.*;
-import org.librairy.boot.storage.UDM;
-import org.librairy.boot.storage.generator.URIGenerator;
-import org.librairy.boot.storage.system.column.repository.UnifiedColumnRepository;
+import org.librairy.modeler.lda.api.SessionManager;
+import org.librairy.modeler.lda.builder.CorpusBuilder;
+import org.librairy.modeler.lda.builder.DealsBuilder;
+import org.librairy.modeler.lda.builder.LDABuilder;
+import org.librairy.modeler.lda.builder.WorkspaceBuilder;
+import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.utils.UnifiedExecutor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -35,9 +37,6 @@ public class ModelingHelper {
     SparkHelper sparkHelper;
 
     @Autowired
-    URIGenerator uriGenerator;
-
-    @Autowired
     LDABuilder ldaBuilder;
 
     @Autowired
@@ -51,12 +50,6 @@ public class ModelingHelper {
 
     @Autowired
     DealsBuilder dealsBuilder;
-
-    @Autowired
-    SimilarityBuilder similarityBuilder;
-
-    @Autowired
-    TopicsBuilder topicsBuilder;
 
     @Autowired
     WorkspaceBuilder workspaceBuilder;
@@ -74,8 +67,9 @@ public class ModelingHelper {
     EventBus eventBus;
 
     @Autowired
-    UDM udm;
+    SessionManager sessionManager;
 
     @Autowired
-    UnifiedColumnRepository columnRepository;
+    ShapesDao shapesDao;
+
 }
