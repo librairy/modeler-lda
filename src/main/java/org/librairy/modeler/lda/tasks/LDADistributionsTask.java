@@ -11,9 +11,11 @@ import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.google.common.collect.ImmutableMap;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.Event;
+import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.boot.model.utils.TimeUtils;
 import org.librairy.boot.storage.generator.URIGenerator;
@@ -26,8 +28,11 @@ import org.librairy.modeler.lda.functions.RowToShape;
 import org.librairy.modeler.lda.functions.RowToInternalResource;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.InternalResource;
+import org.librairy.modeler.lda.utils.ListUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 
@@ -101,7 +106,9 @@ public class LDADistributionsTask implements Runnable {
                                 URIGenerator.typeFrom(t._2._1.getUri()).key(),
                                 t._2._2.getUri(),
                                 TimeUtils.asISO(),
-                                t._2._1.getScore()));
+                                t._2._1.getScore()))
+                        .cache();
+
 
                 LOG.info("calculating topic distributions in domain: " + domainUri + "..");
                 CassandraJavaUtil.javaFunctions(rows)

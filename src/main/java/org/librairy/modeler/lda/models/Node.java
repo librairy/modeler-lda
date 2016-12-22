@@ -5,24 +5,24 @@
  *
  */
 
-package org.librairy.modeler.lda.dao;
+package org.librairy.modeler.lda.models;
 
 import lombok.Data;
 
 import java.io.Serializable;
-import java.util.List;
 
 /**
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
  */
 @Data
-public class TopicRow implements Serializable{
+public class Node implements Serializable{
 
     private String uri;
-    private Long id;
-    private String description;
-    private List<String> elements;
-    private List<Double> scores;
-    private String date;
 
+    private Double score;
+
+    public Node(String uri, Double score){
+        this.uri = uri;
+        this.score = score;
+    }
 }

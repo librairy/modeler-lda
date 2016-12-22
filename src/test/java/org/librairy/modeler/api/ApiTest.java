@@ -11,7 +11,6 @@ import es.cbadenes.lab.test.IntegrationTest;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
-import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.modeler.lda.api.ApiConfig;
 import org.librairy.modeler.lda.api.LDAModelerAPI;
 import org.librairy.modeler.lda.api.model.Criteria;
@@ -25,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.util.Arrays;
@@ -93,14 +91,14 @@ public class ApiTest {
     public void compareDomains(){
 
         List<String> domains = Arrays.asList(new String[]{
-           "http://librairy.org/domains/90b559119ab48e8cf4310bf92f6b4eab",
-           "http://librairy.org/domains/d4067b8f01c5ea966a202774bdadea5c",
-           "http://librairy.org/domains/634586c47c4f893ccd90ff23937e8548",
-           "http://librairy.org/domains/default"
+           "http://librairy.org/domains/d0fb963ff976f9c37fc81fe03c21ea7b",
+           "http://librairy.org/domains/4ba29b9f9e5732ed33761840f4ba6c53"
         });
 
         List<Comparison<Field>> comparisons = api
                 .compareTopicsFrom(domains, new Criteria());
+
+        System.out.println("Comparisons: " + comparisons.size());
 
 
         comparisons.forEach(comp -> LOG.info("Comparison: " + comp));
@@ -147,9 +145,24 @@ public class ApiTest {
     public void topicsDistribution(){
 
         String resourceUri = "http://librairy.org/parts/5227bd0abfbe38d7288b4786";
-        List<ScoredTopic> tags = api.getTopicsDistribution(resourceUri, new Criteria());
+        List<ScoredTopic> tags = api.getTopicsDistribution(resourceUri, new Criteria(),100);
 
         tags.forEach(el -> LOG.info("Topic: " + el));
+
+    }
+
+
+    @Test
+    public void shortestPath() throws IllegalArgumentException {
+        String startUri     = "http://librairy.org/parts/5227bb3bbfbe38d7288b456c";
+        String endUri       = "http://librairy.org/parts/546df640141674473e8b45bc";
+
+        Criteria criteria = new Criteria();
+        criteria.setDomainUri("http://librairy.org/domains/default");
+        criteria.setThreshold(0.5);
+        criteria.setMax(10);
+
+        api.getShortestPath(startUri, endUri, criteria);
 
     }
 }

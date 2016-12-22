@@ -22,4 +22,6 @@ public class LDAParameters {
     private double beta;
 
     private int k;
+
+    private int iterations;
 }

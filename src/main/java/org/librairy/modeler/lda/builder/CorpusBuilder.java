@@ -47,17 +47,4 @@ public class CorpusBuilder {
 
     }
 
-//    public Corpus build(String id, List<String> uris){
-//
-//        // Reading Uris
-//        LOG.info("Creating the corpus '" + id + "' from "+ uris.size() +" uris");
-//
-//        // Train model
-//        Corpus corpus = new Corpus(id, Arrays.asList(new Resource.Type[]{Resource.Type.ANY}), helper);
-//        corpus.loadResources(uris);
-//
-//        return corpus;
-//
-//    }
-
 }

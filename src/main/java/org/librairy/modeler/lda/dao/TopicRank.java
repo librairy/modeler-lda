@@ -8,21 +8,19 @@
 package org.librairy.modeler.lda.dao;
 
 import lombok.Data;
+import org.librairy.metrics.data.Ranking;
 
 import java.io.Serializable;
-import java.util.List;
 
 /**
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
  */
 @Data
-public class TopicRow implements Serializable{
+public class TopicRank implements Serializable{
 
-    private String uri;
-    private Long id;
-    private String description;
-    private List<String> elements;
-    private List<Double> scores;
-    private String date;
+    private String domainUri;
+    private String topicUri;
+    private Ranking<String> words;
+
 
 }

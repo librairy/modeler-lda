@@ -11,7 +11,7 @@
 
 	<groupId>org.librairy</groupId>
     <artifactId>librairy-modeler-lda</artifactId>
-    <version>1.2-SNAPSHOT</version>
+    <version>1.2</version>
     <packaging>war</packaging>
     <name>modeler-lda</name>
     <description>Create Topic Models for a given domain</description>
@@ -54,6 +54,7 @@
         <maven.compiler.plugin.version>3.3</maven.compiler.plugin.version>
         <maven.jar.plugin.version>2.6</maven.jar.plugin.version>
         <maven.site.plugin.version>0.10</maven.site.plugin.version>
+        <maven.scala.version>2.15.2</maven.scala.version>
         <maven.surefire.plugin.version>2.11</maven.surefire.plugin.version>
         <maven.war.plugin.version>2.6</maven.war.plugin.version>
         <maven.resources.plugin.version>2.7</maven.resources.plugin.version>
@@ -92,9 +93,9 @@
         <jena.version>2.10.1</jena.version>
         <jgrapht.version>0.9.0</jgrapht.version>
         <junit.version>4.12</junit.version>
-        <librairy.metrics.version>1.13</librairy.metrics.version>
+        <librairy.metrics.version>1.15</librairy.metrics.version>
         <librairy.computing.version>0.13</librairy.computing.version>
-        <librairy.boot.version>0.38</librairy.boot.version>
+        <librairy.boot.version>1.2</librairy.boot.version>
         <log4j.version>1.2.17</log4j.version>
         <log4j.slf4j.version>1.7.14</log4j.slf4j.version>
         <logback.version>1.1.3</logback.version>
@@ -111,7 +112,7 @@
         <pdfbox.version>1.8.11</pdfbox.version>
         <nvi18n.version>1.15</nvi18n.version>
         <restlet.version>2.3.5</restlet.version>
-
+        <scalatest.version>2.2.4</scalatest.version>
         <servlet.api.version>2.4</servlet.api.version>
         <slf4j.version>1.7.12</slf4j.version>
         <spring.version>4.2.7.RELEASE</spring.version>
@@ -478,6 +479,13 @@
             <artifactId>librairy-metrics</artifactId>
         </dependency>
 
+        <!-- Spark GraphFrames -->
+        <dependency>
+            <groupId>graphframes</groupId>
+            <artifactId>graphframes</artifactId>
+            <version>0.3.0-spark1.6-s_2.10</version>
+        </dependency>
+
         <!-- Unit tests -->
         <dependency>
             <groupId>junit</groupId>
@@ -597,11 +605,58 @@
             <artifactId>jetty-webapp</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- TEST: Scala -->
+        <dependency>
+            <groupId>org.scalatest</groupId>
+            <artifactId>scalatest_2.10</artifactId>
+            <version>${scalatest.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.typesafe.scala-logging</groupId>
+            <artifactId>scala-logging-slf4j_2.10</artifactId>
+            <version>2.1.2</version>
+        </dependency>
     </dependencies>
 
     <build>
         <finalName>modeler-lda</finalName>
         <plugins>
+
+            <!-- Maven Compiler Plugin -->
+            <plugin>
+                <groupId>org.scala-tools</groupId>
+                <artifactId>maven-scala-plugin</artifactId>
+                <version>${maven.scala.version}</version>
+                <executions>
+                    <execution>
+                        <id>scala-compile</id>
+                        <goals>
+                            <goal>compile</goal>
+                            <goal>testCompile</goal>
+                        </goals>
+                        <phase>process-resources</phase>
+                        <configuration>
+                            <args>
+                                <arg>-dependencyfile</arg>
+                                <arg>${project.build.directory}/.scala_dependencies</arg>
+                            </args>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven.compiler.plugin.version}</version>
+                <configuration>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                    <source>${project.java.version}</source>
+                    <target>${project.java.version}</target>
+                    <compilerVersion>${project.java.version}</compilerVersion>
+                </configuration>
+            </plugin>
 
             <!-- Maven Test Plugin -->
             <plugin>
@@ -628,19 +683,6 @@
                 </configuration>
             </plugin>
 
-
-            <!-- Maven Compiler Plugin -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven.compiler.plugin.version}</version>
-                <configuration>
-                    <encoding>${project.build.sourceEncoding}</encoding>
-                    <source>${project.java.version}</source>
-                    <target>${project.java.version}</target>
-                    <compilerVersion>${project.java.version}</compilerVersion>
-                </configuration>
-            </plugin>
 
             <!-- Github Deploy -->
             <plugin>

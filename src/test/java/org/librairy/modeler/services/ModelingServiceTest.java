@@ -59,7 +59,7 @@ public class ModelingServiceTest {
 
     @Test
     public void buildModel() throws InterruptedException {
-        String domainUri = "http://librairy.org/domains/default";
+        String domainUri = "http://librairy.org/domains/90b559119ab48e8cf4310bf92f6b4eab";
         service.train(domainUri,1000);
 
         LOG.info("################################## Task completed!!!!");

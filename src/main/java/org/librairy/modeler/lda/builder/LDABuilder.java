@@ -21,6 +21,9 @@ import org.apache.spark.mllib.clustering.LocalLDAModel;
 import org.apache.spark.mllib.clustering.OnlineLDAOptimizer;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.rdd.RDD;
+import org.librairy.boot.storage.dao.CounterDao;
+import org.librairy.boot.storage.dao.ParametersDao;
+import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.computing.helper.SparkHelper;
 import org.librairy.computing.helper.StorageHelper;
 import org.librairy.boot.model.domain.resources.Resource;
@@ -32,6 +35,7 @@ import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Corpus;
 import org.librairy.modeler.lda.models.TopicModel;
 import org.librairy.modeler.lda.optimizers.LDAOptimizer;
+import org.librairy.modeler.lda.optimizers.LDAOptimizerFactory;
 import org.librairy.modeler.lda.optimizers.LDAParameters;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.slf4j.Logger;
@@ -45,9 +49,13 @@ import javax.annotation.PostConstruct;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.DoubleStream;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 
@@ -71,10 +79,13 @@ public class LDABuilder {
     ModelingHelper helper;
 
     @Autowired
-    LDAOptimizer ldaOptimizer;
+    LDAOptimizerFactory ldaOptimizerFactory;
 
-    @Value("#{environment['LIBRAIRY_LDA_MAX_ITERATIONS']?:${librairy.lda.maxiterations}}")
-    Integer maxIterations;
+    @Autowired
+    ParametersDao parametersDao;
+
+    @Autowired
+    CounterDao counterDao;
 
     @Value("#{environment['LIBRAIRY_LDA_WORDS_PER_TOPIC']?:${librairy.lda.topic.words}}")
     Integer maxWords;
@@ -135,14 +146,16 @@ public class LDABuilder {
                 .zipWithIndex()
                 .map(pair -> {
                     TopicRow topicRow = new TopicRow();
-                    topicRow.setUri(URIGenerator.fromContent(Resource.Type.TOPIC, "topic" + pair._2 + System.currentTimeMillis
-                            ()));
+                    String topicUri = URIGenerator.compositionFromId(Resource.Type.DOMAIN, corpusId, Resource.Type
+                            .TOPIC, String.valueOf(pair._2));
+                    topicRow.setUri(topicUri);
                     topicRow.setId(pair._2);
                     topicRow.setDate(TimeUtils.asISO());
                     topicRow.setElements(Arrays.stream(pair._1._1).mapToObj(index -> broadcastVocabulary
                             .getValue()[index]).collect(Collectors.toList()));
-                    topicRow.setScores(Arrays.asList(ArrayUtils.toObject(pair._1._2)));
+                    topicRow.setScores(Arrays.stream(pair._1._2).boxed().collect(Collectors.toList()));
                     topicRow.setDescription(topicRow.getElements().stream().limit(10).collect(Collectors.joining(" ")));
+                    System.out.println("TopicRow: " + topicRow);
                     return topicRow;
                 });
 
@@ -157,21 +170,38 @@ public class LDABuilder {
 
     public TopicModel train(Corpus corpus){
 
+        String domainUri = URIGenerator.fromId(Resource.Type.DOMAIN, corpus.getId());
+
+
+        String optimizerId;
+
+        try{
+            optimizerId = parametersDao.get(domainUri,"lda.optimizer");
+        } catch (DataNotFound dataNotFound) {
+            optimizerId = "basic";
+        }
+
+        LOG.info("LDA Optimizer for '"+domainUri +"' is " + optimizerId);
+        LDAOptimizer ldaOptimizer = ldaOptimizerFactory.by(optimizerId);
+
         // LDA parameter optimization
         LDAParameters ldaParameters = ldaOptimizer.getParametersFor(corpus);
         LOG.info("LDA parameters calculated by " + ldaOptimizer+ ": " + ldaParameters);
+
+        // Update Counter
+        counterDao.increment(domainUri, Resource.Type.TOPIC.route(), Long.valueOf(ldaParameters.getK()));
 
         // LDA parametrization
         RDD<Tuple2<Object, Vector>> documents = corpus.getBagOfWords();
         LDA lda = new LDA()
                 .setOptimizer(new OnlineLDAOptimizer().setMiniBatchFraction(0.8))
                 .setK(ldaParameters.getK())
-                .setMaxIterations(maxIterations)
+                .setMaxIterations(ldaParameters.getIterations())
                 .setDocConcentration(ldaParameters.getAlpha())
                 .setTopicConcentration(ldaParameters.getBeta())
                 ;
 
-        LOG.info("Building a new LDA Model (iter="+maxIterations+") "+ldaParameters+" from "+ corpus.getSize() + " " +
+        LOG.info("Building a new LDA Model (iter="+ldaParameters.getIterations()+") "+ldaParameters+" from "+ corpus.getSize() + " " +
                 corpus.getTypes());
         Instant startModel  = Instant.now();
         LDAModel ldaModel   = lda.run(documents);

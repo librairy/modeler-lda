@@ -16,5 +16,7 @@ import org.librairy.modeler.lda.models.Corpus;
  */
 public interface LDAOptimizer {
 
+    String getId();
+
     LDAParameters getParametersFor(Corpus corpus);
 }

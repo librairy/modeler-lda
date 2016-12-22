@@ -17,8 +17,13 @@ import org.springframework.stereotype.Component;
  * @author cbadenes
  */
 @Component
-@Conditional(BasicOptimizerCondition.class)
+//@Conditional(BasicOptimizerCondition.class)
 public class BasicOptimizer implements LDAOptimizer{
+
+    @Override
+    public String getId() {
+        return "basic";
+    }
 
     @Override
     public LDAParameters getParametersFor(Corpus corpus) {
@@ -27,6 +32,7 @@ public class BasicOptimizer implements LDAOptimizer{
         parameters.setK(numTopics != 0? numTopics : 2);
         parameters.setBeta(-1.0);
         parameters.setAlpha(-1.0);
+        parameters.setIterations(10);
         return parameters;
     }
 }

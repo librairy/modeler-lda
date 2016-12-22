@@ -17,9 +17,9 @@ import org.springframework.stereotype.Component;
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
  */
 @Component
-public class KeyspaceDao {
+public class LDAKeyspaceDao {
 
-    private static final Logger LOG = LoggerFactory.getLogger(KeyspaceDao.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LDAKeyspaceDao.class);
 
     @Autowired
     SessionManager sessionManager;
@@ -27,7 +27,7 @@ public class KeyspaceDao {
     public void initialize(String domainUri){
         LOG.info("creating a new LDA workspace for domain: " + domainUri);
         sessionManager.getSession().execute("create keyspace if not exists "+sessionManager.getKeyspace(domainUri)+
-                " with replication = {'class' : 'SimpleStrategy', " + "'replication_factor' : 1};");
+                " with replication = {'class' : 'SimpleStrategy', 'replication_factor' : 1};");
     }
 
     public void destroy(String domainUri){

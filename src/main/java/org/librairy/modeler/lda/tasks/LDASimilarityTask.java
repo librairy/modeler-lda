@@ -9,6 +9,7 @@ package org.librairy.modeler.lda.tasks;
 
 import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.google.common.collect.ImmutableMap;
+import org.apache.commons.math3.util.CombinatoricsUtils;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.mllib.clustering.KMeans;
@@ -20,6 +21,7 @@ import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.Event;
+import org.librairy.boot.model.domain.relations.Relation;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.boot.model.utils.TimeUtils;
 import org.librairy.boot.storage.generator.URIGenerator;
@@ -183,11 +185,19 @@ public class LDASimilarityTask implements Runnable {
             if (numPoints < maxSize){
                 saveSimilaritiesBetween(clusterPoints);
                 LOG.info("similarities in cluster " + index + " calculated with " + numPoints + " documents");
+                // Increment counter
+                Long combinations = CombinatoricsUtils.stirlingS2(Long.valueOf(numPoints).intValue(),Long.valueOf
+                        (numPoints-1).intValue());
+                helper.getCounterDao().increment(domainUri, Relation.Type.SIMILAR_TO_DOCUMENTS.route(), combinations);
             }else if (numPoints == size){
                 saveSimilaritiesBetween(clusterPoints);
                 LOG.warn("similarities in cluster " + index + " calculated with " + numPoints + " documents (exceeds the" +
                         " " +
                         "max points threshold!)");
+                // Increment counter
+                Long combinations = CombinatoricsUtils.stirlingS2(Long.valueOf(numPoints).intValue(),Long.valueOf
+                        (numPoints-1).intValue());
+                helper.getCounterDao().increment(domainUri, Relation.Type.SIMILAR_TO_DOCUMENTS.route(), combinations);
                 break;
             } else{
                 counter.decrementAndGet();
@@ -222,6 +232,8 @@ public class LDASimilarityTask implements Runnable {
                     return Arrays.asList(new SimilarityRow[]{row1,row2});
 
                 });
+
+        //TODO Save to filesystem in Append Mode
 
         CassandraJavaUtil.javaFunctions(rows)
                 .writerBuilder(SessionManager.getKeyspaceFromUri(domainUri), SimilaritiesDao.TABLE, mapToRow(SimilarityRow.class))

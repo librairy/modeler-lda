@@ -21,6 +21,7 @@ import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
         "org.librairy.boot.storage.system.column",
         "org.librairy.boot.eventbus",
         "org.librairy.boot.storage.generator",
+        "org.librairy.boot.storage.dao",
         "org.librairy.modeler.lda.api",
         "org.librairy.modeler.lda.builder",
         "org.librairy.modeler.lda.cache",

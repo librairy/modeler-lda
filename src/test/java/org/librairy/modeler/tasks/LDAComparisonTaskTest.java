@@ -11,6 +11,7 @@ import es.cbadenes.lab.test.IntegrationTest;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
+import org.librairy.boot.model.domain.resources.Domain;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.modeler.lda.Config;
 import org.librairy.modeler.lda.builder.CorpusBuilder;
@@ -26,6 +27,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 
@@ -46,39 +49,48 @@ public class LDAComparisonTaskTest {
     private static final Logger LOG = LoggerFactory.getLogger(LDAComparisonTaskTest.class);
 
     @Autowired
-    LDABuilder ldaBuilder;
-
-    @Autowired
-    CorpusBuilder corpusBuilder;
-
-    @Autowired
-    DealsBuilder dealsBuilder;
-
-    @Autowired
-    URIGenerator uriGenerator;
-
-    @Autowired
     ModelingHelper helper;
-
-    String domainUri = "http://drinventor.eu/domains/4f56ab24bb6d815a48b8968a3b157470";
 
     @Test
     public void execute(){
 
-        Double minScore = 0.0;
-        Integer maxWords = 10;
-        List<String> domains = Arrays.asList( new String[]{
-                "http://librairy.org/domains/90b559119ab48e8cf4310bf92f6b4eab",
-                "http://librairy.org/domains/d4067b8f01c5ea966a202774bdadea5c",
-                "http://librairy.org/domains/634586c47c4f893ccd90ff23937e8548"
+//        Double minScore = 0.0;
+//        Integer maxWords = 100;
+//        List<String> domains = Arrays.asList( new String[]{
+//                "http://librairy.org/domains/d0fb963ff976f9c37fc81fe03c21ea7b",
+//                "http://librairy.org/domains/4ba29b9f9e5732ed33761840f4ba6c53"
+//        });
+//
+//        Instant a = Instant.now();
+//        List<Comparison<Field>> comparisons = new
+//                LDAComparisonTask(helper).compareTopics(domains, maxWords, minScore);
+//
+//        Instant b = Instant.now();
+//
+//        System.out.println("Elapsed time: " + Duration.between(a,b).toMillis() + "msecs");
+//
+////        comparisons.forEach( comparison -> LOG.info("Comparison: " + comparison));
+
+    }
+
+    @Test
+    public void executeTask() throws InterruptedException {
+
+        //String domainUri = "http://librairy.org/domains/d0fb963ff976f9c37fc81fe03c21ea7b";
+        String domainUri = "http://librairy.org/domains/4ba29b9f9e5732ed33761840f4ba6c53";
+
+
+        helper.getDomainsDao().listOnly(Domain.URI).forEach(uri -> {
+            helper.getComparisonsDao().initialize(uri);
+
+            Instant a = Instant.now();
+            new LDAComparisonTask(uri, helper).run();
+            Instant b = Instant.now();
+            System.out.println("Elapsed time: " + Duration.between(a,b).toMillis());
         });
 
-        List<Comparison<Field>> comparisons = new
-                LDAComparisonTask(helper).compareTopics(domains, maxWords, minScore);
-
-
-        comparisons.forEach( comparison -> LOG.info("Comparison: " + comparison));
-
+        LOG.info("sleeping..");
+        Thread.sleep(Long.MAX_VALUE);
     }
 
 }

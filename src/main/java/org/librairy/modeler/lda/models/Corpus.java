@@ -27,6 +27,8 @@ import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.librairy.boot.model.domain.resources.Item;
 import org.librairy.boot.model.domain.resources.Resource;
+import org.librairy.boot.storage.dao.DBSessionManager;
+import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.ShapeRow;
 import org.librairy.modeler.lda.dao.ShapesDao;
@@ -56,7 +58,10 @@ public class Corpus {
 
     private static final Logger LOG = LoggerFactory.getLogger(Corpus.class);
 
+    private static final int partitions = Runtime.getRuntime().availableProcessors() * 3;
+
     private final List<Resource.Type> types;
+    private final String domainUri;
 
     String id;
     Map<Long, String> registry;
@@ -68,6 +73,7 @@ public class Corpus {
 
     public Corpus(String id, List<Resource.Type> types, ModelingHelper helper){
         this.id = id;
+        this.domainUri = URIGenerator.fromId(Resource.Type.DOMAIN, id);
         this.helper = helper;
         this.types = types;
     }
@@ -105,45 +111,26 @@ public class Corpus {
 
     public void loadDomain(String domainUri){
 
-        Column condition = org.apache.spark.sql.functions.col("enduri").contains("/"+types.get(0).route()+"/");
-
-        if (types.size() > 1){
-            for (int i=1; i< types.size(); i++){
-                condition = condition.or(org.apache.spark.sql.functions.col("enduri").contains("/"+types.get(i).route
-                        ()+"/"));
-            }
-        }
-
-        // Create a Data Frame from Cassandra query
-        DataFrame containsDF = helper.getCassandraHelper().getContext()
-                .read()
-                .format("org.apache.spark.sql.cassandra")
-                .schema(DataTypes
-                        .createStructType(new StructField[] {
-                                DataTypes.createStructField("starturi", DataTypes.StringType, false),
-                                DataTypes.createStructField("enduri", DataTypes.StringType, false)
-                        }))
-                .option("inferSchema", "false") // Automatically infer data types
-                .option("charset", "UTF-8")
-                .option("mode","DROPMALFORMED")
-                .options(ImmutableMap.of("table", "contains", "keyspace", "research"))
-                .load()
-                .where("starturi='"+domainUri+"'")
-                .filter(condition)
+        DataFrame docsDF = types.stream()
+                .map(type -> readElements(domainUri, type))
+                .reduce((df1, df2) -> df1.unionAll(df2))
+                .get()
+                .cache()
                 ;
 
+        docsDF.take(1);
+
+        this.size = docsDF.count();
+
         // Initialize SHAPE table in database;
-        JavaRDD<ShapeRow> rows = containsDF
+        JavaRDD<ShapeRow> rows = docsDF
                 .toJavaRDD()
                 .map(row -> {
                     ShapeRow shapeRow = new ShapeRow();
-                    shapeRow.setUri(row.getString(1));
-                    shapeRow.setId(RowToPair.from(row.getString(1)));
+                    shapeRow.setUri(row.getString(0));
+                    shapeRow.setId(RowToPair.from(row.getString(0)));
                     return shapeRow;
-                })
-                .cache();
-
-        this.size = rows.count();
+                });
 
         LOG.info("saving "+this.size+" elements id to database..");
         CassandraJavaUtil.javaFunctions(rows)
@@ -151,51 +138,36 @@ public class Corpus {
                 .saveToCassandra();
         LOG.info("saved!");
 
+//        DataFrame resourcesInDomaindf = containsDF.
+//                join(resourcesDF, containsDF.col("enduri").equalTo(resourcesDF.col("uri")));
 
-        DataFrame resourcesDF = helper.getCassandraHelper().getContext()
+        this.df = process(docsDF)
+                .cache();
+
+        LOG.info("processing documents ..");
+        this.df.take(1);
+
+    }
+
+
+    private DataFrame readElements(String domainUri, Resource.Type type){
+        return helper.getCassandraHelper().getContext()
                 .read()
                 .format("org.apache.spark.sql.cassandra")
                 .schema(DataTypes
                         .createStructType(new StructField[] {
-                                DataTypes.createStructField(Resource.URI, DataTypes.StringType, false),
-                                DataTypes.createStructField(Item.TOKENS, DataTypes.StringType, false)
+                                DataTypes.createStructField("uri", DataTypes.StringType, false),
+                                DataTypes.createStructField("tokens", DataTypes.StringType, false)
                         }))
                 .option("inferSchema", "false") // Automatically infer data types
                 .option("charset", "UTF-8")
                 .option("mode","DROPMALFORMED")
-                .options(ImmutableMap.of("table", types.get(0).route(), "keyspace", "research"))
+                .options(ImmutableMap.of("table", type.route(), "keyspace", DBSessionManager.getKeyspaceFromUri(domainUri)))
                 .load()
+                .repartition(partitions)
+//                .cache()
                 ;
-
-
-        if (types.size() > 1){
-            for (int i=1; i< types.size(); i++){
-                DataFrame partialDF = helper.getCassandraHelper().getContext()
-                        .read()
-                        .format("org.apache.spark.sql.cassandra")
-                        .schema(DataTypes
-                                .createStructType(new StructField[] {
-                                        DataTypes.createStructField(Resource.URI, DataTypes.StringType, false),
-                                        DataTypes.createStructField(Item.TOKENS, DataTypes.StringType, false)
-                                }))
-                        .option("inferSchema", "false") // Automatically infer data types
-                        .option("charset", "UTF-8")
-                        .option("mode","DROPMALFORMED")
-                        .options(ImmutableMap.of("table", types.get(i).route(), "keyspace", "research"))
-                        .load()
-                        ;
-                resourcesDF = resourcesDF.unionAll(partialDF);
-            }
-        }
-
-        DataFrame resourcesInDomaindf = containsDF.
-                join(resourcesDF, containsDF.col("enduri").equalTo(resourcesDF.col("uri")));
-
-        this.df = process(resourcesInDomaindf);
-
-
     }
-
 
 
     private DataFrame process(DataFrame df){
@@ -231,12 +203,20 @@ public class Corpus {
         if (df == null) throw new RuntimeException("No documents in corpus");
 
         if (countVectorizerModel == null){
+
             // Train a Count Vectorizer Model based on corpus
-            LOG.info("Limiting to top "+helper.getVocabSize()+" most common words and creating a count vector model ..");
+            Integer vocabSize;
+            try{
+                vocabSize = Integer.valueOf(helper.getParametersDao().get(domainUri,"lda.vocabulary.size"));
+            } catch (DataNotFound dataNotFound) {
+                vocabSize = Integer.valueOf(helper.getVocabSize());
+            }
+
+            LOG.info("Limiting to top "+vocabSize+" most common words and creating a count vector model ..");
             countVectorizerModel = new CountVectorizer()
                     .setInputCol("filtered")
                     .setOutputCol("features")
-                    .setVocabSize(helper.getVocabSize())
+                    .setVocabSize(vocabSize)
                     .setMinDF(1)    // Specifies the minimum number of different documents a term must appear in to
                     // be included in the vocabulary.
                     .fit(df);
@@ -259,18 +239,5 @@ public class Corpus {
     public Long getSize(){
         return this.size;
     }
-
-//    public Resource.Type getType(){
-//        if ((registry != null) && (!registry.isEmpty())){
-//
-//            Optional<Map.Entry<Object, String>> entry = registry.entrySet().stream().findAny();
-//
-//            if (entry.isPresent() && entry.get().getValue().startsWith("http")){
-//            return URIGenerator.typeFrom(entry.get().getValue());
-//            }
-//
-//        }
-//        return Resource.Type.ITEM;
-//    }
 
 }

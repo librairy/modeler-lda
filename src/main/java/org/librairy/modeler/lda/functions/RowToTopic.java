@@ -7,12 +7,9 @@
 
 package org.librairy.modeler.lda.functions;
 
+import com.datastax.driver.core.Row;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.api.java.function.PairFunction;
-import org.apache.spark.sql.Row;
 import org.librairy.modeler.lda.dao.TopicRow;
-import org.librairy.modeler.lda.models.InternalResource;
-import scala.Tuple2;
 
 import java.io.Serializable;
 import java.util.List;
@@ -39,11 +36,11 @@ public class RowToTopic implements Serializable, Function<Row, TopicRow> {
         topic.setUri(row.getString(0));
         topic.setDescription(domain);
 
-        List<String> words = row.getList(1);
-        topic.setElements(words.subList(0,maxSize));
+        List<String> words = row.getList(1,String.class).subList(0,maxSize);
+        topic.setElements(words);
 
-        List<Double> scores = row.getList(2);
-        topic.setScores(scores.subList(0,maxSize));
+        List<Double> scores = row.getList(2,Double.class).subList(0,maxSize);
+        topic.setScores(scores);
         return topic;
     }
 }
