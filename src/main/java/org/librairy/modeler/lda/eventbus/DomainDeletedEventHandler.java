@@ -39,8 +39,7 @@ public class DomainDeletedEventHandler implements EventBusSubscriber {
 
     @PostConstruct
     public void init(){
-        BindingKey bindingKey = BindingKey.of(RoutingKey.of(Resource.Type.DOMAIN, Resource.State.DELETED),
-                "modeler.lda.domain.updated");
+        BindingKey bindingKey = BindingKey.of(RoutingKey.of(Resource.Type.DOMAIN, Resource.State.DELETED), "modeler.lda.domain.deleted");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");
