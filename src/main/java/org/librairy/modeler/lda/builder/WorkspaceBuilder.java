@@ -53,6 +53,11 @@ public class WorkspaceBuilder {
     @Autowired
     ComparisonsDao comparisonsDao;
 
+    @Autowired
+    TagsDao tagsDao;
+
+    @Autowired
+    ClusterDao clusterDao;
 
     public void initialize(String domainUri){
 
@@ -76,11 +81,19 @@ public class WorkspaceBuilder {
 
         comparisonsDao.initialize(domainUri);
 
+        tagsDao.initialize(domainUri);
+
+        clusterDao.initialize(domainUri);
+
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
+    }
+
+    public void destroy(String domainUri){
+        keyspaceDao.destroy(domainUri);
     }
 
 }

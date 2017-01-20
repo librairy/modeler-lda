@@ -11,10 +11,12 @@ import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.storage.dao.ParametersDao;
 import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.modeler.lda.cache.IterationsCache;
+import org.librairy.modeler.lda.cache.ParamAlphaCache;
+import org.librairy.modeler.lda.cache.ParamBetaCache;
+import org.librairy.modeler.lda.cache.ParamTopicCache;
 import org.librairy.modeler.lda.models.Corpus;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Conditional;
 import org.springframework.stereotype.Component;
 
 /**
@@ -27,17 +29,17 @@ import org.springframework.stereotype.Component;
 public class ManualOptimizer implements LDAOptimizer{
 
 
-    @Value("#{environment['LIBRAIRY_LDA_NUM_TOPICS']?:${librairy.lda.numTopics}}")
-    Integer numTopics;
+    @Autowired
+    ParamTopicCache paramTopicCache;
 
-    @Value("#{environment['LIBRAIRY_LDA_ALPHA']?:${librairy.lda.alpha}}")
-    Double alpha;
+    @Autowired
+    ParamAlphaCache paramAlphaCache;
 
-    @Value("#{environment['LIBRAIRY_LDA_BETA']?:${librairy.lda.beta}}")
-    Double beta;
+    @Autowired
+    ParamBetaCache paramBetaCache;
 
-    @Value("#{environment['LIBRAIRY_LDA_MAX_ITERATIONS']?:${librairy.lda.maxiterations}}")
-    Integer maxIterations;
+    @Autowired
+    IterationsCache iterationsCache;
 
     @Override
     public String getId() {
@@ -53,31 +55,10 @@ public class ManualOptimizer implements LDAOptimizer{
         String domainUri = URIGenerator.fromId(Resource.Type.DOMAIN, corpus.getId());
 
         LDAParameters parameters = new LDAParameters();
-
-        try {
-            parameters.setK(Integer.valueOf(parametersDao.get(domainUri,"lda.num.topics")));
-        } catch (DataNotFound dataNotFound) {
-            parameters.setK(numTopics);
-        }
-
-        try{
-            parameters.setBeta(Double.valueOf(parametersDao.get(domainUri, "lda.beta")));
-        } catch (DataNotFound dataNotFound) {
-            parameters.setBeta(beta);
-        }
-
-        try{
-            parameters.setAlpha(Double.valueOf(parametersDao.get(domainUri, "lda.alpha")));
-        } catch (DataNotFound dataNotFound) {
-            parameters.setAlpha(alpha);
-        }
-
-        try{
-            parameters.setIterations(Integer.valueOf(parametersDao.get(domainUri, "lda.max.iterations")));
-        } catch (DataNotFound dataNotFound) {
-            parameters.setIterations(maxIterations);
-        }
-
+        parameters.setK(paramTopicCache.getParameter(domainUri));
+        parameters.setBeta(paramBetaCache.getParameter(domainUri));
+        parameters.setAlpha(paramAlphaCache.getParameter(domainUri));
+        parameters.setIterations(iterationsCache.getIterations(domainUri));
         return parameters;
     }
 }

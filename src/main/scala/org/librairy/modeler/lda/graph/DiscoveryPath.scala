@@ -19,25 +19,38 @@ object DiscoveryPath {
 
   val logger = Logger(LoggerFactory.getLogger(DiscoveryPath.getClass))
 
-  def apply (startUri: String, endUri: String, minScore: Double, maxLength: Integer, vertices: DataFrame, edges: DataFrame) : Path={
+  def apply (startUri: List[String], endUri: List[String], minScore: Double, maxLength: Integer, reltype: List[String], vertices: DataFrame, edges: DataFrame, maxResults: Integer) : Array[Path]={
 
     // Create a Vertex DataFrame with unique ID column "id"
     val v = vertices.toDF("id");
 
     // Create an Edge DataFrame with "src" and "dst" columns
-    val e = edges.toDF("src","dst","score")
+    val e = edges.toDF("src","dst","score","type")
 
     // Create a GraphFrame
     val g = GraphFrame(v,e)
 
-    // bfs //TODO more than one src and more than one dst
-    val bfs = g.bfs.fromExpr("id = '" + startUri+"'").toExpr("id = '"+endUri+"'");
+    val fromExpression = startUri.map(uri => "id='"+uri+"'").mkString(" or ")
+    logger.info("From expression: " + fromExpression)
+
+    val toExpression = endUri.map(uri => "id='"+uri+"'").mkString(" or ")
+    logger.info("To expression: " + toExpression)
+
+    // bfs
+    val bfs = g.bfs.fromExpr(fromExpression).toExpr(toExpression);
     // filter by similarity score
-    bfs.edgeFilter("score > " + minScore)
+    var edgeFilter = "score > " + minScore
+
+    if (reltype != null && !reltype.isEmpty){
+      val types = reltype.map(t => "type='"+t+"'").mkString(" or ")
+      edgeFilter += " and (" + types + ")"
+    }
+    logger.info("edge filter: " + edgeFilter)
+    bfs.edgeFilter(edgeFilter)
     // filter by max edges
     bfs.maxPathLength(maxLength)
     // calculate
-    logger.info("analyzing graph..")
+    logger.info("getting shortest path between: " + startUri + " and " + endUri + " ...")
     val result = bfs.run().cache();
 
     result.show();
@@ -46,16 +59,17 @@ object DiscoveryPath {
 
     val numNodes = result.columns.filter( _.contains("v")).length
 
-    val paths : Array[Path] = result.rdd.map(row => PathBuilder.apply(row,numNodes)).sortBy( _.getAccumulatedScore, false).take(1)
+    val paths : Array[Path] = result.rdd.map(row => PathBuilder.apply(row,numNodes)).sortBy( _.getAccScore, false).take(maxResults)
     logger.debug("Paths: " + paths)
 
-    var path = new Path();
-
-    if (!paths.isEmpty){
-      path = paths(0);
-    }
-
-    return path
+    return paths;
+//    var path = new Path();
+//
+//    if (!paths.isEmpty){
+//      path = paths(0);
+//    }
+//
+//    return path
   }
 
 

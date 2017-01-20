@@ -8,8 +8,13 @@
 package org.librairy.modeler.lda.dao;
 
 import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.exceptions.InvalidQueryException;
+import org.librairy.boot.model.utils.TimeUtils;
+import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.modeler.lda.api.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -32,13 +37,18 @@ public class ShapesDao extends  AbstractDao{
 
     public static final String TABLE = "shapes";
 
+    public static final String CENTROIDS_TABLE = "shapecentroids";
+
+    @Autowired
+    SessionManager sessionManager;
+
     public ShapesDao() {
         super(TABLE);
     }
 
     public void initialize(String domainUri){
-        LOG.info("creating LDA shapes table for domain: " + domainUri);
-        create(domainUri,table);
+        create(domainUri,TABLE);
+        create(domainUri,CENTROIDS_TABLE);
     }
 
     public void create(String domainUri, String table){
@@ -55,7 +65,46 @@ public class ShapesDao extends  AbstractDao{
         }
         getSession(domainUri).execute("create index if not exists on "+table+" ("+RESOURCE_URI+");");
         getSession(domainUri).execute("create index if not exists on "+table+" ("+RESOURCE_TYPE+");");
+        LOG.info("created LDA "+table+" table for domain: " + domainUri);
     }
 
+    public boolean save(String domainUri, ShapeRow row){
+        return save(domainUri, row, TABLE);
+    }
+
+    public boolean saveCentroid(String domainUri, ShapeRow row){
+        return save(domainUri, row, CENTROIDS_TABLE);
+    }
+
+    public boolean save(String domainUri, ShapeRow row, String table){
+
+        String type = "";
+        try{
+            type = URIGenerator.typeFrom(row.getUri()).name();
+        }catch (RuntimeException e){
+            LOG.debug(e.getMessage());
+        }
+
+        String query = "insert into "+table+" ("+RESOURCE_ID+","+RESOURCE_URI+","+RESOURCE_TYPE+","+VECTOR+"," +
+                ""+DATE+") " +
+                "values ("+row.getId()+", '" + row.getUri() +"' , '"+ type + "', " + row.getVector() +", '" +TimeUtils
+                .asISO() +"');";
+
+        try{
+            ResultSet result = sessionManager.getSession(domainUri).execute(query);
+            LOG.info("saved shape: '"+row.getUri()+"' from '"+domainUri+"' in " + table + " table");
+            return result.wasApplied();
+        }catch (InvalidQueryException e){
+            LOG.warn("Error on query execution: " + e.getMessage());
+            return false;
+        }
+    }
+
+    @Override
+    public void destroy(String domainUri){
+        LOG.info("dropping existing LDA shapes table for domain: " + domainUri);
+        sessionManager.getSession(domainUri).execute("truncate "+table+";");
+        sessionManager.getSession(domainUri).execute("truncate "+CENTROIDS_TABLE+";");
+    }
 
 }

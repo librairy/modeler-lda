@@ -5,26 +5,20 @@
  *
  */
 
-package org.librairy.modeler.lda.models;
+package org.librairy.modeler.lda.dao;
 
 import lombok.Data;
-import lombok.ToString;
 
 import java.io.Serializable;
+import java.util.List;
 
 /**
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
  */
 @Data
-@ToString
-public class Node implements Serializable{
+public class TagRow implements Serializable{
 
-    private String uri;
-
+    private String word;
     private Double score;
 
-    public Node(String uri, Double score){
-        this.uri = uri;
-        this.score = score;
-    }
 }

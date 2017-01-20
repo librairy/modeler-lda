@@ -10,6 +10,7 @@ package org.librairy.modeler.lda.helper;
 import lombok.Data;
 import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.storage.dao.CounterDao;
+import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.dao.DomainsDao;
 import org.librairy.boot.storage.dao.ParametersDao;
 import org.librairy.computing.cluster.Partitioner;
@@ -20,9 +21,8 @@ import org.librairy.modeler.lda.builder.CorpusBuilder;
 import org.librairy.modeler.lda.builder.DealsBuilder;
 import org.librairy.modeler.lda.builder.LDABuilder;
 import org.librairy.modeler.lda.builder.WorkspaceBuilder;
-import org.librairy.modeler.lda.dao.ComparisonsDao;
-import org.librairy.modeler.lda.dao.ShapesDao;
-import org.librairy.modeler.lda.dao.TopicsDao;
+import org.librairy.modeler.lda.cache.VocabularyCache;
+import org.librairy.modeler.lda.dao.*;
 import org.librairy.modeler.lda.services.SimilarityService;
 import org.librairy.modeler.lda.utils.UnifiedExecutor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,8 +36,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class ModelingHelper {
 
-    @Value("#{environment['LIBRAIRY_LDA_VOCABULARY_SIZE']?:${librairy.lda.vocabulary.size}}")
-    Integer vocabSize;
+    @Autowired
+    VocabularyCache vocabularyCache;
 
     @Autowired
     SparkHelper sparkHelper;
@@ -76,6 +76,9 @@ public class ModelingHelper {
     SessionManager sessionManager;
 
     @Autowired
+    DBSessionManager dbSessionManager;
+
+    @Autowired
     ShapesDao shapesDao;
 
     @Autowired
@@ -95,5 +98,11 @@ public class ModelingHelper {
 
     @Autowired
     ParametersDao parametersDao;
+
+    @Autowired
+    SimilaritiesDao similaritiesDao;
+
+    @Autowired
+    ClusterDao clusterDao;
 
 }

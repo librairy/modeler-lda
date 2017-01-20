@@ -205,12 +205,7 @@ public class Corpus {
         if (countVectorizerModel == null){
 
             // Train a Count Vectorizer Model based on corpus
-            Integer vocabSize;
-            try{
-                vocabSize = Integer.valueOf(helper.getParametersDao().get(domainUri,"lda.vocabulary.size"));
-            } catch (DataNotFound dataNotFound) {
-                vocabSize = Integer.valueOf(helper.getVocabSize());
-            }
+            Integer vocabSize = helper.getVocabularyCache().getVocabSize(domainUri);
 
             LOG.info("Limiting to top "+vocabSize+" most common words and creating a count vector model ..");
             countVectorizerModel = new CountVectorizer()

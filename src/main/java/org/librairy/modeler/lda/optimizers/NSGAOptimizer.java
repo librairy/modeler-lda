@@ -16,6 +16,8 @@ import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.helper.SparkHelper;
 import org.librairy.metrics.topics.LDASettings;
 import org.librairy.metrics.topics.LDASolution;
+import org.librairy.modeler.lda.cache.EvaluationsCache;
+import org.librairy.modeler.lda.cache.IterationsCache;
 import org.librairy.modeler.lda.models.Corpus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,14 +38,12 @@ public class NSGAOptimizer implements LDAOptimizer{
 
     private static final Logger LOG = LoggerFactory.getLogger(NSGAOptimizer.class);
 
-    @Value("#{environment['LIBRAIRY_LDA_MAX_ITERATIONS']?:${librairy.lda.maxiterations}}")
-    Integer maxIterations;
-
-    @Value("#{environment['LIBRAIRY_LDA_MAX_EVALUATIONS']?:${librairy.lda.maxevaluations}}")
-    Integer maxEvaluations;
+    @Autowired
+    IterationsCache iterationsCache;
 
     @Autowired
-    ParametersDao parametersDao;
+    EvaluationsCache evaluationsCache;
+
 
     @Override
     public String getId() {
@@ -55,21 +55,8 @@ public class NSGAOptimizer implements LDAOptimizer{
 
         String domainUri = URIGenerator.fromId(Resource.Type.DOMAIN, corpus.getId());
 
-
-        Integer maxIt;
-        try{
-            maxIt = Integer.valueOf(parametersDao.get(domainUri,"lda.max.iterations"));
-        } catch (DataNotFound dataNotFound) {
-            maxIt = maxIterations;
-        }
-
-        Integer maxEv;
-        try{
-            maxEv = Integer.valueOf(parametersDao.get(domainUri,"lda.max.evaluations"));
-        } catch (DataNotFound dataNotFound) {
-            maxEv = maxEvaluations;
-        }
-
+        Integer maxIt = iterationsCache.getIterations(domainUri);
+        Integer maxEv = evaluationsCache.getEvaluations(domainUri);
 
         RDD<Tuple2<Object, Vector>> bagOfWords = corpus.getBagOfWords();
 

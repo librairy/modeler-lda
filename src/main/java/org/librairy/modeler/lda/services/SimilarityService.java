@@ -24,8 +24,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import scala.collection.JavaConversions;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -43,55 +45,181 @@ public class SimilarityService {
     StorageHelper storageHelper;
 
 
-    public Path getShortestPathBetween(String uri1, String uri2, Double minScore, Integer maxLength, String
-            domainUri) throws IllegalArgumentException{
+    public Path[] getShortestPathBetween(List<String> startUris, List<String> endUris, List<String> resTypes,
+                                         List<String> sectors, Double minScore, Integer maxLength, String domainUri, Integer maxResults) throws IllegalArgumentException{
 
-        LOG.info("loading shapes..");
-        DataFrame shapesDF = loadShapes(domainUri).cache();
-//        DataFrame shapesDF = simulateShapes(domainUri).cache();
+        LOG.info("loading nodes..");
+        DataFrame shapesDF = loadShapes(domainUri, sectors).cache();
         shapesDF.take(1);
-        Long verticesNum = shapesDF.count();
-        LOG.info("number of vertices:  "+ verticesNum );
 
         LOG.info("loading similarities..");
-        DataFrame similaritiesDF = loadSimilarities(domainUri).cache();
-//        DataFrame similaritiesDF = simulateSimilarities(domainUri).cache();
+        DataFrame similaritiesDF = loadSimilarities(domainUri, sectors).cache();
         similaritiesDF.take(1);
 
-        Long edgesNum = similaritiesDF.count();
-        LOG.info("number of edges:  "+ edgesNum );
+        LOG.info("discovering shortest path between:  '"+ startUris + "' and '"+endUris+"' in domain: '" +
+                domainUri+"' filtered by " + resTypes );
 
-        LOG.info("discovering shortest path between:  '"+ uri1 + "' and '"+uri2+"' in domain: '" + domainUri+"'" );
-        return DiscoveryPath.apply(uri1, uri2, minScore, maxLength, shapesDF, similaritiesDF);
+        scala.collection.immutable.List<String> start   = JavaConversions.asScalaBuffer(startUris).toList();
+        scala.collection.immutable.List<String> end     = JavaConversions.asScalaBuffer(endUris).toList();
+        scala.collection.immutable.List<String> types   = JavaConversions.asScalaBuffer(resTypes).toList();
+        return DiscoveryPath.apply(start, end, minScore, maxLength, types,  shapesDF, similaritiesDF, maxResults);
     }
 
-    private DataFrame loadShapes(String domainUri) throws IllegalArgumentException {
+    public Path[] getShortestPathBetweenCentroids(List<String> startUris, List<String> endUris, Double
+            minScore, Integer maxLength, String domainUri, Integer maxResults) throws IllegalArgumentException{
 
-        if (!storageHelper.exists(storageHelper.path(URIGenerator.retrieveId(domainUri),"lda/simgraph/vertices"))){
-            throw new IllegalArgumentException("No similarity-graph found for domain: " + domainUri);
+        LOG.info("loading nodes..");
+        DataFrame nodesDF = loadCentroids(domainUri).cache();
+        nodesDF.take(1);
+
+        LOG.info("loading edges..");
+        DataFrame edgesDF = loadCentroidSimilarities(domainUri).cache();
+        edgesDF.take(1);
+
+        LOG.info("discovering shortest path between centroids:  '"+ startUris + "' and '"+endUris+"' in domain: '" + domainUri+"'" );
+        scala.collection.immutable.List<String> start   = JavaConversions.asScalaBuffer(startUris).toList();
+        scala.collection.immutable.List<String> end     = JavaConversions.asScalaBuffer(endUris).toList();
+        scala.collection.immutable.List<String> types   = JavaConversions.asScalaBuffer(Collections.EMPTY_LIST).toList();
+        return DiscoveryPath.apply(start, end, minScore, maxLength, types,  nodesDF, edgesDF, maxResults);
+    }
+
+    private DataFrame loadCentroids(String domainUri) throws IllegalArgumentException {
+
+        if (!storageHelper.exists(storageHelper.path(URIGenerator.retrieveId(domainUri), "lda/similarities/centroids/nodes"))){
+            throw new IllegalArgumentException("No centroids found for domain: " + domainUri);
         }
 
-        return loadFromFileSystem(URIGenerator.retrieveId(domainUri), "vertices");
+        return loadCentroidsFromFileSystem(URIGenerator.retrieveId(domainUri), "nodes");
+    }
+
+    private DataFrame loadCentroidSimilarities(String domainUri) throws IllegalArgumentException {
+
+        if (!storageHelper.exists(storageHelper.path(URIGenerator.retrieveId(domainUri), "lda/similarities/centroids/edges"))){
+            throw new IllegalArgumentException("No centroid-similarities found for domain: " + domainUri);
+        }
+
+        return loadCentroidsFromFileSystem(URIGenerator.retrieveId(domainUri), "edges");
     }
 
 
-    private DataFrame loadSimilarities(String domainUri) throws IllegalArgumentException {
+    private DataFrame loadShapes(String domainUri, List<String> sectors) throws IllegalArgumentException {
 
-        if (!storageHelper.exists(storageHelper.path(URIGenerator.retrieveId(domainUri),"lda/simgraph/edges"))){
-            throw new IllegalArgumentException("No similarity-graph found for domain: " + domainUri);
+        DataFrame df = null;
+
+        for (String sectorId : sectors){
+            LOG.info("loading nodes from sector: " + sectorId + " ...");
+            DataFrame sectorDF = loadSubgraphFromFileSystem(URIGenerator.retrieveId(domainUri), "nodes", sectorId);
+            if (df == null){
+                df = sectorDF;
+            }else{
+                df = df.unionAll(sectorDF).distinct();
+            }
         }
+        LOG.info("all nodes loaded");
+        return df;
+    }
 
-        return loadFromFileSystem(URIGenerator.retrieveId(domainUri), "edges");
+
+    private DataFrame loadSimilarities(String domainUri, List<String> sectors) throws IllegalArgumentException {
+
+        DataFrame df = null;
+
+        for (String sectorId : sectors){
+            LOG.info("loading edges from sector: " + sectorId + " ...");
+            DataFrame sectorDF = loadSubgraphFromFileSystem(URIGenerator.retrieveId(domainUri), "edges", sectorId);
+            if (df == null){
+                df = sectorDF;
+            }else{
+                df = df.unionAll(sectorDF).distinct();
+            }
+        }
+        LOG.info("all edges loaded");
+        return df;
+    }
+
+    public void saveCentroids(String domainUri, DataFrame dataFrame){
+         try{
+             // Clean previous model
+             String id = URIGenerator.retrieveId(domainUri);
+             storageHelper.create(storageHelper.absolutePath(id));
+             String ldaPath = helper.getStorageHelper().path(id, "lda/similarities/centroids/nodes");
+             helper.getStorageHelper().deleteIfExists(ldaPath);
+
+            // Save the model
+             String absoluteModelPath = helper.getStorageHelper().absolutePath(helper.getStorageHelper().path(id, "lda/similarities/centroids/nodes"));
+             dataFrame.save(absoluteModelPath);
+             LOG.info("Saved centroids at: " + absoluteModelPath);
+
+        }catch (Exception e){
+            if (e instanceof java.nio.file.FileAlreadyExistsException) {
+                LOG.warn(e.getMessage());
+            }else {
+                LOG.error("Error saving model", e);
+            }
+        }
+    }
+
+    public void saveCentroidSimilarities(String domainUri, DataFrame dataFrame){
+        try{
+            // Clean previous model
+            String id = URIGenerator.retrieveId(domainUri);
+            storageHelper.create(storageHelper.absolutePath(id));
+            String ldaPath = helper.getStorageHelper().path(id, "lda/similarities/centroids/edges");
+            helper.getStorageHelper().deleteIfExists(ldaPath);
+
+            // Save the model
+            String absoluteModelPath = helper.getStorageHelper().absolutePath(helper.getStorageHelper().path(id,
+                    "lda/similarities/centroids/edges"));
+            dataFrame.save(absoluteModelPath);
+            LOG.info("Saved centroids at: " + absoluteModelPath);
+
+        }catch (Exception e){
+            if (e instanceof java.nio.file.FileAlreadyExistsException) {
+                LOG.warn(e.getMessage());
+            }else {
+                LOG.error("Error saving model", e);
+            }
+        }
+    }
+
+
+    public void saveSubGraphToFileSystem(DataFrame dataFrame, String id , String label, String centroidId){
+        try {
+            helper.getStorageHelper().create(id);
+            // Clean previous model
+            String ldaPath = storageHelper.path(id, "lda/similarities/subgraphs/"+centroidId+"/"+label);
+            storageHelper.deleteIfExists(ldaPath);
+
+            // Save the model
+            String absoluteModelPath = storageHelper.absolutePath(storageHelper.path(id, "lda/similarities/subgraphs/"+centroidId+"/"+label));
+            dataFrame.save(absoluteModelPath);
+            LOG.info("Saved subgraph "+centroidId+"/"+label+" from graph-model at: " + absoluteModelPath);
+
+        }catch (Exception e){
+            if (e instanceof java.nio.file.FileAlreadyExistsException) {
+                LOG.warn(e.getMessage());
+            }else {
+                LOG.error("Error saving model", e);
+            }
+        }
+    }
+
+    public DataFrame loadSubgraphFromFileSystem(String id, String label, String centroidId){
+        String modelPath = storageHelper.absolutePath(storageHelper.path(id,
+                "lda/similarities/subgraphs/"+centroidId+"/"+label));
+        LOG.info("loading subgraph "+centroidId + "/"+ label+" from graph-model:" + modelPath);
+        return helper.getCassandraHelper().getContext().load(modelPath);
     }
 
     public void saveToFileSystem(DataFrame dataFrame, String id , String label){
         try {
+            helper.getStorageHelper().create(id);
             // Clean previous model
-            String ldaPath = storageHelper.path(id, "lda/simgraph/"+label);
+            String ldaPath = storageHelper.path(id, "lda/similarities/graph/"+label);
             storageHelper.deleteIfExists(ldaPath);
 
             // Save the model
-            String absoluteModelPath = storageHelper.absolutePath(storageHelper.path(id, "lda/simgraph/"+label));
+            String absoluteModelPath = storageHelper.absolutePath(storageHelper.path(id, "lda/similarities/graph/"+label));
             dataFrame.save(absoluteModelPath);
             LOG.info("Saved "+label +" from graph-model at: " + absoluteModelPath);
 
@@ -105,61 +233,16 @@ public class SimilarityService {
     }
 
     public DataFrame loadFromFileSystem(String id, String label){
-        String modelPath = storageHelper.absolutePath(storageHelper.path(id,"lda/simgraph/"+label));
+        String modelPath = storageHelper.absolutePath(storageHelper.path(id,"lda/similarities/graph/"+label));
         LOG.info("loading "+label+" from graph-model:" + modelPath);
         return helper.getCassandraHelper().getContext().load(modelPath);
     }
 
-    private DataFrame simulateShapes(String domainUri){
-
-        StructType schema = DataTypes.createStructType(new StructField[]{
-                DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType,
-                        false)});
-
-        List<Row> rows = new ArrayList<>();
-        rows.add(RowFactory.create("uri1"));
-        rows.add(RowFactory.create("uri2"));
-        rows.add(RowFactory.create("uri3"));
-        rows.add(RowFactory.create("uri4"));
-        rows.add(RowFactory.create("uri5"));
-        rows.add(RowFactory.create("uri6"));
-
-        return helper.getCassandraHelper().getContext().createDataFrame(rows,schema);
+    public DataFrame loadCentroidsFromFileSystem(String id, String label){
+        String modelPath = storageHelper.absolutePath(storageHelper.path(id,"lda/similarities/centroids/"+label));
+        LOG.info("loading "+label+" from centroids-graph-model:" + modelPath);
+        return helper.getCassandraHelper().getContext().load(modelPath);
     }
 
-    private DataFrame simulateSimilarities(String domainUri){
-
-        StructType schema = DataTypes.createStructType(new StructField[]{
-                DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_1, DataTypes.StringType,
-                        false),
-                DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_2, DataTypes.StringType,
-                        false),
-                DataTypes.createStructField(SimilaritiesDao.SCORE, DataTypes.DoubleType,
-                        false)});
-
-        List<Row> rows = new ArrayList<>();
-        rows.add(RowFactory.create("uri1","uri2",0.9));
-        rows.add(RowFactory.create("uri2","uri1",0.9));
-
-        rows.add(RowFactory.create("uri1","uri3",0.7));
-        rows.add(RowFactory.create("uri3","uri1",0.7));
-
-        rows.add(RowFactory.create("uri2","uri4",0.9));
-        rows.add(RowFactory.create("uri4","uri2",0.9));
-
-        rows.add(RowFactory.create("uri3","uri4",0.8));
-        rows.add(RowFactory.create("uri4","uri3",0.8));
-
-        rows.add(RowFactory.create("uri1","uri5",0.4));
-        rows.add(RowFactory.create("uri5","uri1",0.4));
-
-        rows.add(RowFactory.create("uri5","uri6",0.5));
-        rows.add(RowFactory.create("uri6","uri5",0.5));
-
-        rows.add(RowFactory.create("uri6","uri4",0.8));
-        rows.add(RowFactory.create("uri4","uri6",0.8));
-
-        return helper.getCassandraHelper().getContext().createDataFrame(rows,schema);
-    }
 
 }

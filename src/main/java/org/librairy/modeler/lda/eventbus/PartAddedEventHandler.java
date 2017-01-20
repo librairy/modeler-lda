@@ -13,6 +13,7 @@ import org.librairy.boot.model.modules.BindingKey;
 import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
+import org.librairy.modeler.lda.cache.DelayCache;
 import org.librairy.modeler.lda.services.ModelingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,8 +37,8 @@ public class PartAddedEventHandler implements EventBusSubscriber {
     @Autowired
     ModelingService modelingService;
 
-    @Value("#{environment['LIBRAIRY_LDA_EVENT_DELAY']?:${librairy.lda.event.delay}}")
-    protected Long delay;
+    @Autowired
+    DelayCache delayCache;
 
     @PostConstruct
     public void init(){
@@ -54,6 +55,8 @@ public class PartAddedEventHandler implements EventBusSubscriber {
         LOG.debug("Part added event received: " + event);
         try{
             Relation relation = event.to(Relation.class);
+
+            Long delay = delayCache.getDelay(relation.getStartUri());
 
             modelingService.train(relation.getStartUri(), delay);
 

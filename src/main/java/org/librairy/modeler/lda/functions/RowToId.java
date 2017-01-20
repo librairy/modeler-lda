@@ -7,7 +7,6 @@
 
 package org.librairy.modeler.lda.functions;
 
-import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.sql.Row;
 import scala.Tuple2;
 import scala.runtime.AbstractFunction1;

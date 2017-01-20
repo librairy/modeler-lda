@@ -15,6 +15,7 @@ import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.tasks.LDADistributionsTask;
 import org.librairy.modeler.lda.tasks.LDAShapingTask;
+import org.librairy.modeler.lda.tasks.LDASubdomainShapingTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,7 +51,9 @@ public class LdaShapesCreatedEventHandler implements EventBusSubscriber {
         try{
             String domainUri = event.to(String.class);
 
-            new LDADistributionsTask(domainUri, helper).run();
+
+            new LDASubdomainShapingTask(domainUri, helper).run();
+//            new LDADistributionsTask(domainUri, helper).run();
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added

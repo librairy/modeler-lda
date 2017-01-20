@@ -14,6 +14,8 @@ import org.librairy.boot.model.modules.BindingKey;
 import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
+import org.librairy.boot.storage.dao.ParametersDao;
+import org.librairy.modeler.lda.cache.DelayCache;
 import org.librairy.modeler.lda.services.ModelingService;
 import org.librairy.boot.storage.UDM;
 import org.slf4j.Logger;
@@ -38,8 +40,8 @@ public class DomainUpdatedEventHandler implements EventBusSubscriber {
     @Autowired
     ModelingService modelingService;
 
-    @Value("#{environment['LIBRAIRY_LDA_EVENT_DELAY']?:${librairy.lda.event.delay}}")
-    protected Long delay;
+    @Autowired
+    DelayCache delayCache;
 
     @PostConstruct
     public void init(){
@@ -55,7 +57,9 @@ public class DomainUpdatedEventHandler implements EventBusSubscriber {
         try{
             Resource resource = event.to(Resource.class);
 
-            LOG.info("Creating a new Topic Model for an updated domain: " + resource.getUri());
+            Long delay = delayCache.getDelay(resource.getUri());
+
+            LOG.debug("Creating a new Topic Model for an updated domain: " + resource.getUri());
             modelingService.train(resource.getUri(),delay);
 
         } catch (Exception e){

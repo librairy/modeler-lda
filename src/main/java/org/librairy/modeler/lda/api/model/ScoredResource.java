@@ -21,11 +21,14 @@ public class ScoredResource {
 
     private Double score;
 
+    private String time;
+
     public ScoredResource(){}
 
-    public ScoredResource(String uri, String description, Double score){
+    public ScoredResource(String uri, String description, Double score, String time){
         this.uri = uri;
         this.description = description;
         this.score = score;
+        this.time = time;
     }
 }

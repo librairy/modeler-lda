@@ -14,7 +14,7 @@ import org.springframework.stereotype.Component;
 /**
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
  */
-@Component
+@Component(value = "lda.annotationsDao")
 public class AnnotationsDao extends  AbstractDao{
 
     private static final Logger LOG = LoggerFactory.getLogger(AnnotationsDao.class);

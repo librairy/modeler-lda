@@ -7,35 +7,19 @@
 
 package org.librairy.modeler.lda.tasks;
 
-import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.google.common.collect.ImmutableMap;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.mllib.clustering.KMeans;
-import org.apache.spark.mllib.clustering.KMeansModel;
-import org.apache.spark.mllib.linalg.Vector;
-import org.apache.spark.mllib.linalg.Vectors;
-import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.modules.RoutingKey;
-import org.librairy.boot.model.utils.TimeUtils;
 import org.librairy.boot.storage.generator.URIGenerator;
-import org.librairy.metrics.similarity.JensenShannonSimilarity;
 import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.dao.SimilaritiesDao;
-import org.librairy.modeler.lda.dao.SimilarityRow;
-import org.librairy.modeler.lda.functions.RowToTupleVector;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import scala.Tuple2;
-
-import java.util.Arrays;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 
@@ -67,7 +51,7 @@ public class LDASimilarityGraphTask implements Runnable {
 
         LOG.info("creating similarity-graph from domain: " + domainUri);
 
-        saveVerticesToFileSystem();
+        saveNodesToFileSystem();
 
         saveEdgesToFileSystem();
 
@@ -78,7 +62,7 @@ public class LDASimilarityGraphTask implements Runnable {
     }
 
 
-    private void saveVerticesToFileSystem(){
+    private void saveNodesToFileSystem(){
         helper.getUnifiedExecutor().execute(() -> {
             try{
                 LOG.info("creating vertices..");
@@ -100,7 +84,7 @@ public class LDASimilarityGraphTask implements Runnable {
                         .load()
                         .repartition(partitions);
 
-                helper.getSimilarityService().saveToFileSystem(shapes,URIGenerator.retrieveId(domainUri), "vertices");
+                helper.getSimilarityService().saveToFileSystem(shapes,URIGenerator.retrieveId(domainUri), "nodes");
             } catch (Exception e){
                 // TODO Notify to event-bus when source has not been added
                 LOG.error("Error scheduling a new topic model for Items from domain: " + domainUri, e);
@@ -123,6 +107,8 @@ public class LDASimilarityGraphTask implements Runnable {
                                         DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_2, DataTypes.StringType,
                                                 false),
                                         DataTypes.createStructField(SimilaritiesDao.SCORE, DataTypes.DoubleType,
+                                                false),
+                                        DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_2, DataTypes.StringType,
                                                 false)
                                 }))
                         .option("inferSchema", "false") // Automatically infer data types

@@ -19,6 +19,7 @@ import org.librairy.modeler.lda.api.model.ScoredTopic;
 import org.librairy.modeler.lda.api.model.ScoredWord;
 import org.librairy.modeler.lda.models.Comparison;
 import org.librairy.modeler.lda.models.Field;
+import org.librairy.modeler.lda.models.Path;
 import org.librairy.modeler.lda.models.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,6 +28,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -154,15 +156,20 @@ public class ApiTest {
 
     @Test
     public void shortestPath() throws IllegalArgumentException {
-        String startUri     = "http://librairy.org/parts/5227bb3bbfbe38d7288b456c";
-        String endUri       = "http://librairy.org/parts/546df640141674473e8b45bc";
+        String startUri     = "http://librairy.org/items/D5_1xZ1T8u6";
+        String endUri       = "http://librairy.org/items/P57zDdAuxSy";
 
         Criteria criteria = new Criteria();
-        criteria.setDomainUri("http://librairy.org/domains/default");
-        criteria.setThreshold(0.5);
+        criteria.setDomainUri("http://librairy.org/domains/141fc5bbcf0212ec9bee5ef66c6096ab");
+        criteria.setThreshold(0.7);
         criteria.setMax(10);
 
-        api.getShortestPath(startUri, endUri, criteria);
+        List<String> types  = Collections.EMPTY_LIST;
+        Integer maxLength   = 10;
+
+        List<Path> paths = api.getShortestPath(startUri, endUri, types,  maxLength, criteria);
+
+        LOG.info("Paths: " + paths);
 
     }
 }

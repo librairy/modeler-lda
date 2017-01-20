@@ -20,6 +20,11 @@ object PathBuilder {
 
     val path = new Path();
 
+    // add first node
+    val firstValue  = row.getStruct(0)
+    val firstNode   = new Node(firstValue.getString(0), 1.0)
+    path.add(firstNode)
+
     for (i <- 0 to num){
       val index = (i*2)+1
       val value = row.getStruct(index)

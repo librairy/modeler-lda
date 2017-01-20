@@ -39,7 +39,7 @@ import java.util.List;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
 //@TestPropertySource(properties = {
-//        "librairy.lda.event.delay = 60000"
+//        "librairy.lda.event.value = 60000"
 //})
 public class LDATextTaskTest {
 

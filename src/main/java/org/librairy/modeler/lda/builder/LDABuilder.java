@@ -29,6 +29,7 @@ import org.librairy.computing.helper.StorageHelper;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.utils.TimeUtils;
 import org.librairy.modeler.lda.api.SessionManager;
+import org.librairy.modeler.lda.cache.OptimizerCache;
 import org.librairy.modeler.lda.dao.TopicRow;
 import org.librairy.modeler.lda.dao.TopicsDao;
 import org.librairy.modeler.lda.helper.ModelingHelper;
@@ -68,6 +69,9 @@ import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 public class LDABuilder {
 
     private static Logger LOG = LoggerFactory.getLogger(LDABuilder.class);
+
+    @Autowired
+    OptimizerCache optimizerCache;
 
     @Autowired
     SparkHelper sparkHelper;
@@ -172,14 +176,7 @@ public class LDABuilder {
 
         String domainUri = URIGenerator.fromId(Resource.Type.DOMAIN, corpus.getId());
 
-
-        String optimizerId;
-
-        try{
-            optimizerId = parametersDao.get(domainUri,"lda.optimizer");
-        } catch (DataNotFound dataNotFound) {
-            optimizerId = "basic";
-        }
+        String optimizerId = optimizerCache.getOptimizer(domainUri);
 
         LOG.info("LDA Optimizer for '"+domainUri +"' is " + optimizerId);
         LDAOptimizer ldaOptimizer = ldaOptimizerFactory.by(optimizerId);
@@ -220,6 +217,7 @@ public class LDABuilder {
 
     public void saveToFileSystem(TopicModel model, String id ){
         try {
+            storageHelper.create(storageHelper.absolutePath(id));
 
             // Clean previous model
             String ldaPath = storageHelper.path(id, "lda");

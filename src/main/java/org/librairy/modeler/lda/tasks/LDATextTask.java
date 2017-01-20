@@ -17,21 +17,25 @@ import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.domain.resources.Resource;
+import org.librairy.boot.model.utils.TimeUtils;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
 import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.*;
 import org.librairy.modeler.lda.functions.RowToResourceShape;
+import org.librairy.modeler.lda.functions.RowToTupleVector;
 import org.librairy.modeler.lda.functions.TupleToResourceShape;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
+import scala.collection.JavaConversions;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Created on 12/08/16:
@@ -51,8 +55,7 @@ public class LDATextTask implements Runnable {
     }
 
 
-    public List<SimilarResource> getSimilar(Text text, Integer topValues, String domainUri, List<Resource.Type>
-            types){
+    public List<SimilarResource> getSimilar(Text text, Integer topValues, String domainUri, List<Resource.Type> types){
 
         if (Strings.isNullOrEmpty(text.getContent())) return Collections.emptyList();
 
@@ -69,7 +72,11 @@ public class LDATextTask implements Runnable {
         corpus.setCountVectorizerModel(topicModel.getVocabModel());
 
         // Documents
-        RDD<Tuple2<Object, Vector>> documents = corpus.getBagOfWords().cache();
+        RDD<Tuple2<Object, Vector>> documents = corpus
+                .getBagOfWords()
+                .cache();
+
+        LOG.info("Created bow from text");
 
         // Topic Distribution
         JavaRDD<ResourceShape> topicDistribution = topicModel
@@ -79,7 +86,10 @@ public class LDATextTask implements Runnable {
                 .map(new TupleToResourceShape(text.getId()))
                 .cache();
 
+        LOG.info("Created topic-based vector from text");
+
         // Read vectors from domain
+        int partitions = Runtime.getRuntime().availableProcessors() * 3;
 
         DataFrame baseDF = helper.getCassandraHelper().getContext()
                 .read()
@@ -89,6 +99,8 @@ public class LDATextTask implements Runnable {
                                 DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType,
                                         false),
                                 DataTypes.createStructField(ShapesDao.VECTOR, DataTypes.createArrayType(DataTypes.DoubleType),
+                                        false),
+                                DataTypes.createStructField(ShapesDao.RESOURCE_TYPE, DataTypes.StringType,
                                         false)
                         }))
                 .option("inferSchema", "false") // Automatically infer data types
@@ -101,21 +113,19 @@ public class LDATextTask implements Runnable {
 
         // Filter by types
         if (!types.isEmpty()){
-            Column condition = org.apache.spark.sql.functions.col("uri").contains("/"+types.get(0).route()+"/");
-
-            if (types.size() > 1){
-                for (int i=1; i< types.size(); i++){
-                    condition = condition.or(org.apache.spark.sql.functions.col("uri").contains("/"+types.get(i).route
-                            ()+"/"));
-                }
-            }
+            Column condition = org.apache.spark.sql.functions.col(ShapesDao.RESOURCE_TYPE).equalTo(types.get(0).key());
             shapesDF = baseDF.filter(condition);
         }
 
-        JavaRDD<ResourceShape> shapes = shapesDF
-                .toJavaRDD()
-                .map(new RowToResourceShape());
+        LOG.info("Calculating similarity value to existing documents..");
 
+        JavaRDD<ResourceShape> shapes = shapesDF
+                .repartition(partitions)
+                .toJavaRDD()
+                .map(new RowToResourceShape())
+                .cache();
+
+        shapes.take(1);
 
         List<SimilarResource> similarResources = topicDistribution
                 .cartesian(shapes)
@@ -123,6 +133,7 @@ public class LDATextTask implements Runnable {
                     SimilarResource sr = new SimilarResource();
                     sr.setUri(pair._2.getUri());
                     sr.setWeight(JensenShannonSimilarity.apply(pair._1.getVector(), pair._2.getVector()));
+                    sr.setTime(TimeUtils.asISO());
                     return sr;
                 })
                 .takeOrdered(topValues);

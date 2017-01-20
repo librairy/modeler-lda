@@ -21,7 +21,7 @@ public abstract class AbstractDao {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractDao.class);
 
     @Autowired
-    private SessionManager sessionManager;
+    protected SessionManager sessionManager;
 
     protected final String table;
 

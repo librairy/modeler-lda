@@ -23,6 +23,8 @@ public class SimilarResource implements Serializable, Comparable{
 
     private Double weight;
 
+    private String time;
+
     @Override
     public int compareTo(Object o) {
 

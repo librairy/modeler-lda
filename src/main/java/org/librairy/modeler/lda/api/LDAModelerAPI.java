@@ -10,6 +10,7 @@ package org.librairy.modeler.lda.api;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.exceptions.InvalidQueryException;
+import org.apache.commons.collections4.CollectionUtils;
 import org.librairy.boot.model.domain.resources.Domain;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.storage.exception.DataNotFound;
@@ -28,11 +29,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
@@ -76,7 +76,7 @@ public class LDAModelerAPI {
     public List<ScoredResource> getMostRelevantResources(String topicUri, Criteria criteria){
 
         // TODO handle criteria.type
-        String query = "select "+ DistributionsDao.RESOURCE_URI + "," + DistributionsDao.RESOURCE_TYPE + ","+ DistributionsDao.SCORE
+        String query = "select "+ DistributionsDao.RESOURCE_URI + "," + DistributionsDao.RESOURCE_TYPE + ","+ DistributionsDao.SCORE + "," + DistributionsDao.DATE
                 + " from " + DistributionsDao.TABLE
                 + " where " + DistributionsDao.TOPIC_URI+"='"+topicUri+"'"
                 + " order by "+ DistributionsDao.SCORE + " DESC"
@@ -92,7 +92,7 @@ public class LDAModelerAPI {
 
             return rows
                     .stream()
-                    .map(row -> new ScoredResource(row.getString(0), row.getString(1), row.getDouble(2)))
+                    .map(row -> new ScoredResource(row.getString(0), row.getString(1), row.getDouble(2), row.getString(3)))
                     .collect(Collectors.toList());
         }catch (InvalidQueryException e){
             LOG.warn("Query error: " + e.getMessage());
@@ -262,7 +262,7 @@ public class LDAModelerAPI {
     public List<ScoredResource> getSimilarResources(String resourceUri, Criteria criteria){
 
         StringBuilder queryBuilder = new StringBuilder().append("select ")
-                .append(SimilaritiesDao.RESOURCE_URI_2).append(", ").append(SimilaritiesDao.SCORE)
+                .append(SimilaritiesDao.RESOURCE_URI_2).append(", ").append(SimilaritiesDao.SCORE).append(", ").append(SimilaritiesDao.DATE)
                 .append(" from ").append(SimilaritiesDao.TABLE)
                 .append(" where ").append(SimilaritiesDao.RESOURCE_URI_1).append("='").append(resourceUri).append("' ");
 
@@ -273,7 +273,7 @@ public class LDAModelerAPI {
         }
 
         queryBuilder = queryBuilder.append(" and score > ").append(criteria.getThreshold())
-                .append(" order by ").append(SimilaritiesDao.SCORE).append(" desc")
+//                .append(" order by ").append(SimilaritiesDao.SCORE).append(" desc")
                 .append(" limit ").append(criteria.getMax()).append(";");
 
         String query = queryBuilder.toString();
@@ -287,7 +287,7 @@ public class LDAModelerAPI {
 
             return rows
                     .stream()
-                    .map(row -> new ScoredResource(row.getString(0), URIGenerator.typeFrom(row.getString(0)).key(),row.getDouble(1)))
+                    .map(row -> new ScoredResource(row.getString(0), URIGenerator.typeFrom(row.getString(0)).key(),row.getDouble(1), row.getString(2)))
                     .collect(Collectors.toList());
         }catch (InvalidQueryException e){
             LOG.warn("Query error: " + e.getMessage());
@@ -304,11 +304,13 @@ public class LDAModelerAPI {
 
         LOG.info("Getting similar resources to a given text by criteria: " + criteria);
         try{
-            return new LDATextTask(helper)
+            List<ScoredResource> resources = new LDATextTask(helper)
                     .getSimilar(text, criteria.getMax(), criteria.getDomainUri(), criteria.getTypes())
                     .stream()
-                    .map(simRes -> new ScoredResource(simRes.getUri(), "", simRes.getWeight()))
+                    .map(simRes -> new ScoredResource(simRes.getUri(), "", simRes.getWeight(), simRes.getTime()))
                     .collect(Collectors.toList());
+            LOG.info("Took top-" + resources.size() + " similar resources");
+            return resources;
         }catch (Exception e){
             LOG.error("Unexpected error", e);
             return Collections.emptyList();
@@ -380,16 +382,101 @@ public class LDAModelerAPI {
 
 
 
-    public List<ScoredResource> getShortestPath(String startUri, String endUri, Criteria criteria) throws IllegalArgumentException {
+    public List<Path> getShortestPath(String startUri, String endUri, List<String> types, Integer maxLength, Criteria criteria) throws IllegalArgumentException {
 
         try{
-            Path path = helper.getSimilarityService().getShortestPathBetween(startUri, endUri, criteria.getThreshold(),
-                    criteria.getMax(), criteria.getDomainUri());
-            List<Node> nodes = path.getNodes();
 
-            if (nodes.isEmpty()) return Collections.emptyList();
+            LOG.info("Getting shortest path between '"+startUri+"' and '"+endUri+"' ...");
 
-            return nodes.stream().map(n -> new ScoredResource(n.getUri(),"",n.getScore())).collect(Collectors.toList());
+            // get similarity btw them
+            try {
+                Double score = helper.getSimilaritiesDao().getSimilarity(criteria.getDomainUri(), startUri, endUri);
+                LOG.info("Direct link between them: " + score);
+                if (criteria.getThreshold() != null && score >= criteria.getThreshold()){
+                    Path path = new Path();
+                    Node node = new Node(endUri, score);
+                    path.add(node);
+                    return Arrays.asList(new Path[]{path});
+                }else{
+                    LOG.info("Threshold ("+criteria.getThreshold()+") greather than direct score");
+                }
+
+            }catch (DataNotFound e){
+                LOG.info("No direct link between them");
+            }
+
+            // get centroids of startUri
+            List<String> startCentroids = helper.getClusterDao().getClusters(criteria.getDomainUri(), startUri)
+                    .stream().map(id -> String.valueOf(id)).collect(Collectors.toList());
+            LOG.info("Starting sectors: " + startCentroids);
+
+            // get centroids of endUri
+            List<String> endCentroids = helper.getClusterDao().getClusters(criteria.getDomainUri(), endUri)
+                    .stream().map(id -> String.valueOf(id)).collect(Collectors.toList());
+            LOG.info("Ending sectors: " + endCentroids);
+
+
+            List<String> intersection = startCentroids.stream().filter(endCentroids::contains).collect(Collectors.toList());
+
+            Set<Path> centroidBasedPaths = new TreeSet<>();
+            centroidBasedPaths.addAll(intersection.stream().map(uri -> {
+                Path intersectionPath = new Path();
+                intersectionPath.add(new Node(uri,1.0));
+                return intersectionPath;
+            }).collect(Collectors.toList()));
+
+            if (!intersection.isEmpty()){
+                endCentroids.removeAll(intersection);
+            }
+
+            //
+            if (!endCentroids.isEmpty()){
+                // get shortest path btw centroids
+                Path[] centroidPaths = helper.getSimilarityService().getShortestPathBetweenCentroids(
+                        startCentroids,
+                        endCentroids,
+                        0.0,
+                        maxLength,
+                        criteria.getDomainUri(),
+                        criteria.getMax());
+
+                if (centroidPaths != null){
+                    centroidBasedPaths.addAll(Arrays.asList(centroidPaths));
+                }
+            }
+
+
+            if (centroidBasedPaths.isEmpty()){
+                LOG.info("No path found between centroids by criteria: " + criteria);
+                return Collections.EMPTY_LIST;
+            }
+
+            List<String> startUriList = Arrays.asList(new String[]{startUri});
+            List<String> endUriList = Arrays.asList(new String[]{endUri});
+            for (Path centroidPath : centroidBasedPaths){
+
+                // get shortest path in subgraphs
+                List<String> sectors = centroidPath.getNodes().stream().map(node -> node.getUri()).collect(Collectors
+                        .toList());
+                LOG.info("Getting shortest-path by using the following centroids: " + sectors);
+
+                Path[] paths = helper.getSimilarityService().getShortestPathBetween(
+                        startUriList,
+                        endUriList,
+                        types,
+                        sectors,
+                        criteria.getThreshold(),
+                        maxLength,
+                        criteria.getDomainUri(),
+                        criteria.getMax());
+
+                if (paths != null && paths.length > 0){
+                    return Arrays.asList(paths);
+                }
+            }
+
+            LOG.info("No path found between elements after analyzed all sectors");
+            return Collections.EMPTY_LIST;
         }catch (Exception e){
             LOG.error("Unexpected error", e);
             return Collections.emptyList();

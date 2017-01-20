@@ -8,46 +8,38 @@
 package org.librairy.modeler.lda.eventbus;
 
 import org.librairy.boot.model.Event;
-import org.librairy.boot.model.domain.relations.Relation;
-import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.modules.BindingKey;
 import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
-import org.librairy.modeler.lda.cache.DelayCache;
-import org.librairy.modeler.lda.services.ModelingService;
-import org.librairy.boot.storage.UDM;
-import org.librairy.boot.storage.system.column.repository.UnifiedColumnRepository;
+import org.librairy.modeler.lda.helper.ModelingHelper;
+import org.librairy.modeler.lda.tasks.LDADistributionsTask;
+import org.librairy.modeler.lda.tasks.LDASubdomainShapingTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Created by cbadenes on 11/01/16.
  */
 @Component
-public class ItemAddedEventHandler implements EventBusSubscriber {
+public class LdaSubdomainShapesCreatedEventHandler implements EventBusSubscriber {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ItemAddedEventHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(LdaSubdomainShapesCreatedEventHandler.class);
 
     @Autowired
     protected EventBus eventBus;
 
     @Autowired
-    ModelingService modelingService;
-
-    @Autowired
-    DelayCache delayCache;
+    ModelingHelper helper;
 
     @PostConstruct
     public void init(){
-        BindingKey bindingKey = BindingKey.of(RoutingKey.of(Relation.Type.CONTAINS_TO_ITEM, Relation.State.CREATED),
-                "modeler.lda.item.added");
+        BindingKey bindingKey = BindingKey.of(RoutingKey.of(LDASubdomainShapingTask.ROUTING_KEY_ID), "lda.subdomains" +
+                ".shapes.created");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");
@@ -55,14 +47,11 @@ public class ItemAddedEventHandler implements EventBusSubscriber {
 
     @Override
     public void handle(Event event) {
-
-        LOG.debug("Item bundled event received: " + event);
+        LOG.info("lda subdomain shapes created event received: " + event);
         try{
-            Relation relation = event.to(Relation.class);
+            String domainUri = event.to(String.class);
 
-            Long delay = delayCache.getDelay(relation.getStartUri());
-
-            modelingService.train(relation.getStartUri(), delay);
+            new LDADistributionsTask(domainUri, helper).run();
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added

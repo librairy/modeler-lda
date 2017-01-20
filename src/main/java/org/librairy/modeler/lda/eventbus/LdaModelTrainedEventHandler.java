@@ -21,6 +21,7 @@ import org.librairy.modeler.lda.models.Corpus;
 import org.librairy.modeler.lda.models.TopicModel;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.modeler.lda.tasks.LDAComparisonTask;
+import org.librairy.modeler.lda.tasks.LDADomainTagTask;
 import org.librairy.modeler.lda.tasks.LDAShapingTask;
 import org.librairy.modeler.lda.tasks.LDATrainingTask;
 import org.slf4j.Logger;
@@ -59,7 +60,7 @@ public class LdaModelTrainedEventHandler implements EventBusSubscriber {
         try{
             String domainUri = event.to(String.class);
 
-            new LDAComparisonTask(domainUri, helper).run();
+            new LDADomainTagTask(domainUri, helper).run();
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added
