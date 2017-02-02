@@ -94,7 +94,7 @@ public class LDASubdomainShapingTask implements Runnable {
 
 
     private void shapeSubdomain(String subdomainUri, String domainUri){
-        helper.getUnifiedExecutor().execute(() -> {
+        helper.getSparkHelper().execute(() -> {
             try{
                 LOG.info("creating shape for sub-domain '"+ subdomainUri+"'");
 

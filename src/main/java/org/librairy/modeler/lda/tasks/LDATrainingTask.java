@@ -41,7 +41,7 @@ public class LDATrainingTask implements Runnable {
     @Override
     public void run() {
 
-        helper.getUnifiedExecutor().execute(() -> {
+        helper.getSparkHelper().execute(() -> {
             try{
                 LOG.info("Prepare workspace for domain: " + domainUri);
                 helper.getWorkspaceBuilder().initialize(domainUri);

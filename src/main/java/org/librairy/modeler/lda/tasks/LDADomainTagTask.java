@@ -51,7 +51,7 @@ public class LDADomainTagTask implements Runnable {
     @Override
     public void run() {
 
-            helper.getUnifiedExecutor().execute(() -> {
+            helper.getSparkHelper().execute(() -> {
 
                 try{
                     LOG.info("generating tags for domain: '" + domainUri + "' ..");

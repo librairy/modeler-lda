@@ -24,9 +24,7 @@ import org.librairy.modeler.lda.builder.WorkspaceBuilder;
 import org.librairy.modeler.lda.cache.VocabularyCache;
 import org.librairy.modeler.lda.dao.*;
 import org.librairy.modeler.lda.services.SimilarityService;
-import org.librairy.modeler.lda.utils.UnifiedExecutor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
@@ -65,9 +63,6 @@ public class ModelingHelper {
 
     @Autowired
     CassandraHelper cassandraHelper;
-
-    @Autowired
-    UnifiedExecutor unifiedExecutor;
 
     @Autowired
     EventBus eventBus;

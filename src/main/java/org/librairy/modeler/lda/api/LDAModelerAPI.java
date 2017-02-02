@@ -239,7 +239,7 @@ public class LDAModelerAPI {
 
             return rows
                     .stream()
-                    .filter(row -> row.getDouble(1)>0.0)
+//                    .filter(row -> row.getDouble(1)>0.0)
                     .collect(Collectors.groupingBy(t -> t.getString(0), Collectors.averagingDouble(r -> r.getDouble(1))))
                     .entrySet()
                     .stream()
@@ -272,7 +272,7 @@ public class LDAModelerAPI {
                     (criteria.getTypes().get(0).key()).append("' ");
         }
 
-        queryBuilder = queryBuilder.append(" and score > ").append(criteria.getThreshold())
+        queryBuilder = queryBuilder.append(" and score >= ").append(criteria.getThreshold())
 //                .append(" order by ").append(SimilaritiesDao.SCORE).append(" desc")
                 .append(" limit ").append(criteria.getMax()).append(";");
 

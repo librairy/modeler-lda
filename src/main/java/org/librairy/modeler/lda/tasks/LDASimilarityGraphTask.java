@@ -34,8 +34,6 @@ public class LDASimilarityGraphTask implements Runnable {
 
     public static final String ROUTING_KEY_ID = "lda.graph.created";
 
-    private static final int partitions = Runtime.getRuntime().availableProcessors() * 3;
-
     private final ModelingHelper helper;
 
     private final String domainUri;
@@ -63,7 +61,8 @@ public class LDASimilarityGraphTask implements Runnable {
 
 
     private void saveNodesToFileSystem(){
-        helper.getUnifiedExecutor().execute(() -> {
+        final Integer partitions = helper.getSparkHelper().getPartitions();
+        helper.getSparkHelper().execute(() -> {
             try{
                 LOG.info("creating vertices..");
                 DataFrame shapes = helper.getCassandraHelper().getContext()
@@ -94,7 +93,8 @@ public class LDASimilarityGraphTask implements Runnable {
     }
 
     private void saveEdgesToFileSystem(){
-        helper.getUnifiedExecutor().execute(() -> {
+        final Integer partitions = helper.getSparkHelper().getPartitions();
+        helper.getSparkHelper().execute(() -> {
             try{
                 LOG.info("creating edges..");
                 DataFrame similarities = helper.getCassandraHelper().getContext()

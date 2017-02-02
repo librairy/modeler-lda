@@ -59,22 +59,22 @@ public class LDASimilarityTask implements Runnable {
 
     public static final String ROUTING_KEY_ID = "lda.similarities.created";
 
-    private final int partitions = Runtime.getRuntime().availableProcessors() * 3;
-
     private final ModelingHelper helper;
 
     private final String domainUri;
+    private final Integer partitions;
 
     public LDASimilarityTask(String domainUri, ModelingHelper modelingHelper) {
         this.domainUri = domainUri;
         this.helper = modelingHelper;
+        this.partitions = modelingHelper.getSparkHelper().getPartitions();
     }
 
 
     @Override
     public void run() {
 
-        helper.getUnifiedExecutor().execute(() -> {
+        helper.getSparkHelper().execute(() -> {
             try{
 
                 int partitions = Runtime.getRuntime().availableProcessors() * 3;

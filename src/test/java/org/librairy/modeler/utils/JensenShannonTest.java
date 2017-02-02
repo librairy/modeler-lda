@@ -7,16 +7,10 @@
 
 package org.librairy.modeler.utils;
 
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.spark.mllib.linalg.Vector;
-import org.apache.spark.mllib.linalg.Vectors;
 import org.junit.Test;
-import org.librairy.metrics.data.Pair;
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
-import org.librairy.metrics.utils.Permutations;
 import org.librairy.modeler.lda.models.Node;
 import org.librairy.modeler.lda.models.Path;
-import org.librairy.modeler.lda.utils.UnifiedExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

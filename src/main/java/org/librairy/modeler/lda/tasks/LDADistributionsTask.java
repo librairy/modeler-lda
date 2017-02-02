@@ -60,7 +60,7 @@ public class LDADistributionsTask implements Runnable {
     @Override
     public void run() {
 
-        helper.getUnifiedExecutor().execute(() -> {
+        helper.getSparkHelper().execute(() -> {
             try{
                 JavaPairRDD<Long, InternalResource> shapes = helper.getCassandraHelper().getContext()
                         .read()

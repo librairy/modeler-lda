@@ -51,7 +51,8 @@ public class LDAAnnotationsTask implements Runnable {
     @Override
     public void run() {
 
-        helper.getUnifiedExecutor().execute(() -> {
+
+        helper.getSparkHelper().execute(() -> {
             try{
                 DataFrame distributionsDF = helper.getCassandraHelper().getContext()
                         .read()

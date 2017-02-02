@@ -66,7 +66,7 @@ public class LDAComparisonTask implements Runnable {
     @Override
     public void run() {
 
-        helper.getUnifiedExecutor().execute(() -> {
+        helper.getSparkHelper().execute(() -> {
             try {
 
                 LOG.info("Comparing " + domainUri + " with others");
