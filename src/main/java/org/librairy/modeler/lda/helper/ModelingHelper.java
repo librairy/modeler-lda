@@ -14,15 +14,17 @@ import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.dao.DomainsDao;
 import org.librairy.boot.storage.dao.ParametersDao;
 import org.librairy.computing.cluster.Partitioner;
-import org.librairy.computing.helper.SparkHelper;
+import org.librairy.computing.helper.ComputingHelper;
 import org.librairy.computing.helper.StorageHelper;
 import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.builder.CorpusBuilder;
 import org.librairy.modeler.lda.builder.DealsBuilder;
 import org.librairy.modeler.lda.builder.LDABuilder;
 import org.librairy.modeler.lda.builder.WorkspaceBuilder;
+import org.librairy.modeler.lda.cache.OptimizerCache;
 import org.librairy.modeler.lda.cache.VocabularyCache;
 import org.librairy.modeler.lda.dao.*;
+import org.librairy.modeler.lda.optimizers.LDAOptimizerFactory;
 import org.librairy.modeler.lda.services.SimilarityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -38,7 +40,7 @@ public class ModelingHelper {
     VocabularyCache vocabularyCache;
 
     @Autowired
-    SparkHelper sparkHelper;
+    ComputingHelper computingHelper;
 
     @Autowired
     LDABuilder ldaBuilder;
@@ -57,12 +59,6 @@ public class ModelingHelper {
 
     @Autowired
     WorkspaceBuilder workspaceBuilder;
-
-    @Autowired
-    SQLHelper sqlHelper;
-
-    @Autowired
-    CassandraHelper cassandraHelper;
 
     @Autowired
     EventBus eventBus;
@@ -99,5 +95,12 @@ public class ModelingHelper {
 
     @Autowired
     ClusterDao clusterDao;
+
+    @Autowired
+    OptimizerCache optimizerCache;
+
+    @Autowired
+    LDAOptimizerFactory ldaOptimizerFactory;
+
 
 }

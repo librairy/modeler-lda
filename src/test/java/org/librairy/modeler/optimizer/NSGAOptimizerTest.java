@@ -12,6 +12,8 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.librairy.boot.model.domain.resources.Resource;
+import org.librairy.computing.cluster.ComputingContext;
+import org.librairy.computing.helper.ComputingHelper;
 import org.librairy.modeler.lda.Config;
 import org.librairy.modeler.lda.builder.CorpusBuilder;
 import org.librairy.modeler.lda.models.Corpus;
@@ -57,14 +59,22 @@ public class NSGAOptimizerTest {
     @Autowired
     LDAOptimizer optimizer;
 
+    @Autowired
+    ComputingHelper computingHelper;
+
     @Test
     public void buildByDomain(){
 
-        Corpus corpus = corpusBuilder.build(domainURI, Arrays.asList(new Resource.Type[]{Resource.Type.ITEM}));
+        final ComputingContext context = computingHelper.newContext("test.nsga");
+
+
+        Corpus corpus = corpusBuilder.build(context, domainURI, Arrays.asList(new Resource.Type[]{Resource.Type.ITEM}));
 
         LDAParameters parameters = optimizer.getParametersFor(corpus);
 
         LOG.info("Parameters: " + parameters);
+
+        computingHelper.close(context);
 
     }
 

@@ -11,12 +11,15 @@ import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.google.common.collect.ImmutableMap;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.domain.resources.Domain;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.boot.model.utils.TimeUtils;
+import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.metrics.data.Ranking;
 import org.librairy.metrics.distance.ExtendedKendallsTauDistance;
 import org.librairy.metrics.distance.ExtendedKendallsTauSimilarity;
@@ -50,8 +53,6 @@ public class LDAComparisonTask implements Runnable {
 
     private static final Logger LOG = LoggerFactory.getLogger(LDAComparisonTask.class);
 
-    private static final int partitions = Runtime.getRuntime().availableProcessors() * 3;
-
     public static final String ROUTING_KEY_ID = "lda.comparisons.created";
 
     private final ModelingHelper helper;
@@ -66,7 +67,11 @@ public class LDAComparisonTask implements Runnable {
     @Override
     public void run() {
 
-        helper.getSparkHelper().execute(() -> {
+        final ComputingContext context = helper.getComputingHelper().newContext("lda.domains.comparison."+ URIGenerator.retrieveId(domainUri));
+
+        final Integer partitions = context.getRecommendedPartitions();
+
+        helper.getComputingHelper().execute(context, () -> {
             try {
 
                 LOG.info("Comparing " + domainUri + " with others");
@@ -79,14 +84,14 @@ public class LDAComparisonTask implements Runnable {
 
                 // get topics
                 List<TopicRank> topics = helper.getTopicsDao().listAsRank(domainUri, 100);
-                JavaRDD<TopicRank> topicsRDD = helper.getSparkHelper().getContext().parallelize(topics, partitions).cache();
+                JavaRDD<TopicRank> topicsRDD = context.getSparkContext().parallelize(topics, partitions).cache();
                 topicsRDD.take(1);//force cache
 
                 for (String domain : domains) {
 
                     // get topics per domain
                     List<TopicRank> domainTopics = helper.getTopicsDao().listAsRank(domain, 100);
-                    JavaRDD<TopicRank> domainTopicsRDD = helper.getSparkHelper().getContext().parallelize(domainTopics, partitions);
+                    JavaRDD<TopicRank> domainTopicsRDD = context.getSparkContext().parallelize(domainTopics, partitions);
 
                     // compare
                     JavaRDD<ComparisonRow> rows = topicsRDD.cartesian(domainTopicsRDD).map(t -> new ComparisonRow(
@@ -94,19 +99,18 @@ public class LDAComparisonTask implements Runnable {
                             t._2.getTopicUri(),
                             t._1.getTopicUri(),
                             TimeUtils.asISO(),
-                            new ExtendedKendallsTauSimilarity<String>().calculate(t._1.getWords(), t._2.getWords(),
-                                    new LevenshteinSimilarity()))
+                            new ExtendedKendallsTauSimilarity<String>().calculate(t._1.getWords(), t._2.getWords(), new LevenshteinSimilarity()))
                     );
-
 
                     // save
                     LOG.info("saving comparisons between: " + domainUri + " and " + domain);
-                    CassandraJavaUtil.javaFunctions(rows)
-                            .writerBuilder(
-                                    SessionManager.getKeyspaceFromUri(domainUri),
-                                    ComparisonsDao.TABLE,
-                                    mapToRow(ComparisonRow.class))
-                            .saveToCassandra();
+                    context.getSqlContext()
+                            .createDataFrame(rows, ComparisonRow.class)
+                            .write()
+                            .format("org.apache.spark.sql.cassandra")
+                            .options(ImmutableMap.of("table", ComparisonsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                            .mode(SaveMode.Append)
+                            .save();
                 }
 
                 LOG.info("Comparisons created for " + domainUri);

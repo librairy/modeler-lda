@@ -10,6 +10,8 @@ package org.librairy.modeler.lda.tasks;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.modules.RoutingKey;
+import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Corpus;
 import org.slf4j.Logger;
@@ -41,17 +43,19 @@ public class LDATrainingTask implements Runnable {
     @Override
     public void run() {
 
-        helper.getSparkHelper().execute(() -> {
+        final ComputingContext context = helper.getComputingHelper().newContext("lda.training."+ URIGenerator.retrieveId(domainUri));
+
+        helper.getComputingHelper().execute(context, () -> {
             try{
                 LOG.info("Prepare workspace for domain: " + domainUri);
                 helper.getWorkspaceBuilder().initialize(domainUri);
 
                 LOG.info("creating a corpus to build a topic model in domain: " + domainUri);
-                Corpus corpus = helper.getCorpusBuilder().build(domainUri, Arrays.asList(new Resource.Type[]{Resource.Type.ITEM}));
+                Corpus corpus = helper.getCorpusBuilder().build(context, domainUri, Arrays.asList(new Resource.Type[]{Resource.Type.ITEM}));
 
                 // Train a Topic Model based on Corpus
                 LOG.info("training the model ..");
-                helper.getLdaBuilder().build(corpus);
+                helper.getLdaBuilder().build(context, corpus);
 
                 helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
             }catch (Exception e){

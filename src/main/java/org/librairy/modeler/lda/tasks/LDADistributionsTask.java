@@ -7,34 +7,27 @@
 
 package org.librairy.modeler.lda.tasks;
 
-import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.google.common.collect.ImmutableMap;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.sql.Row;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.Event;
-import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.boot.model.utils.TimeUtils;
 import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.DistributionRow;
 import org.librairy.modeler.lda.dao.DistributionsDao;
 import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.dao.TopicsDao;
-import org.librairy.modeler.lda.functions.RowToShape;
 import org.librairy.modeler.lda.functions.RowToInternalResource;
+import org.librairy.modeler.lda.functions.RowToShape;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.InternalResource;
-import org.librairy.modeler.lda.utils.ListUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.List;
-
-import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 
 /**
  * Created on 12/08/16:
@@ -60,9 +53,11 @@ public class LDADistributionsTask implements Runnable {
     @Override
     public void run() {
 
-        helper.getSparkHelper().execute(() -> {
+        final ComputingContext context = helper.getComputingHelper().newContext("lda.topics."+ URIGenerator.retrieveId(domainUri));
+
+        helper.getComputingHelper().execute(context, () -> {
             try{
-                JavaPairRDD<Long, InternalResource> shapes = helper.getCassandraHelper().getContext()
+                JavaPairRDD<Long, InternalResource> shapes = context.getCassandraSQLContext()
                         .read()
                         .format("org.apache.spark.sql.cassandra")
                         .schema(DataTypes
@@ -82,7 +77,7 @@ public class LDADistributionsTask implements Runnable {
                         .flatMapToPair(new RowToShape());
 
 
-                JavaPairRDD<Long, InternalResource> topics = helper.getCassandraHelper().getContext()
+                JavaPairRDD<Long, InternalResource> topics = context.getCassandraSQLContext()
                         .read()
                         .format("org.apache.spark.sql.cassandra")
                         .schema(DataTypes
@@ -111,9 +106,12 @@ public class LDADistributionsTask implements Runnable {
 
 
                 LOG.info("calculating topic distributions in domain: " + domainUri + "..");
-                CassandraJavaUtil.javaFunctions(rows)
-                        .writerBuilder(SessionManager.getKeyspaceFromUri(domainUri), DistributionsDao.TABLE, mapToRow(DistributionRow.class))
-                        .saveToCassandra();
+                context.getSqlContext()
+                        .createDataFrame(rows, DistributionRow.class)
+                        .write()
+                        .format("org.apache.spark.sql.cassandra")
+                        .options(ImmutableMap.of("table", DistributionsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                        .save();
                 LOG.info("topic distributions saved!");
 
                 helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));

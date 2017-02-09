@@ -8,6 +8,7 @@
 package org.librairy.modeler.lda.graph
 
 import com.typesafe.scalalogging.slf4j.Logger
+import org.apache.spark.graphx.lib.ShortestPaths
 import org.apache.spark.sql.DataFrame
 import org.graphframes.GraphFrame
 import org.librairy.modeler.lda.models.Path
@@ -71,8 +72,5 @@ object DiscoveryPath {
 //
 //    return path
   }
-
-
-
 
 }

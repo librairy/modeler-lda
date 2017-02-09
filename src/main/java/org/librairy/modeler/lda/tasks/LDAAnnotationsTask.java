@@ -7,7 +7,6 @@
 
 package org.librairy.modeler.lda.tasks;
 
-import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.google.common.collect.ImmutableMap;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.DataFrame;
@@ -15,6 +14,8 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.modules.RoutingKey;
+import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.AnnotationRow;
 import org.librairy.modeler.lda.dao.AnnotationsDao;
@@ -24,8 +25,6 @@ import org.librairy.modeler.lda.functions.RowToAnnotation;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 
 /**
  * Created on 12/08/16:
@@ -51,10 +50,10 @@ public class LDAAnnotationsTask implements Runnable {
     @Override
     public void run() {
 
-
-        helper.getSparkHelper().execute(() -> {
+        final ComputingContext context = helper.getComputingHelper().newContext("lda.annotation."+ URIGenerator.retrieveId(domainUri));
+        helper.getComputingHelper().execute(context, () -> {
             try{
-                DataFrame distributionsDF = helper.getCassandraHelper().getContext()
+                DataFrame distributionsDF = context.getCassandraSQLContext()
                         .read()
                         .format("org.apache.spark.sql.cassandra")
                         .schema(DataTypes
@@ -74,7 +73,7 @@ public class LDAAnnotationsTask implements Runnable {
                         .load();
 
 
-                DataFrame topicsDF = helper.getCassandraHelper().getContext()
+                DataFrame topicsDF = context.getCassandraSQLContext()
                         .read()
                         .format("org.apache.spark.sql.cassandra")
                         .schema(DataTypes
@@ -105,10 +104,12 @@ public class LDAAnnotationsTask implements Runnable {
 
 
                 LOG.info("generating annotations in domain: " + domainUri + " ..");
-                CassandraJavaUtil.javaFunctions(rows)
-                        .writerBuilder(SessionManager.getKeyspaceFromUri(domainUri), AnnotationsDao.TABLE, mapToRow
-                                (AnnotationRow.class))
-                        .saveToCassandra();
+                context.getSqlContext()
+                        .createDataFrame(rows, AnnotationRow.class)
+                        .write()
+                        .format("org.apache.spark.sql.cassandra")
+                        .options(ImmutableMap.of("table", AnnotationsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                        .save();
                 LOG.info("annotation saved!");
 
                 helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));

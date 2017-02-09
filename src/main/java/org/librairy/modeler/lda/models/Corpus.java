@@ -7,7 +7,6 @@
 
 package org.librairy.modeler.lda.models;
 
-import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.google.common.collect.ImmutableMap;
 import lombok.Data;
 import org.apache.spark.api.java.JavaRDD;
@@ -18,23 +17,23 @@ import org.apache.spark.ml.feature.StopWordsRemover;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.rdd.RDD;
-import org.apache.spark.sql.Column;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
+import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
 import org.librairy.boot.model.domain.resources.Item;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.storage.dao.DBSessionManager;
-import org.librairy.boot.storage.exception.DataNotFound;
+import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.ShapeRow;
 import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.functions.RowToPair;
 import org.librairy.modeler.lda.helper.ModelingHelper;
-import org.librairy.boot.storage.generator.URIGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -46,8 +45,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
-import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
-
 /**
  * Created on 31/08/16:
  *
@@ -58,10 +55,9 @@ public class Corpus {
 
     private static final Logger LOG = LoggerFactory.getLogger(Corpus.class);
 
-    private static final int partitions = Runtime.getRuntime().availableProcessors() * 3;
-
     private final List<Resource.Type> types;
     private final String domainUri;
+    private final ComputingContext context;
 
     String id;
     Map<Long, String> registry;
@@ -71,7 +67,8 @@ public class Corpus {
     RDD<Tuple2<Object, Vector>> bow;
     private long size;
 
-    public Corpus(String id, List<Resource.Type> types, ModelingHelper helper){
+    public Corpus(ComputingContext context, String id, List<Resource.Type> types, ModelingHelper helper){
+        this.context = context;
         this.id = id;
         this.domainUri = URIGenerator.fromId(Resource.Type.DOMAIN, id);
         this.helper = helper;
@@ -95,7 +92,7 @@ public class Corpus {
                 .map(text -> RowFactory.create(text.getId(), text.getContent()))
                 .collect(Collectors.toList());
 
-        JavaRDD<Row> jrdd = helper.getSparkHelper().getContext().parallelize(rows);
+        JavaRDD<Row> jrdd = context.getSparkContext().parallelize(rows);
 
         // Define a schema
         StructType schema = DataTypes
@@ -104,7 +101,7 @@ public class Corpus {
                         DataTypes.createStructField(Item.TOKENS, DataTypes.StringType, false)
                 });
 
-        DataFrame df = helper.getSqlHelper().getContext().createDataFrame(jrdd, schema);
+        DataFrame df = context.getSqlContext().createDataFrame(jrdd, schema);
 
         this.df = process(df);
     }
@@ -133,9 +130,13 @@ public class Corpus {
                 });
 
         LOG.info("saving "+this.size+" elements id to database..");
-        CassandraJavaUtil.javaFunctions(rows)
-                .writerBuilder(SessionManager.getKeyspaceFromId(id), ShapesDao.TABLE, mapToRow(ShapeRow.class))
-                .saveToCassandra();
+        context.getSqlContext()
+                .createDataFrame(rows, ShapeRow.class)
+                .write()
+                .format("org.apache.spark.sql.cassandra")
+                .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromId(id)))
+                .mode(SaveMode.Overwrite)
+                .save();
         LOG.info("saved!");
 
 //        DataFrame resourcesInDomaindf = containsDF.
@@ -151,7 +152,8 @@ public class Corpus {
 
 
     private DataFrame readElements(String domainUri, Resource.Type type){
-        return helper.getCassandraHelper().getContext()
+        final Integer partitions = context.getRecommendedPartitions();
+        return context.getCassandraSQLContext()
                 .read()
                 .format("org.apache.spark.sql.cassandra")
                 .schema(DataTypes
@@ -173,7 +175,7 @@ public class Corpus {
     private DataFrame process(DataFrame df){
         LOG.info("Splitting each document into words ..");
         DataFrame words = new RegexTokenizer()
-                .setPattern("[\\W_]+")
+                .setPattern("[\\W]+")
                 .setMinTokenLength(4) // Filter away tokens with length < 4
                 .setInputCol(Item.TOKENS)
                 .setOutputCol("words")
@@ -181,8 +183,7 @@ public class Corpus {
 
         String stopwordPath = helper.getStorageHelper().path(id,"stopwords.txt");
         List<String> stopwords = helper.getStorageHelper().exists(stopwordPath)?
-                helper.getSparkHelper()
-                        .getContext()
+                context.getSparkContext()
                         .textFile(helper.getStorageHelper().absolutePath(stopwordPath))
                         .collect() : Collections.EMPTY_LIST;
         LOG.info("Filtering by stopwords ["+stopwords.size()+"]");
@@ -217,13 +218,13 @@ public class Corpus {
                     .fit(df);
         }
 
-        int estimatedPartitions = helper.getPartitioner().estimatedFor(df);
         Tuple2<Object, Vector> tuple = new Tuple2<Object,Vector>(0l, Vectors.dense(new double[]{1.0}));
 
+        final Integer partitions = context.getRecommendedPartitions();
          bow = countVectorizerModel
                 .transform(df)
                 .select("uri", "features")
-                .repartition(estimatedPartitions)
+                .repartition(partitions)
                 .map(new RowToPair(), ClassTag$.MODULE$.<Tuple2<Object, Vector>>apply(tuple.getClass()))
                 .cache()
         ;

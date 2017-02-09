@@ -15,6 +15,7 @@ import org.librairy.boot.model.domain.resources.Domain;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.modeler.lda.api.model.Criteria;
 import org.librairy.modeler.lda.api.model.ScoredResource;
 import org.librairy.modeler.lda.api.model.ScoredTopic;
@@ -239,7 +240,7 @@ public class LDAModelerAPI {
 
             return rows
                     .stream()
-//                    .filter(row -> row.getDouble(1)>0.0)
+                    .filter(row -> row.getDouble(1)>0.0)
                     .collect(Collectors.groupingBy(t -> t.getString(0), Collectors.averagingDouble(r -> r.getDouble(1))))
                     .entrySet()
                     .stream()
@@ -340,9 +341,7 @@ public class LDAModelerAPI {
             if (sortedDomains.size() < 2) return Collections.emptyList();
 
             // compose comparisons
-            return compare(sortedDomains.get(0), sortedDomains.subList(1, sortedDomains.size()), criteria).collect
-                    (Collectors
-                            .toList());
+            return compare(sortedDomains.get(0), sortedDomains.subList(1, sortedDomains.size()), criteria).collect(Collectors.toList());
         }catch (Exception e){
             LOG.error("Unexpected error", e);
             return Collections.emptyList();
@@ -362,8 +361,9 @@ public class LDAModelerAPI {
 
     private Stream<Comparison<Field>> compare(Domain domain1, Domain domain2, Criteria criteria){
         return helper.getComparisonsDao().get(domain1.getUri(), domain2.getUri()).stream()
-                .limit(criteria.getMax())
                 .filter(c -> c.getScore()> criteria.getThreshold())
+                .sorted((a,b) -> -a.getScore().compareTo(b.getScore()))
+                .limit(criteria.getMax())
                 .map( res
                 -> {
             Comparison<Field> comparison = new Comparison<Field>();
@@ -384,7 +384,9 @@ public class LDAModelerAPI {
 
     public List<Path> getShortestPath(String startUri, String endUri, List<String> types, Integer maxLength, Criteria criteria) throws IllegalArgumentException {
 
+        final ComputingContext context = helper.getComputingHelper().newContext("lda.api.shortestpath."+ URIGenerator.retrieveId(criteria.getDomainUri()));
         try{
+
 
             LOG.info("Getting shortest path between '"+startUri+"' and '"+endUri+"' ...");
 
@@ -433,6 +435,7 @@ public class LDAModelerAPI {
             if (!endCentroids.isEmpty()){
                 // get shortest path btw centroids
                 Path[] centroidPaths = helper.getSimilarityService().getShortestPathBetweenCentroids(
+                        context,
                         startCentroids,
                         endCentroids,
                         0.0,
@@ -461,6 +464,7 @@ public class LDAModelerAPI {
                 LOG.info("Getting shortest-path by using the following centroids: " + sectors);
 
                 Path[] paths = helper.getSimilarityService().getShortestPathBetween(
+                        context,
                         startUriList,
                         endUriList,
                         types,
@@ -480,6 +484,8 @@ public class LDAModelerAPI {
         }catch (Exception e){
             LOG.error("Unexpected error", e);
             return Collections.emptyList();
+        }finally {
+            helper.getComputingHelper().close(context);
         }
     }
 

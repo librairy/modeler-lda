@@ -11,6 +11,7 @@ import org.librairy.boot.model.Event;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Corpus;
 import org.librairy.modeler.lda.models.TopicModel;
@@ -43,21 +44,23 @@ public class LDAShapingTask implements Runnable {
     @Override
     public void run() {
 
-        helper.getSparkHelper().execute(() -> {
+        final ComputingContext context = helper.getComputingHelper().newContext("lda.shapes."+ URIGenerator.retrieveId(domainUri));
+
+
+        helper.getComputingHelper().execute(context, () -> {
             try{
                 // Create corpus
-                Corpus corpus = helper.getCorpusBuilder().build(domainUri,
-                        Arrays.asList(new Resource.Type[]{Resource.Type.ITEM, Resource.Type.PART}));
+                Corpus corpus = helper.getCorpusBuilder().build(context, domainUri, Arrays.asList(new Resource.Type[]{Resource.Type.ITEM, Resource.Type.PART}));
 
                 // Load existing model
                 String domainId = URIGenerator.retrieveId(domainUri);
-                TopicModel model = helper.getLdaBuilder().load(domainId);
+                TopicModel model = helper.getLdaBuilder().load(context, domainId);
 
                 // Use of existing vocabulary
                 corpus.setCountVectorizerModel(model.getVocabModel());
 
                 // Calculate topic distributions for Items and Parts
-                helper.getDealsBuilder().build(corpus,model);
+                helper.getDealsBuilder().build(context, corpus,model);
 
                 helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
 

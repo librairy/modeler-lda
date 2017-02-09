@@ -10,6 +10,7 @@ package org.librairy.modeler.lda.builder;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.storage.UDM;
 import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Corpus;
 import org.slf4j.Logger;
@@ -33,14 +34,14 @@ public class CorpusBuilder {
     ModelingHelper helper;
 
 
-    public Corpus build(String domainUri, List<Resource.Type> types){
+    public Corpus build(ComputingContext context, String domainUri, List<Resource.Type> types){
 
         // Reading Uris
         LOG.info("Creating a corpus of "+ types +" from domain: " + domainUri);
         String domainId = URIGenerator.retrieveId(domainUri);
 
         // Train model
-        Corpus corpus = new Corpus(domainId, types, helper);
+        Corpus corpus = new Corpus(context, domainId, types, helper);
         corpus.loadDomain(domainUri);
 
         return corpus;

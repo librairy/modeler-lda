@@ -10,7 +10,6 @@ package org.librairy.modeler.lda.tasks;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.exceptions.InvalidQueryException;
-import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Doubles;
 import org.apache.spark.api.java.JavaRDD;
@@ -20,20 +19,19 @@ import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.boot.storage.dao.DBSessionManager;
+import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.metrics.aggregation.Bernoulli;
 import org.librairy.modeler.lda.api.SessionManager;
-import org.librairy.modeler.lda.dao.*;
+import org.librairy.modeler.lda.dao.ShapeRow;
+import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.functions.RowToArray;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.List;
-
-import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 
 /**
  * Created on 12/08/16:
@@ -94,11 +92,14 @@ public class LDASubdomainShapingTask implements Runnable {
 
 
     private void shapeSubdomain(String subdomainUri, String domainUri){
-        helper.getSparkHelper().execute(() -> {
+
+        final ComputingContext context = helper.getComputingHelper().newContext("lda.subdomains."+ URIGenerator.retrieveId(domainUri));
+
+        helper.getComputingHelper().execute(context, () -> {
             try{
                 LOG.info("creating shape for sub-domain '"+ subdomainUri+"'");
 
-                DataFrame itemsDF = helper.getCassandraHelper().getContext()
+                DataFrame itemsDF = context.getCassandraSQLContext()
                         .read()
                         .format("org.apache.spark.sql.cassandra")
                         .schema(DataTypes
@@ -112,7 +113,7 @@ public class LDASubdomainShapingTask implements Runnable {
                         .load();
 
 
-                DataFrame shapesDF = helper.getCassandraHelper().getContext()
+                DataFrame shapesDF = context.getCassandraSQLContext()
                         .read()
                         .format("org.apache.spark.sql.cassandra")
                         .schema(DataTypes

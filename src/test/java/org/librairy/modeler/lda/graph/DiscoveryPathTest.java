@@ -55,11 +55,6 @@ public class DiscoveryPathTest {
     @Test
     public void shortestPath(){
 
-        Double minScore     = 0.7;
-        Integer maxLength   = 10;
-        Integer maxResults  = 10;
-
-
         // Vertices
         List<Row> uris = Arrays.asList(new Row[]{
                 RowFactory.create("uri1"),
@@ -102,7 +97,10 @@ public class DiscoveryPathTest {
         DataFrame edges     = this.sqlContext.createDataFrame(similarities, similaritySchema);;
 
 
-        List<String> startUris  = Arrays.asList(new String[]{"uri1"});
+        Double minScore     = 0.1;
+        Integer maxLength   = 10;
+        Integer maxResults  = 10;
+        List<String> startUris  = Arrays.asList(new String[]{"uri6"});
         List<String> endUris    = Arrays.asList(new String[]{"uri3"});
 
         //List<String> types      = Arrays.asList(new String[]{"item","part"});

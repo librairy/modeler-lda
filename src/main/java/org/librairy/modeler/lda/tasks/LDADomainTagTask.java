@@ -7,13 +7,17 @@
 
 package org.librairy.modeler.lda.tasks;
 
-import com.datastax.spark.connector.japi.CassandraJavaUtil;
+import com.google.common.collect.ImmutableMap;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.modules.RoutingKey;
+import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.modeler.lda.api.SessionManager;
-import org.librairy.modeler.lda.dao.*;
+import org.librairy.modeler.lda.dao.TagRow;
+import org.librairy.modeler.lda.dao.TagsDao;
+import org.librairy.modeler.lda.dao.TopicRank;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.utils.ListUtils;
 import org.slf4j.Logger;
@@ -21,9 +25,6 @@ import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 
 import java.util.List;
-import java.util.stream.StreamSupport;
-
-import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 
 /**
  * Created on 12/08/16:
@@ -35,8 +36,6 @@ public class LDADomainTagTask implements Runnable {
     private static final Logger LOG = LoggerFactory.getLogger(LDADomainTagTask.class);
 
     public static final String ROUTING_KEY_ID = "lda.domain.tags.created";
-
-    private final int partitions = Runtime.getRuntime().availableProcessors();
 
     private final ModelingHelper helper;
 
@@ -51,14 +50,16 @@ public class LDADomainTagTask implements Runnable {
     @Override
     public void run() {
 
-            helper.getSparkHelper().execute(() -> {
+        final ComputingContext context = helper.getComputingHelper().newContext("lda.tags."+ URIGenerator.retrieveId(domainUri));
+        final Integer partitions = context.getRecommendedPartitions();
+            helper.getComputingHelper().execute(context, () -> {
 
                 try{
                     LOG.info("generating tags for domain: '" + domainUri + "' ..");
 
                     final List<TopicRank> topicRanks = helper.getTopicsDao().listAsRank(domainUri, 100);
 
-                    JavaRDD<TopicRank> trRDD = helper.getSparkHelper().getContext().parallelize(topicRanks,partitions);
+                    JavaRDD<TopicRank> trRDD = context.getSparkContext().parallelize(topicRanks,partitions);
 
                     JavaRDD<Tuple2<String, Double>> wordsRDD = trRDD.flatMap(tr -> tr.getWords().getPairs());
 
@@ -75,9 +76,12 @@ public class LDADomainTagTask implements Runnable {
 
                     // Save to DB
                     LOG.info("saving tags in domain: " + domainUri + "..");
-                    CassandraJavaUtil.javaFunctions(rows)
-                            .writerBuilder(SessionManager.getKeyspaceFromUri(domainUri), TagsDao.TABLE, mapToRow(TagRow.class))
-                            .saveToCassandra();
+                    context.getSqlContext()
+                            .createDataFrame(rows, TagRow.class)
+                            .write()
+                            .format("org.apache.spark.sql.cassandra")
+                            .options(ImmutableMap.of("table", TagsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                            .save();
                     LOG.info("tags saved!");
 
                     helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));

@@ -7,7 +7,6 @@
 
 package org.librairy.modeler.tasks;
 
-import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.google.common.collect.ImmutableMap;
 import es.cbadenes.lab.test.IntegrationTest;
 import org.apache.spark.api.java.JavaRDD;
@@ -29,6 +28,7 @@ import org.librairy.boot.model.Event;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.boot.model.utils.TimeUtils;
 import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
 import org.librairy.modeler.lda.Config;
 import org.librairy.modeler.lda.api.SessionManager;
@@ -38,7 +38,6 @@ import org.librairy.modeler.lda.dao.SimilarityRow;
 import org.librairy.modeler.lda.functions.RowToTupleVector;
 import org.librairy.modeler.lda.functions.RowToVector;
 import org.librairy.modeler.lda.helper.ModelingHelper;
-import org.librairy.modeler.lda.helper.SQLHelper;
 import org.librairy.modeler.lda.tasks.LDAAnnotationsTask;
 import org.librairy.modeler.lda.tasks.LDASimilarityTask;
 import org.slf4j.Logger;
@@ -53,8 +52,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.stream.IntStream;
-
-import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 
 /**
  * Created on 27/06/16:
@@ -74,9 +71,6 @@ public class LDASimilarityTaskTest {
 
     @Autowired
     ModelingHelper helper;
-
-    @Autowired
-    SQLHelper sqlHelper;
 
     @Test
     public void execute() throws InterruptedException {
@@ -105,7 +99,9 @@ public class LDASimilarityTaskTest {
 
         String domainUri = "http://librairy.org/domains/default";
 
-        DataFrame shapesDF = helper.getCassandraHelper().getContext()
+        final ComputingContext context = helper.getComputingHelper().newContext("test.dimsum");
+
+        DataFrame shapesDF = context.getCassandraSQLContext()
                 .read()
                 .format("org.apache.spark.sql.cassandra")
                 .schema(DataTypes
@@ -173,6 +169,7 @@ public class LDASimilarityTaskTest {
         });
 
 
+        helper.getComputingHelper().close(context);
 
     }
 
@@ -181,13 +178,15 @@ public class LDASimilarityTaskTest {
 
         List<Vector> vectorList = new ArrayList<>();
 
+        final ComputingContext context = helper.getComputingHelper().newContext("test.simplesum");
+
         Random random = new Random();
 
         for (int i =0; i<76; i++){
             vectorList.add(Vectors.dense(IntStream.range(0,5000).mapToDouble(id -> random.nextDouble()).toArray()));
         }
 
-        RDD<Vector> vectors = helper.getSparkHelper().getContext().parallelize(vectorList,128)
+        RDD<Vector> vectors = context.getSparkContext().parallelize(vectorList,128)
 //                .repartition(32)
                 .rdd()
                 .cache();
@@ -227,6 +226,8 @@ public class LDASimilarityTaskTest {
 
 
         });
+
+        helper.getComputingHelper().close(context);
     }
 
 
@@ -234,7 +235,9 @@ public class LDASimilarityTaskTest {
     public void recursiveKMeans(){
         String domainUri = "http://librairy.org/domains/default";
 
-        DataFrame shapesDF = helper.getCassandraHelper().getContext()
+        final ComputingContext context = helper.getComputingHelper().newContext("test.recursiveKmeans");
+
+        DataFrame shapesDF = context.getCassandraSQLContext()
                 .read()
                 .format("org.apache.spark.sql.cassandra")
                 .schema(DataTypes
@@ -283,9 +286,10 @@ public class LDASimilarityTaskTest {
                 .cache();
 
         for(Tuple2<Vector, Double> centroid : centroids){
-                calculateSimilarities(docs, centroid, domainUri);
+                calculateSimilarities(context, docs, centroid, domainUri);
         }
 
+        helper.getComputingHelper().close(context);
 
     }
 
@@ -358,7 +362,7 @@ public class LDASimilarityTaskTest {
         return minValue;
     }
 
-    private void calculateSimilarities(JavaRDD<Tuple2<String,Vector>> points, Tuple2<Vector,Double> centroid, String
+    private void calculateSimilarities(ComputingContext context, JavaRDD<Tuple2<String,Vector>> points, Tuple2<Vector,Double> centroid, String
                                        domainUri){
         JavaRDD<Tuple2<String,Vector>> cluster = points
                 .filter(el -> (Vectors.sqdist(el._2, centroid._1) < centroid._2))
@@ -422,9 +426,12 @@ public class LDASimilarityTaskTest {
                     return row1;
                 });
 
-        CassandraJavaUtil.javaFunctions(rows)
-                .writerBuilder(SessionManager.getKeyspaceFromUri(domainUri), SimilaritiesDao.TABLE, mapToRow(SimilarityRow.class))
-                .saveToCassandra();
+        context.getSqlContext()
+                .createDataFrame(rows, SimilarityRow.class)
+                .write()
+                .format("org.apache.spark.sql.cassandra")
+                .options(ImmutableMap.of("table", SimilaritiesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                .save();
         LOG.info("similarities saved!");
 
     }

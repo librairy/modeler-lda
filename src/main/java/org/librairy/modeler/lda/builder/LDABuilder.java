@@ -7,58 +7,31 @@
 
 package org.librairy.modeler.lda.builder;
 
-import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import org.apache.commons.lang.ArrayUtils;
-import org.apache.spark.api.java.JavaRDD;
-import org.apache.spark.broadcast.Broadcast;
+import lombok.Getter;
 import org.apache.spark.ml.feature.CountVectorizerModel;
-import org.apache.spark.mllib.clustering.LDA;
-import org.apache.spark.mllib.clustering.LDAModel;
 import org.apache.spark.mllib.clustering.LocalLDAModel;
-import org.apache.spark.mllib.clustering.OnlineLDAOptimizer;
-import org.apache.spark.mllib.linalg.Vector;
-import org.apache.spark.rdd.RDD;
 import org.librairy.boot.storage.dao.CounterDao;
 import org.librairy.boot.storage.dao.ParametersDao;
-import org.librairy.boot.storage.exception.DataNotFound;
-import org.librairy.computing.helper.SparkHelper;
+import org.librairy.computing.cluster.ComputingContext;
+import org.librairy.computing.helper.ComputingHelper;
 import org.librairy.computing.helper.StorageHelper;
-import org.librairy.boot.model.domain.resources.Resource;
-import org.librairy.boot.model.utils.TimeUtils;
-import org.librairy.modeler.lda.api.SessionManager;
-import org.librairy.modeler.lda.cache.OptimizerCache;
-import org.librairy.modeler.lda.dao.TopicRow;
-import org.librairy.modeler.lda.dao.TopicsDao;
 import org.librairy.modeler.lda.helper.ModelingHelper;
+import org.librairy.modeler.lda.models.ComputingKey;
 import org.librairy.modeler.lda.models.Corpus;
 import org.librairy.modeler.lda.models.TopicModel;
-import org.librairy.modeler.lda.optimizers.LDAOptimizer;
-import org.librairy.modeler.lda.optimizers.LDAOptimizerFactory;
-import org.librairy.modeler.lda.optimizers.LDAParameters;
-import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.modeler.lda.tasks.LDABuildTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import scala.Tuple2;
 
 import javax.annotation.PostConstruct;
-import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
-import java.util.stream.DoubleStream;
-import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
-
-import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 
 /**
  * Created on 26/06/16:
@@ -71,10 +44,7 @@ public class LDABuilder {
     private static Logger LOG = LoggerFactory.getLogger(LDABuilder.class);
 
     @Autowired
-    OptimizerCache optimizerCache;
-
-    @Autowired
-    SparkHelper sparkHelper;
+    ComputingHelper computingHelper;
 
     @Autowired
     StorageHelper storageHelper;
@@ -82,8 +52,6 @@ public class LDABuilder {
     @Autowired
     ModelingHelper helper;
 
-    @Autowired
-    LDAOptimizerFactory ldaOptimizerFactory;
 
     @Autowired
     ParametersDao parametersDao;
@@ -94,7 +62,8 @@ public class LDABuilder {
     @Value("#{environment['LIBRAIRY_LDA_WORDS_PER_TOPIC']?:${librairy.lda.topic.words}}")
     Integer maxWords;
 
-    private LoadingCache<String, TopicModel> cache;
+    @Getter
+    public LoadingCache<ComputingKey, TopicModel> cache;
 
     @PostConstruct
     public void setup(){
@@ -102,150 +71,37 @@ public class LDABuilder {
                 .maximumSize(1000)
                 .expireAfterWrite(10, TimeUnit.MINUTES)
                 .build(
-                        new CacheLoader<String, TopicModel>() {
-                            public TopicModel load(String id) {
+                        new CacheLoader<ComputingKey, TopicModel>() {
+                            public TopicModel load(ComputingKey key) {
                                 // Load the model
-                                String modelPath = storageHelper.absolutePath(storageHelper.path(id,"lda/model"));
+                                String modelPath = storageHelper.absolutePath(storageHelper.path(key.getId(),"lda/model"));
                                 LOG.info("loading lda model from :" + modelPath);
-                                LocalLDAModel localLDAModel = LocalLDAModel.load(sparkHelper.getContext().sc(), modelPath);
+                                LocalLDAModel localLDAModel = LocalLDAModel.load(key.getContext().getSparkContext().sc(), modelPath);
 
                                 //Load the CountVectorizerModel
-                                String vocabPath = storageHelper.absolutePath(storageHelper.path(id,"lda/vocabulary"));
+                                String vocabPath = storageHelper.absolutePath(storageHelper.path(key.getId(),"lda/vocabulary"));
                                 LOG.info("loading lda vocabulary from :" + vocabPath);
                                 CountVectorizerModel vocabModel = CountVectorizerModel.load(vocabPath);
-                                return new TopicModel(id,localLDAModel, vocabModel);
+                                return new TopicModel(key.getId(),localLDAModel, vocabModel);
                             }
                         });
 
     }
 
-    public TopicModel build(Corpus corpus){
+    public TopicModel build(ComputingContext context, Corpus corpus){
 
-        // Train
-        TopicModel model = train(corpus);
+        LDABuildTask task = new LDABuildTask(context, helper);
 
-        // Persist in File System
-        saveToFileSystem(model,corpus.getId());
-
-        // Persist in Data Base
-        saveToDataBase(model,corpus.getId());
+        TopicModel model =  task.create(corpus, maxWords);
 
         return model;
 
     }
 
-    public void saveToDataBase(TopicModel model, String corpusId){
-
-
-        Broadcast<String[]> broadcastVocabulary = sparkHelper.getContext().broadcast(model.getVocabModel().vocabulary
-                ());
-
-
-        JavaRDD<Tuple2<int[], double[]>> topics = sparkHelper.getContext().parallelize
-                (Arrays.asList(model.getLdaModel().describeTopics(maxWords)));
-
-
-        JavaRDD<TopicRow> rows = topics
-                .repartition(helper.getPartitioner().estimatedFor(topics))
-                .zipWithIndex()
-                .map(pair -> {
-                    TopicRow topicRow = new TopicRow();
-                    String topicUri = URIGenerator.compositionFromId(Resource.Type.DOMAIN, corpusId, Resource.Type
-                            .TOPIC, String.valueOf(pair._2));
-                    topicRow.setUri(topicUri);
-                    topicRow.setId(pair._2);
-                    topicRow.setDate(TimeUtils.asISO());
-                    topicRow.setElements(Arrays.stream(pair._1._1).mapToObj(index -> broadcastVocabulary
-                            .getValue()[index]).collect(Collectors.toList()));
-                    topicRow.setScores(Arrays.stream(pair._1._2).boxed().collect(Collectors.toList()));
-                    topicRow.setDescription(topicRow.getElements().stream().limit(10).collect(Collectors.joining(" ")));
-                    System.out.println("TopicRow: " + topicRow);
-                    return topicRow;
-                });
-
-        // Save in database
-        LOG.info("saving topics from " + URIGenerator.fromId(Resource.Type.DOMAIN, corpusId) + " to database..");
-        CassandraJavaUtil.javaFunctions(rows)
-                .writerBuilder(SessionManager.getKeyspaceFromId(corpusId), TopicsDao.TABLE, mapToRow(TopicRow.class))
-                .saveToCassandra();
-        LOG.info("saved!");
-
-    }
-
-    public TopicModel train(Corpus corpus){
-
-        String domainUri = URIGenerator.fromId(Resource.Type.DOMAIN, corpus.getId());
-
-        String optimizerId = optimizerCache.getOptimizer(domainUri);
-
-        LOG.info("LDA Optimizer for '"+domainUri +"' is " + optimizerId);
-        LDAOptimizer ldaOptimizer = ldaOptimizerFactory.by(optimizerId);
-
-        // LDA parameter optimization
-        LDAParameters ldaParameters = ldaOptimizer.getParametersFor(corpus);
-        LOG.info("LDA parameters calculated by " + ldaOptimizer+ ": " + ldaParameters);
-
-        // Update Counter
-        counterDao.increment(domainUri, Resource.Type.TOPIC.route(), Long.valueOf(ldaParameters.getK()));
-
-        // LDA parametrization
-        RDD<Tuple2<Object, Vector>> documents = corpus.getBagOfWords();
-        LDA lda = new LDA()
-                .setOptimizer(new OnlineLDAOptimizer().setMiniBatchFraction(0.8))
-                .setK(ldaParameters.getK())
-                .setMaxIterations(ldaParameters.getIterations())
-                .setDocConcentration(ldaParameters.getAlpha())
-                .setTopicConcentration(ldaParameters.getBeta())
-                ;
-
-        LOG.info("Building a new LDA Model (iter="+ldaParameters.getIterations()+") "+ldaParameters+" from "+ corpus.getSize() + " " +
-                corpus.getTypes());
-        Instant startModel  = Instant.now();
-        LDAModel ldaModel   = lda.run(documents);
-
-        Instant endModel    = Instant.now();
-        LOG.info("LDA Model created in: "       + ChronoUnit.MINUTES.between(startModel,endModel) + "min " + (ChronoUnit
-                .SECONDS.between(startModel,endModel)%60) + "secs");
-
-
-        LocalLDAModel localLDAModel = (LocalLDAModel) ldaModel;
-
-        TopicModel topicModel = new TopicModel(corpus.getId(),localLDAModel, corpus.getCountVectorizerModel());
-        return topicModel;
-    }
-
-
-    public void saveToFileSystem(TopicModel model, String id ){
+    public TopicModel load(ComputingContext context, String id){
         try {
-            storageHelper.create(storageHelper.absolutePath(id));
-
-            // Clean previous model
-            String ldaPath = storageHelper.path(id, "lda");
-            storageHelper.deleteIfExists(ldaPath);
-
-            // Save the model
-            String absoluteModelPath = storageHelper.absolutePath(storageHelper.path(id, "lda/model"));
-            LOG.info("Saving (or updating) the lda model at: " + absoluteModelPath);
-            model.getLdaModel().save(sparkHelper.getContext().sc(), absoluteModelPath);
-
-            //Save the vocabulary
-            String absoluteVocabPath = storageHelper.absolutePath(storageHelper.path(id, "lda/vocabulary"));
-            LOG.info("Saving (or updating) the lda vocab at: " + absoluteVocabPath);
-            model.getVocabModel().save(absoluteVocabPath);
-
-        }catch (Exception e){
-            if (e instanceof java.nio.file.FileAlreadyExistsException) {
-                LOG.warn(e.getMessage());
-            }else {
-                LOG.error("Error saving model", e);
-            }
-        }
-
-    }
-
-    public TopicModel load(String id){
-        try {
-            return this.cache.get(id);
+            ComputingKey key = new ComputingKey(context, id);
+            return this.cache.get(key);
         } catch (ExecutionException e) {
             throw new RuntimeException("Error getting model and vocabulary from domain: " + id);
         }

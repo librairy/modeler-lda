@@ -14,14 +14,13 @@ import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.dao.SimilaritiesDao;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 
 /**
  * Created on 12/08/16:
@@ -61,11 +60,13 @@ public class LDASimilarityGraphTask implements Runnable {
 
 
     private void saveNodesToFileSystem(){
-        final Integer partitions = helper.getSparkHelper().getPartitions();
-        helper.getSparkHelper().execute(() -> {
+
+        final ComputingContext context = helper.getComputingHelper().newContext("lda.graph.nodes."+ URIGenerator.retrieveId(domainUri));
+
+        helper.getComputingHelper().execute(context, () -> {
             try{
                 LOG.info("creating vertices..");
-                DataFrame shapes = helper.getCassandraHelper().getContext()
+                DataFrame shapes = context.getCassandraSQLContext()
                         .read()
                         .format("org.apache.spark.sql.cassandra")
                         .schema(DataTypes
@@ -81,7 +82,7 @@ public class LDASimilarityGraphTask implements Runnable {
                                 .getKeyspaceFromUri
                                         (domainUri)))
                         .load()
-                        .repartition(partitions);
+                        .repartition(context.getRecommendedPartitions());
 
                 helper.getSimilarityService().saveToFileSystem(shapes,URIGenerator.retrieveId(domainUri), "nodes");
             } catch (Exception e){
@@ -93,11 +94,12 @@ public class LDASimilarityGraphTask implements Runnable {
     }
 
     private void saveEdgesToFileSystem(){
-        final Integer partitions = helper.getSparkHelper().getPartitions();
-        helper.getSparkHelper().execute(() -> {
+        final ComputingContext context = helper.getComputingHelper().newContext("lda.graph.edges."+ URIGenerator.retrieveId(domainUri));
+
+        helper.getComputingHelper().execute(context, () -> {
             try{
                 LOG.info("creating edges..");
-                DataFrame similarities = helper.getCassandraHelper().getContext()
+                DataFrame similarities = context.getCassandraSQLContext()
                         .read()
                         .format("org.apache.spark.sql.cassandra")
                         .schema(DataTypes
@@ -118,7 +120,7 @@ public class LDASimilarityGraphTask implements Runnable {
                         .options(ImmutableMap.of("table", SimilaritiesDao.TABLE, "keyspace", SessionManager
                                 .getKeyspaceFromUri(domainUri)))
                         .load()
-                        .repartition(partitions);
+                        .repartition(context.getRecommendedPartitions());
 
                 helper.getSimilarityService().saveToFileSystem(similarities,URIGenerator.retrieveId(domainUri),
                         "edges");
