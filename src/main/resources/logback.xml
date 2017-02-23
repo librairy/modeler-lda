@@ -33,6 +33,7 @@
 
     <logger name="org.librairy" level="INFO"/>
     <logger name="es.upm" level="INFO"/>
+    <logger name="org.apache.spark.scheduler.LiveListenerBus" level="OFF"/>
 
     <root level="ERROR">
         <appender-ref ref="STDOUT" />

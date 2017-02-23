@@ -43,26 +43,30 @@ public class LDATrainingTask implements Runnable {
     @Override
     public void run() {
 
-        final ComputingContext context = helper.getComputingHelper().newContext("lda.training."+ URIGenerator.retrieveId(domainUri));
+        try{
+            final ComputingContext context = helper.getComputingHelper().newContext("lda.training."+ URIGenerator.retrieveId(domainUri));
+            helper.getComputingHelper().execute(context, () -> {
+                try{
+                    LOG.info("Prepare workspace for domain: " + domainUri);
+                    helper.getWorkspaceBuilder().initialize(domainUri);
 
-        helper.getComputingHelper().execute(context, () -> {
-            try{
-                LOG.info("Prepare workspace for domain: " + domainUri);
-                helper.getWorkspaceBuilder().initialize(domainUri);
+                    LOG.info("creating a corpus to build a topic model in domain: " + domainUri);
+                    Corpus corpus = helper.getCorpusBuilder().build(context, domainUri, Arrays.asList(new Resource.Type[]{Resource.Type.ITEM}));
 
-                LOG.info("creating a corpus to build a topic model in domain: " + domainUri);
-                Corpus corpus = helper.getCorpusBuilder().build(context, domainUri, Arrays.asList(new Resource.Type[]{Resource.Type.ITEM}));
+                    // Train a Topic Model based on Corpus
+                    LOG.info("training the model ..");
+                    helper.getLdaBuilder().build(context, corpus);
 
-                // Train a Topic Model based on Corpus
-                LOG.info("training the model ..");
-                helper.getLdaBuilder().build(context, corpus);
+                    helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
+                }catch (Exception e){
+                    if (e instanceof InterruptedException) LOG.warn("Execution canceled");
+                    else LOG.error("Error on execution", e);
+                }
+            });
+        } catch (InterruptedException e) {
+            LOG.info("Execution interrupted.");
+        }
 
-                helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
-            }catch (Exception e){
-                if (e instanceof InterruptedException) LOG.warn("Execution canceled");
-                else LOG.error("Error on execution", e);
-            }
-        });
 
     }
 

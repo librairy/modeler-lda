@@ -13,6 +13,7 @@ import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.helper.ModelingHelper;
+import org.librairy.modeler.lda.services.ParallelExecutorService;
 import org.librairy.modeler.lda.tasks.LDAAnnotationsTask;
 import org.librairy.modeler.lda.tasks.LDASimilarityGraphTask;
 import org.librairy.modeler.lda.tasks.LDASimilarityTask;
@@ -37,12 +38,15 @@ public class LdaSimilaritiesCreatedEventHandler implements EventBusSubscriber {
     @Autowired
     ModelingHelper helper;
 
+    private ParallelExecutorService executor;
+
     @PostConstruct
     public void init(){
         BindingKey bindingKey = BindingKey.of(RoutingKey.of(LDASimilarityTask.ROUTING_KEY_ID), "lda.similarities.created");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");
+        executor = new ParallelExecutorService();
     }
 
     @Override
@@ -51,11 +55,11 @@ public class LdaSimilaritiesCreatedEventHandler implements EventBusSubscriber {
         try{
             String domainUri = event.to(String.class);
 
-            new LDASimilarityGraphTask(domainUri,helper).run();
+            executor.execute(domainUri, 1000, new LDASimilarityGraphTask(domainUri,helper));
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added
-            LOG.error("Error scheduling a new topic model for Items from domain: " + event, e);
+            LOG.error("Error scheduling similarity-graph creation in domain: " + event, e);
         }
     }
 }

@@ -13,6 +13,7 @@ import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.helper.ModelingHelper;
+import org.librairy.modeler.lda.services.ParallelExecutorService;
 import org.librairy.modeler.lda.tasks.LDAAnnotationsTask;
 import org.librairy.modeler.lda.tasks.LDADistributionsTask;
 import org.slf4j.Logger;
@@ -36,12 +37,15 @@ public class LdaDistributionsCreatedEventHandler implements EventBusSubscriber {
     @Autowired
     ModelingHelper helper;
 
+    private ParallelExecutorService executor;
+
     @PostConstruct
     public void init(){
         BindingKey bindingKey = BindingKey.of(RoutingKey.of(LDADistributionsTask.ROUTING_KEY_ID), "lda.distributions.created");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");
+        executor = new ParallelExecutorService();
     }
 
     @Override
@@ -50,11 +54,11 @@ public class LdaDistributionsCreatedEventHandler implements EventBusSubscriber {
         try{
             String domainUri = event.to(String.class);
 
-            new LDAAnnotationsTask(domainUri,helper).run();
+            executor.execute(domainUri, 1000, new LDAAnnotationsTask(domainUri,helper) );
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added
-            LOG.error("Error scheduling a new topic model for Items from domain: " + event, e);
+            LOG.error("Error scheduling annotations in domain: " + event, e);
         }
     }
 }

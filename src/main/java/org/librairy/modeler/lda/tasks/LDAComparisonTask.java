@@ -67,62 +67,65 @@ public class LDAComparisonTask implements Runnable {
     @Override
     public void run() {
 
-        final ComputingContext context = helper.getComputingHelper().newContext("lda.domains.comparison."+ URIGenerator.retrieveId(domainUri));
+        try{
+            final ComputingContext context = helper.getComputingHelper().newContext("lda.domains.comparison."+ URIGenerator.retrieveId(domainUri));
+            final Integer partitions = context.getRecommendedPartitions();
 
-        final Integer partitions = context.getRecommendedPartitions();
+            helper.getComputingHelper().execute(context, () -> {
+                try {
 
-        helper.getComputingHelper().execute(context, () -> {
-            try {
+                    LOG.info("Comparing " + domainUri + " with others");
 
-                LOG.info("Comparing " + domainUri + " with others");
+                    // get domains
+                    List<String> domains = helper.getDomainsDao().listOnly(Domain.URI)
+                            .stream()
+                            .filter(uri -> !uri.equalsIgnoreCase(domainUri))
+                            .collect(Collectors.toList());
 
-                // get domains
-                List<String> domains = helper.getDomainsDao().listOnly(Domain.URI)
-                        .stream()
-                        .filter(uri -> !uri.equalsIgnoreCase(domainUri))
-                        .collect(Collectors.toList());
+                    // get topics
+                    List<TopicRank> topics = helper.getTopicsDao().listAsRank(domainUri, 100);
+                    JavaRDD<TopicRank> topicsRDD = context.getSparkContext().parallelize(topics, partitions).cache();
+                    topicsRDD.take(1);//force cache
 
-                // get topics
-                List<TopicRank> topics = helper.getTopicsDao().listAsRank(domainUri, 100);
-                JavaRDD<TopicRank> topicsRDD = context.getSparkContext().parallelize(topics, partitions).cache();
-                topicsRDD.take(1);//force cache
+                    for (String domain : domains) {
 
-                for (String domain : domains) {
+                        // get topics per domain
+                        List<TopicRank> domainTopics = helper.getTopicsDao().listAsRank(domain, 100);
+                        JavaRDD<TopicRank> domainTopicsRDD = context.getSparkContext().parallelize(domainTopics, partitions);
 
-                    // get topics per domain
-                    List<TopicRank> domainTopics = helper.getTopicsDao().listAsRank(domain, 100);
-                    JavaRDD<TopicRank> domainTopicsRDD = context.getSparkContext().parallelize(domainTopics, partitions);
+                        // compare
+                        JavaRDD<ComparisonRow> rows = topicsRDD.cartesian(domainTopicsRDD).map(t -> new ComparisonRow(
+                                t._2.getDomainUri(),
+                                t._2.getTopicUri(),
+                                t._1.getTopicUri(),
+                                TimeUtils.asISO(),
+                                new ExtendedKendallsTauSimilarity<String>().calculate(t._1.getWords(), t._2.getWords(), new LevenshteinSimilarity()))
+                        );
 
-                    // compare
-                    JavaRDD<ComparisonRow> rows = topicsRDD.cartesian(domainTopicsRDD).map(t -> new ComparisonRow(
-                            t._2.getDomainUri(),
-                            t._2.getTopicUri(),
-                            t._1.getTopicUri(),
-                            TimeUtils.asISO(),
-                            new ExtendedKendallsTauSimilarity<String>().calculate(t._1.getWords(), t._2.getWords(), new LevenshteinSimilarity()))
-                    );
+                        // save
+                        LOG.info("saving comparisons between: " + domainUri + " and " + domain);
+                        context.getSqlContext()
+                                .createDataFrame(rows, ComparisonRow.class)
+                                .write()
+                                .format("org.apache.spark.sql.cassandra")
+                                .options(ImmutableMap.of("table", ComparisonsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                                .mode(SaveMode.Append)
+                                .save();
+                    }
 
-                    // save
-                    LOG.info("saving comparisons between: " + domainUri + " and " + domain);
-                    context.getSqlContext()
-                            .createDataFrame(rows, ComparisonRow.class)
-                            .write()
-                            .format("org.apache.spark.sql.cassandra")
-                            .options(ImmutableMap.of("table", ComparisonsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
-                            .mode(SaveMode.Append)
-                            .save();
+                    LOG.info("Comparisons created for " + domainUri);
+
+                    //TODO publish event
+                    helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
+
+                } catch (Exception e) {
+                    if (e instanceof InterruptedException) LOG.warn("Execution canceled");
+                    else LOG.error("Error on execution", e);
                 }
-
-                LOG.info("Comparisons created for " + domainUri);
-
-                //TODO publish event
-                helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
-
-            } catch (Exception e) {
-                if (e instanceof InterruptedException) LOG.warn("Execution canceled");
-                else LOG.error("Error on execution", e);
-            }
-        });
+            });
+        } catch (InterruptedException e) {
+            LOG.info("Execution interrupted.");
+        }
 
     }
 

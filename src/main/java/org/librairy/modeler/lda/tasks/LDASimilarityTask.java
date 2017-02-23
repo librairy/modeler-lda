@@ -7,6 +7,7 @@
 
 package org.librairy.modeler.lda.tasks;
 
+import static com.datastax.spark.connector.japi.CassandraJavaUtil.*;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Doubles;
 import org.apache.commons.collections4.queue.CircularFifoQueue;
@@ -15,8 +16,11 @@ import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.mllib.clustering.KMeans;
 import org.apache.spark.mllib.clustering.KMeansModel;
+import org.apache.spark.mllib.linalg.DenseVector;
+import org.apache.spark.mllib.linalg.Matrix;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.mllib.linalg.Vectors;
+import org.apache.spark.mllib.linalg.distributed.RowMatrix;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
@@ -29,6 +33,7 @@ import org.librairy.boot.model.Event;
 import org.librairy.boot.model.domain.relations.Relation;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.boot.model.utils.TimeUtils;
+import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
@@ -62,79 +67,94 @@ public class LDASimilarityTask implements Runnable {
 
     private final String domainUri;
 
-    public LDASimilarityTask(String domainUri, ModelingHelper modelingHelper) {
+    private final Long topics;
+
+    public LDASimilarityTask(String domainUri, ModelingHelper modelingHelper) throws DataNotFound {
         this.domainUri = domainUri;
         this.helper = modelingHelper;
+        this.topics = helper.getDomainsDao().count(domainUri, org.librairy.boot.model.domain.resources.Resource.Type.TOPIC.route());
     }
 
 
     @Override
     public void run() {
 
-        final ComputingContext context = helper.getComputingHelper().newContext("lda.similarity."+ URIGenerator.retrieveId(domainUri));
+        try{
+            final ComputingContext context = helper.getComputingHelper().newContext("lda.similarity."+ URIGenerator.retrieveId(domainUri));
+            final Integer partitions = context.getRecommendedPartitions();
 
-        final Integer partitions = context.getRecommendedPartitions();
+            helper.getComputingHelper().execute(context, () -> {
+                try{
 
-        helper.getComputingHelper().execute(context, () -> {
-            try{
-
-                //drop similarity tables
-                helper.getSimilaritiesDao().destroy(domainUri);
+                    //drop similarity tables
+                    helper.getSimilaritiesDao().destroy(domainUri);
+                    helper.getClusterDao().destroy(domainUri);
 
 
-                DataFrame shapesDF = context.getCassandraSQLContext()
-                        .read()
-                        .format("org.apache.spark.sql.cassandra")
-                        .schema(DataTypes
-                                .createStructType(new StructField[]{
-                                        DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType,
-                                                false),
-                                        DataTypes.createStructField(ShapesDao.VECTOR, DataTypes.createArrayType
-                                                (DataTypes.DoubleType),
-                                                false)
-                                }))
-                        .option("inferSchema", "false") // Automatically infer data types
-                        .option("charset", "UTF-8")
+                    DataFrame shapesDF = context.getCassandraSQLContext()
+                            .read()
+                            .format("org.apache.spark.sql.cassandra")
+                            .schema(DataTypes
+                                    .createStructType(new StructField[]{
+                                            DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType,
+                                                    false),
+                                            DataTypes.createStructField(ShapesDao.VECTOR, DataTypes.createArrayType
+                                                            (DataTypes.DoubleType),
+                                                    false)
+                                    }))
+                            .option("inferSchema", "false") // Automatically infer data types
+                            .option("charset", "UTF-8")
 //                        .option("spark.sql.autoBroadcastJoinThreshold","-1")
-                        .option("mode", "DROPMALFORMED")
-                        .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager
-                                .getKeyspaceFromUri
-                                        (domainUri)))
-                        .load()
-                        .repartition(partitions)
-                        .cache();
+                            .option("mode", "DROPMALFORMED")
+                            .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager
+                                    .getKeyspaceFromUri
+                                            (domainUri)))
+                            .load()
+                            .repartition(partitions)
+                            .cache();
 
-                shapesDF.take(1);
+                    shapesDF.take(1);
 
 
-                JavaRDD<Tuple2<String,Vector>> vectors = shapesDF
-                        .toJavaRDD()
-                        .map(new RowToTupleVector())
-                        .cache();
+                    final long vectorDim = topics;
 
-                vectors.take(1); // force cache
+                    JavaRDD<Tuple2<String,Vector>> vectors = shapesDF
+                            .toJavaRDD()
+                            .map(new RowToTupleVector())
+                            .filter(el -> el._2.size() == vectorDim)
+                            .cache();
 
-                AtomicInteger counter = new AtomicInteger();
-                CircularFifoQueue centroidsQueue = new CircularFifoQueue(5);
+                    vectors.take(1); // force cache
 
-                similaritiesFromCentroids(context, vectors, 2000, 1.3, 20, 0.00001, counter, centroidsQueue, 0.0);
+                    AtomicInteger counter = new AtomicInteger();
+                    CircularFifoQueue centroidsQueue = new CircularFifoQueue(5);
+
+                    similaritiesFromCentroids(context, vectors, 2000, 1.3, 20, 0.00001, counter, centroidsQueue, 0.5);
 //                similaritiesFromCentroids(vectors, 8, 1, 20, 0.00001, counter, centroidsQueue);
 
-                LOG.info("Operation completed!");
-                helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
+                    // Save centroids to filesystem
+                    saveCentroidsToFileSystem(context);
 
-            } catch (Exception e){
-                // TODO Notify to event-bus when source has not been added
-                LOG.error("Error scheduling a new topic model for Items from domain: " + domainUri, e);
-            }
-        });
-        
+                    // Save similarities btw centroids to filesystem
+                    saveCentroidSimilaritiesToFileSystem(context);
+
+                    LOG.info("Operation completed!");
+                    helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
+
+                } catch (Exception e){
+                    // TODO Notify to event-bus when source has not been added
+                    LOG.error("Error calculating similarities in domain: " + domainUri, e);
+                }
+            });
+        } catch (InterruptedException e) {
+            LOG.info("Execution interrupted.");
+        }
+
+
     }
 
     private void similaritiesFromCentroids(ComputingContext context, JavaRDD<Tuple2<String,Vector>> documents, int maxSize, double
             ratio, int maxIterations, double epsilon, AtomicInteger counter, CircularFifoQueue<Centroid> centroidsQueue, Double minScore){
-
-
 
         long size = documents.count();
 
@@ -143,8 +163,10 @@ public class LDASimilarityTask implements Runnable {
             centroid.setId(1l);
             saveSimilaritiesBetween(context, documents, centroid, Collections.emptyList(), minScore);
             // Increment counter
-            Long combinations = CombinatoricsUtils.stirlingS2(Long.valueOf(size).intValue(),Long.valueOf(size-1).intValue());
-            helper.getCounterDao().increment(domainUri, Relation.Type.SIMILAR_TO_DOCUMENTS.route(), combinations);
+            if (size>0){
+                Long combinations = CombinatoricsUtils.stirlingS2(Long.valueOf(size).intValue(),Long.valueOf(size-1).intValue());
+                helper.getCounterDao().increment(domainUri, Relation.Type.SIMILAR_TO_DOCUMENTS.route(), combinations);
+            }
             return;
         }
 
@@ -164,10 +186,28 @@ public class LDASimilarityTask implements Runnable {
                 .setEpsilon(epsilon)
                 ;
 
+        final Long maxDim = topics;
+
+        // Get vector based on topic distributions
+        RDD<Vector> points = documents.filter(el -> el._2.size() == maxDim).map(el -> el._2).rdd().cache();
+
+//        List<Tuple2<String, Vector>> errors = documents.filter(el -> el._2.size() != 300).collect();
+//
+//        for (Tuple2<String, Vector> el : errors){
+//            LOG.info("> " + el._1 + " : " + el._2.size());
+//        }
+//
+//
+//        RDD<Vector> points = documents.map(el -> el._2.toDense().compressed()).rdd().cache();
+//
+//        // Create a RowMatrix from JavaRDD<Vector>.
+//        RowMatrix mat = new RowMatrix(points);
+//
+//        // Compute the top 2 principal components.
+//        Matrix pc = mat.computePrincipalComponents(2);
+//        RowMatrix projected = mat.multiply(pc);
 
         // Train k-means model
-        RDD<Vector> points = documents.map(el -> el._2).rdd().cache();
-
         KMeansModel model = kmeans.run(points);
 
         // Clusterize documents
@@ -179,6 +219,7 @@ public class LDASimilarityTask implements Runnable {
 
         JavaPairRDD<Integer, Tuple2<String, Vector>> clusterizedDocs = model.predict(points).toJavaRDD()
                 .zipWithIndex()
+                .repartition(context.getRecommendedPartitions())
                 .mapToPair(tuple -> new Tuple2<Long, Integer>(tuple._2, (Integer) tuple._1))
                 .join(indexedDocs, context.getRecommendedPartitions())
                 .mapToPair(el -> el._2)
@@ -232,12 +273,6 @@ public class LDASimilarityTask implements Runnable {
                 similaritiesFromCentroids(context, clusterPoints,maxSize, ratio, maxIterations, epsilon, counter, centroidsQueue, minScore);
             }
         }
-
-        // Save centroids to filesystem
-        saveCentroidsToFileSystem(context);
-
-        // Save similarities btw centroids to filesystem
-        saveCentroidSimilaritiesToFileSystem(context);
     }
 
     private void saveCentroidsToFileSystem(ComputingContext context){
@@ -246,8 +281,8 @@ public class LDASimilarityTask implements Runnable {
                 .format("org.apache.spark.sql.cassandra")
                 .schema(DataTypes
                         .createStructType(new StructField[]{
-                                DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType,
-                                        false)
+                                DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType, false),
+                                DataTypes.createStructField(ShapesDao.RESOURCE_TYPE, DataTypes.StringType, false)
                         }))
                 .option("inferSchema", "false") // Automatically infer data types
                 .option("charset", "UTF-8")
@@ -267,14 +302,11 @@ public class LDASimilarityTask implements Runnable {
                 .format("org.apache.spark.sql.cassandra")
                 .schema(DataTypes
                         .createStructType(new StructField[]{
-                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_1, DataTypes.StringType,
-                                        false),
-                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_2, DataTypes.StringType,
-                                        false),
-                                DataTypes.createStructField(SimilaritiesDao.SCORE, DataTypes.DoubleType,
-                                        false),
-                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_2, DataTypes.StringType,
-                                        false)
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_1, DataTypes.StringType, false),
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_2, DataTypes.StringType, false),
+                                DataTypes.createStructField(SimilaritiesDao.SCORE, DataTypes.DoubleType, false),
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_1, DataTypes.StringType, false),
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_2, DataTypes.StringType, false)
                         }))
                 .option("inferSchema", "false") // Automatically infer data types
                 .option("charset", "UTF-8")
@@ -294,8 +326,8 @@ public class LDASimilarityTask implements Runnable {
     private void saveSimilaritiesBetween(ComputingContext context, JavaRDD<Tuple2<String,Vector>> vectors, Centroid centroid, List<Centroid> neighbors, Double minScore){
         JavaRDD<SimilarityRow> rows = vectors
                 .cartesian(vectors)
-                .filter(pair -> pair._1._1.hashCode() < pair._2._1.hashCode())
-                .flatMap(pair -> {
+                .repartition(context.getRecommendedPartitions())
+                .map(pair -> {
                     double score = JensenShannonSimilarity.apply(pair._1._2.toArray(), pair._2._2.toArray());
                     SimilarityRow row1 = new SimilarityRow();
                     row1.setDate(TimeUtils.asISO());
@@ -304,19 +336,10 @@ public class LDASimilarityTask implements Runnable {
                     row1.setResource_uri_2(pair._2._1);
                     row1.setResource_type_2(URIGenerator.typeFrom(pair._2._1).key());
                     row1.setScore(score);
-
-                    SimilarityRow row2 = new SimilarityRow();
-                    row2.setDate(TimeUtils.asISO());
-                    row2.setResource_uri_1(pair._2._1);
-                    row2.setResource_type_1(URIGenerator.typeFrom(pair._2._1).key());
-                    row2.setResource_uri_2(pair._1._1);
-                    row2.setResource_type_2(URIGenerator.typeFrom(pair._1._1).key());
-                    row2.setScore(score);
-
-                    return Arrays.asList(new SimilarityRow[]{row1,row2});
+                    return row1;
 
                 })
-                .filter(r -> r.getScore() >= minScore)
+                .filter(r -> (r.getScore() >= minScore) && (!r.getResource_uri_1().equalsIgnoreCase(r.getResource_uri_2())))
                 .cache();
 
         rows.take(1); // force cache
@@ -404,11 +427,11 @@ public class LDASimilarityTask implements Runnable {
         // nodes
         StructType nodeDataType = DataTypes
                 .createStructType(new StructField[]{
-                        DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType,
-                                false)
+                        DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType, false),
+                        DataTypes.createStructField(ShapesDao.RESOURCE_TYPE, DataTypes.StringType, false)
                 });
 
-        JavaRDD<Row> nodeRows = vectors.map(tuple -> RowFactory.create(tuple._1));
+        JavaRDD<Row> nodeRows = vectors.map(tuple -> RowFactory.create(tuple._1, URIGenerator.typeFrom(tuple._1).name().toLowerCase()));
         DataFrame nodesFrame = context.getCassandraSQLContext().createDataFrame(nodeRows, nodeDataType);
         LOG.info("saving subgraph nodes from sector " + centroid.getId());
         helper.getSimilarityService().saveSubGraphToFileSystem(nodesFrame,URIGenerator.retrieveId(domainUri), "nodes", String.valueOf(centroid.getId()));
@@ -418,16 +441,13 @@ public class LDASimilarityTask implements Runnable {
         // edges
         StructType edgeDataType = DataTypes
                 .createStructType(new StructField[]{
-                        DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_1, DataTypes.StringType,
-                                false),
-                        DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_2, DataTypes.StringType,
-                                false),
-                        DataTypes.createStructField(SimilaritiesDao.SCORE, DataTypes.DoubleType,
-                                false),
-                        DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_2, DataTypes.StringType,
-                                false)
+                        DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_1, DataTypes.StringType, false),
+                        DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_2, DataTypes.StringType, false),
+                        DataTypes.createStructField(SimilaritiesDao.SCORE, DataTypes.DoubleType, false),
+                        DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_1, DataTypes.StringType, false),
+                        DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_2, DataTypes.StringType, false)
                 });
-        JavaRDD<Row> edgeRows = rows.map(sr -> RowFactory.create(sr.getResource_uri_1(), sr.getResource_uri_2(), sr.getScore(), sr.getResource_type_2()));
+        JavaRDD<Row> edgeRows = rows.map(sr -> RowFactory.create(sr.getResource_uri_1(), sr.getResource_uri_2(), sr.getScore(), sr.getResource_type_1(), sr.getResource_type_2()));
         DataFrame edgesFrame = context.getCassandraSQLContext().createDataFrame(edgeRows, edgeDataType);
         LOG.info("saving subgraph edges from sector " + centroid.getId());
         helper.getSimilarityService().saveSubGraphToFileSystem(edgesFrame,URIGenerator.retrieveId(domainUri), "edges", String.valueOf(centroid.getId()));

@@ -13,12 +13,14 @@ import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.helper.ModelingHelper;
+import org.librairy.modeler.lda.services.ParallelExecutorService;
 import org.librairy.modeler.lda.tasks.LDAAnnotationsTask;
 import org.librairy.modeler.lda.tasks.LDASimilarityTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import scala.collection.Parallel;
 
 import javax.annotation.PostConstruct;
 
@@ -36,6 +38,8 @@ public class LdaAnnotationsCreatedEventHandler implements EventBusSubscriber {
     @Autowired
     ModelingHelper helper;
 
+    private ParallelExecutorService executor;
+
     @PostConstruct
     public void init(){
         BindingKey bindingKey = BindingKey.of(RoutingKey.of(LDAAnnotationsTask.ROUTING_KEY_ID), "lda.annotations" +
@@ -43,6 +47,7 @@ public class LdaAnnotationsCreatedEventHandler implements EventBusSubscriber {
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");
+        executor = new ParallelExecutorService();
     }
 
     @Override
@@ -51,11 +56,11 @@ public class LdaAnnotationsCreatedEventHandler implements EventBusSubscriber {
         try{
             String domainUri = event.to(String.class);
 
-            new LDASimilarityTask(domainUri,helper).run();
+            executor.execute(domainUri,1000, new LDASimilarityTask(domainUri,helper));
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added
-            LOG.error("Error scheduling a new topic model for Items from domain: " + event, e);
+            LOG.error("Error scheduling similarities in domain: " + event, e);
         }
     }
 }

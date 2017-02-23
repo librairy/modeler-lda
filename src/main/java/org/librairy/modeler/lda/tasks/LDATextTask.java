@@ -63,86 +63,89 @@ public class LDATextTask implements Runnable {
 
         if (Strings.isNullOrEmpty(text.getContent())) return similarResources;
 
-        final ComputingContext context = helper.getComputingHelper().newContext("lda.text."+ URIGenerator.retrieveId(domainUri));
-
         try{
-            TopicModel topicModel = helper.getLdaBuilder().load(context, URIGenerator.retrieveId(domainUri));
+            final ComputingContext context = helper.getComputingHelper().newContext("lda.text."+ URIGenerator.retrieveId(domainUri));
+            try{
+                TopicModel topicModel = helper.getLdaBuilder().load(context, URIGenerator.retrieveId(domainUri));
 
-            // Create a minimal corpus
-            Corpus corpus = new Corpus(context, "from-inference", Arrays.asList(new Resource.Type[]{Resource.Type.ANY}), helper);
-            corpus.loadTexts(Arrays.asList(new Text[]{text}));
+                // Create a minimal corpus
+                Corpus corpus = new Corpus(context, "from-inference", Arrays.asList(new Resource.Type[]{Resource.Type.ANY}), helper);
+                corpus.loadTexts(Arrays.asList(new Text[]{text}));
 
-            // Use vocabulary from existing model
-            corpus.setCountVectorizerModel(topicModel.getVocabModel());
+                // Use vocabulary from existing model
+                corpus.setCountVectorizerModel(topicModel.getVocabModel());
 
-            // Documents
-            RDD<Tuple2<Object, Vector>> documents = corpus
-                    .getBagOfWords()
-                    .cache();
+                // Documents
+                RDD<Tuple2<Object, Vector>> documents = corpus
+                        .getBagOfWords()
+                        .cache();
 
-            LOG.info("Created bow from text");
+                LOG.info("Created bow from text");
 
-            // Topic Distribution
-            JavaRDD<ResourceShape> topicDistribution = topicModel
-                    .getLdaModel()
-                    .topicDistributions(documents)
-                    .toJavaRDD()
-                    .map(new TupleToResourceShape(text.getId()))
-                    .cache();
+                // Topic Distribution
+                JavaRDD<ResourceShape> topicDistribution = topicModel
+                        .getLdaModel()
+                        .topicDistributions(documents)
+                        .toJavaRDD()
+                        .map(new TupleToResourceShape(text.getId()))
+                        .cache();
 
-            LOG.info("Created topic-based vector from text");
+                LOG.info("Created topic-based vector from text");
 
-            // Read vectors from domain
-            DataFrame baseDF = context.getCassandraSQLContext()
-                    .read()
-                    .format("org.apache.spark.sql.cassandra")
-                    .schema(DataTypes
-                            .createStructType(new StructField[]{
-                                    DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType,
-                                            false),
-                                    DataTypes.createStructField(ShapesDao.VECTOR, DataTypes.createArrayType(DataTypes.DoubleType),
-                                            false),
-                                    DataTypes.createStructField(ShapesDao.RESOURCE_TYPE, DataTypes.StringType,
-                                            false)
-                            }))
-                    .option("inferSchema", "false") // Automatically infer data types
-                    .option("charset", "UTF-8")
-                    .option("mode", "DROPMALFORMED")
-                    .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
-                    .load();
+                // Read vectors from domain
+                DataFrame baseDF = context.getCassandraSQLContext()
+                        .read()
+                        .format("org.apache.spark.sql.cassandra")
+                        .schema(DataTypes
+                                .createStructType(new StructField[]{
+                                        DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType,
+                                                false),
+                                        DataTypes.createStructField(ShapesDao.VECTOR, DataTypes.createArrayType(DataTypes.DoubleType),
+                                                false),
+                                        DataTypes.createStructField(ShapesDao.RESOURCE_TYPE, DataTypes.StringType,
+                                                false)
+                                }))
+                        .option("inferSchema", "false") // Automatically infer data types
+                        .option("charset", "UTF-8")
+                        .option("mode", "DROPMALFORMED")
+                        .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                        .load();
 
-            DataFrame shapesDF = baseDF;
+                DataFrame shapesDF = baseDF;
 
-            // Filter by types
-            if (!types.isEmpty()){
-                Column condition = org.apache.spark.sql.functions.col(ShapesDao.RESOURCE_TYPE).equalTo(types.get(0).key());
-                shapesDF = baseDF.filter(condition);
+                // Filter by types
+                if (!types.isEmpty()){
+                    Column condition = org.apache.spark.sql.functions.col(ShapesDao.RESOURCE_TYPE).equalTo(types.get(0).key());
+                    shapesDF = baseDF.filter(condition);
+                }
+
+                LOG.info("Calculating similarity value to existing documents..");
+
+                JavaRDD<ResourceShape> shapes = shapesDF
+                        .repartition(context.getRecommendedPartitions())
+                        .toJavaRDD()
+                        .map(new RowToResourceShape())
+                        .cache();
+
+                shapes.take(1);
+
+                similarResources = topicDistribution
+                        .cartesian(shapes)
+                        .map(pair -> {
+                            SimilarResource sr = new SimilarResource();
+                            sr.setUri(pair._2.getUri());
+                            sr.setWeight(JensenShannonSimilarity.apply(pair._1.getVector(), pair._2.getVector()));
+                            sr.setTime(TimeUtils.asISO());
+                            return sr;
+                        })
+                        .takeOrdered(topValues);
+            }catch (Exception e){
+                LOG.error("Unexpected error getting similar resources", e);
+            }finally {
+                helper.getComputingHelper().close(context);
             }
-
-            LOG.info("Calculating similarity value to existing documents..");
-
-            JavaRDD<ResourceShape> shapes = shapesDF
-                    .repartition(context.getRecommendedPartitions())
-                    .toJavaRDD()
-                    .map(new RowToResourceShape())
-                    .cache();
-
-            shapes.take(1);
-
-            similarResources = topicDistribution
-                    .cartesian(shapes)
-                    .map(pair -> {
-                        SimilarResource sr = new SimilarResource();
-                        sr.setUri(pair._2.getUri());
-                        sr.setWeight(JensenShannonSimilarity.apply(pair._1.getVector(), pair._2.getVector()));
-                        sr.setTime(TimeUtils.asISO());
-                        return sr;
-                    })
-                    .takeOrdered(topValues);
-        }catch (Exception e){
-            LOG.error("Unexpected error getting similar resources", e);
-        }finally {
-            helper.getComputingHelper().close(context);
+        } catch (InterruptedException e) {
+            LOG.info("Execution interrupted.");
         }
 
         return similarResources;

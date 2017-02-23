@@ -27,6 +27,7 @@ import org.junit.runner.RunWith;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.boot.model.utils.TimeUtils;
+import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
@@ -62,7 +63,12 @@ import java.util.stream.IntStream;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
 @TestPropertySource(properties = {
-        "librairy.lda.event.value = 60000"
+        "librairy.lda.event.value = 60000",
+//        "librairy.computing.cluster = local[4]",
+//        "librairy.computing.cores = 8"
+//        "librairy.computing.cluster = spark://minetur.dia.fi.upm.es:7077",
+//        "librairy.computing.cores = 120",
+        "librairy.computing.fs = hdfs://minetur.dia.fi.upm.es:9000"
 })
 public class LDASimilarityTaskTest {
 
@@ -73,8 +79,8 @@ public class LDASimilarityTaskTest {
     ModelingHelper helper;
 
     @Test
-    public void execute() throws InterruptedException {
-        String domainUri = "http://librairy.org/domains/default";
+    public void execute() throws InterruptedException, DataNotFound {
+        String domainUri = "http://librairy.org/domains/ae5753952f7db4b1d56a5942e08476f9";
 
         LDASimilarityTask task = new LDASimilarityTask(domainUri, helper);
 
@@ -95,7 +101,7 @@ public class LDASimilarityTaskTest {
 
 
     @Test
-    public void dimsum(){
+    public void dimsum() throws InterruptedException {
 
         String domainUri = "http://librairy.org/domains/default";
 
@@ -174,7 +180,7 @@ public class LDASimilarityTaskTest {
     }
 
     @Test
-    public void simpleDimsum(){
+    public void simpleDimsum() throws InterruptedException {
 
         List<Vector> vectorList = new ArrayList<>();
 
@@ -232,7 +238,7 @@ public class LDASimilarityTaskTest {
 
 
     @Test
-    public void recursiveKMeans(){
+    public void recursiveKMeans() throws InterruptedException {
         String domainUri = "http://librairy.org/domains/default";
 
         final ComputingContext context = helper.getComputingHelper().newContext("test.recursiveKmeans");

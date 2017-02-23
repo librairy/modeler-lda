@@ -93,70 +93,74 @@ public class LDASubdomainShapingTask implements Runnable {
 
     private void shapeSubdomain(String subdomainUri, String domainUri){
 
-        final ComputingContext context = helper.getComputingHelper().newContext("lda.subdomains."+ URIGenerator.retrieveId(domainUri));
+        try{
+            final ComputingContext context = helper.getComputingHelper().newContext("lda.subdomains."+ URIGenerator.retrieveId(domainUri));
+            helper.getComputingHelper().execute(context, () -> {
+                try{
+                    LOG.info("creating shape for sub-domain '"+ subdomainUri+"'");
 
-        helper.getComputingHelper().execute(context, () -> {
-            try{
-                LOG.info("creating shape for sub-domain '"+ subdomainUri+"'");
-
-                DataFrame itemsDF = context.getCassandraSQLContext()
-                        .read()
-                        .format("org.apache.spark.sql.cassandra")
-                        .schema(DataTypes
-                                .createStructType(new StructField[]{
-                                        DataTypes.createStructField("uri", DataTypes.StringType, false)
-                                }))
-                        .option("inferSchema", "false") // Automatically infer data types
-                        .option("charset", "UTF-8")
-                        .option("mode", "DROPMALFORMED")
-                        .options(ImmutableMap.of("table", "items", "keyspace", DBSessionManager.getKeyspaceFromUri(subdomainUri)))
-                        .load();
-
-
-                DataFrame shapesDF = context.getCassandraSQLContext()
-                        .read()
-                        .format("org.apache.spark.sql.cassandra")
-                        .schema(DataTypes
-                                .createStructType(new StructField[]{
-                                        DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType, false),
-                                        DataTypes.createStructField(ShapesDao.VECTOR, DataTypes.createArrayType(DataTypes.DoubleType), false)
-                                }))
-                        .option("inferSchema", "false") // Automatically infer data types
-                        .option("charset", "UTF-8")
-                        .option("mode", "DROPMALFORMED")
-                        .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
-                        .load();
+                    DataFrame itemsDF = context.getCassandraSQLContext()
+                            .read()
+                            .format("org.apache.spark.sql.cassandra")
+                            .schema(DataTypes
+                                    .createStructType(new StructField[]{
+                                            DataTypes.createStructField("uri", DataTypes.StringType, false)
+                                    }))
+                            .option("inferSchema", "false") // Automatically infer data types
+                            .option("charset", "UTF-8")
+                            .option("mode", "DROPMALFORMED")
+                            .options(ImmutableMap.of("table", "items", "keyspace", DBSessionManager.getKeyspaceFromUri(subdomainUri)))
+                            .load();
 
 
-                DataFrame distTopicsDF = itemsDF
-                        .join(shapesDF, itemsDF.col("uri").equalTo(shapesDF.col(ShapesDao.RESOURCE_URI)));
+                    DataFrame shapesDF = context.getCassandraSQLContext()
+                            .read()
+                            .format("org.apache.spark.sql.cassandra")
+                            .schema(DataTypes
+                                    .createStructType(new StructField[]{
+                                            DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType, false),
+                                            DataTypes.createStructField(ShapesDao.VECTOR, DataTypes.createArrayType(DataTypes.DoubleType), false)
+                                    }))
+                            .option("inferSchema", "false") // Automatically infer data types
+                            .option("charset", "UTF-8")
+                            .option("mode", "DROPMALFORMED")
+                            .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                            .load();
 
 
-                JavaRDD<double[]> rows = distTopicsDF
-                        .toJavaRDD()
-                        .filter(row -> row.get(2) != null)
-                        .map(new RowToArray())
-                        ;
-
-                LOG.info("generating shape for subdomain: " + subdomainUri + " in domain: " + domainUri + " ..");
-                double[] shape = rows.reduce((a, b) -> Bernoulli.apply(a, b));
-
-                ShapeRow row = new ShapeRow();
-                row.setUri(subdomainUri);
-                row.setVector(Doubles.asList(shape));
-                row.setId(Long.valueOf(Math.abs(subdomainUri.hashCode())));
+                    DataFrame distTopicsDF = itemsDF
+                            .join(shapesDF, itemsDF.col("uri").equalTo(shapesDF.col(ShapesDao.RESOURCE_URI)));
 
 
-                helper.getShapesDao().save(domainUri, row);
-                LOG.info("shape saved!");
+                    JavaRDD<double[]> rows = distTopicsDF
+                            .toJavaRDD()
+                            .filter(row -> row.get(2) != null)
+                            .map(new RowToArray())
+                            ;
+
+                    LOG.info("generating shape for subdomain: " + subdomainUri + " in domain: " + domainUri + " ..");
+                    double[] shape = rows.reduce((a, b) -> Bernoulli.apply(a, b));
+
+                    ShapeRow row = new ShapeRow();
+                    row.setUri(subdomainUri);
+                    row.setVector(Doubles.asList(shape));
+                    row.setId(Long.valueOf(Math.abs(subdomainUri.hashCode())));
+
+
+                    helper.getShapesDao().save(domainUri, row);
+                    LOG.info("shape saved!");
 
 
 
-            } catch (Exception e){
-                // TODO Notify to event-bus when source has not been added
-                LOG.error("Error scheduling a new topic model for Items from domain: " + domainUri, e);
-            }
-        });
+                } catch (Exception e){
+                    // TODO Notify to event-bus when source has not been added
+                    LOG.error("Error scheduling a new topic model for Items from domain: " + domainUri, e);
+                }
+            });
+        } catch (InterruptedException e) {
+            LOG.info("Execution interrupted.");
+        }
+
     }
 
 }

@@ -10,7 +10,10 @@ package org.librairy.modeler.lda.builder;
 import org.librairy.boot.model.domain.relations.Relation;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.storage.dao.CounterDao;
+import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.computing.helper.StorageHelper;
 import org.librairy.modeler.lda.dao.*;
+import org.librairy.modeler.lda.models.ComputingKey;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,7 +62,10 @@ public class WorkspaceBuilder {
     @Autowired
     ClusterDao clusterDao;
 
-    public void initialize(String domainUri){
+    @Autowired
+    StorageHelper storageHelper;
+
+    public void initialize(String domainUri) throws InterruptedException {
 
         counterDao.reset(domainUri, Resource.Type.TOPIC.route());
         counterDao.reset(domainUri, Relation.Type.SIMILAR_TO_ITEMS.route());
@@ -85,15 +91,22 @@ public class WorkspaceBuilder {
 
         clusterDao.initialize(domainUri);
 
-        try {
-            Thread.sleep(1000);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        Thread.sleep(1000);
     }
 
     public void destroy(String domainUri){
         keyspaceDao.destroy(domainUri);
+
+
+        // delete models from filesystem
+        try {
+            String id = URIGenerator.retrieveId(domainUri);
+            String absoluteModelPath = storageHelper.absolutePath(storageHelper.path(id, "lda"));
+            storageHelper.deleteIfExists(absoluteModelPath);
+        }catch (Exception e){
+            LOG.error("Error deleting model", e);
+        }
+
     }
 
 }

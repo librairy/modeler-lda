@@ -53,74 +53,79 @@ public class LDADistributionsTask implements Runnable {
     @Override
     public void run() {
 
-        final ComputingContext context = helper.getComputingHelper().newContext("lda.topics."+ URIGenerator.retrieveId(domainUri));
-
-        helper.getComputingHelper().execute(context, () -> {
-            try{
-                JavaPairRDD<Long, InternalResource> shapes = context.getCassandraSQLContext()
-                        .read()
-                        .format("org.apache.spark.sql.cassandra")
-                        .schema(DataTypes
-                                .createStructType(new StructField[]{
-                                        DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType, false),
-                                        DataTypes.createStructField(ShapesDao.RESOURCE_ID, DataTypes.LongType, false),
-                                        DataTypes.createStructField(ShapesDao.VECTOR, DataTypes.createArrayType(DataTypes
-                                                .DoubleType), false)
-                                }))
-                        .option("inferSchema", "false") // Automatically infer data types
-                        .option("charset", "UTF-8")
-                        .option("mode", "DROPMALFORMED")
-                        .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri
-                                (domainUri)))
-                        .load()
-                        .toJavaRDD()
-                        .flatMapToPair(new RowToShape());
-
-
-                JavaPairRDD<Long, InternalResource> topics = context.getCassandraSQLContext()
-                        .read()
-                        .format("org.apache.spark.sql.cassandra")
-                        .schema(DataTypes
-                                .createStructType(new StructField[]{
-                                        DataTypes.createStructField(TopicsDao.URI, DataTypes.StringType, false),
-                                        DataTypes.createStructField(TopicsDao.ID, DataTypes.LongType, false)
-                                }))
-                        .option("inferSchema", "false") // Automatically infer data types
-                        .option("charset", "UTF-8")
-                        .option("mode", "DROPMALFORMED")
-                        .options(ImmutableMap.of("table", TopicsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri
-                                (domainUri)))
-                        .load()
-                        .toJavaRDD()
-                        .mapToPair(new RowToInternalResource());
-
-                JavaRDD<DistributionRow> rows = shapes
-                        .join(topics)
-                        .map(t -> new DistributionRow(
-                                t._2._1.getUri(),
-                                URIGenerator.typeFrom(t._2._1.getUri()).key(),
-                                t._2._2.getUri(),
-                                TimeUtils.asISO(),
-                                t._2._1.getScore()))
-                        .cache();
+        try{
+            final ComputingContext context = helper.getComputingHelper().newContext("lda.topics."+ URIGenerator.retrieveId(domainUri));
+            helper.getComputingHelper().execute(context, () -> {
+                try{
+                    JavaPairRDD<Long, InternalResource> shapes = context.getCassandraSQLContext()
+                            .read()
+                            .format("org.apache.spark.sql.cassandra")
+                            .schema(DataTypes
+                                    .createStructType(new StructField[]{
+                                            DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType, false),
+                                            DataTypes.createStructField(ShapesDao.RESOURCE_ID, DataTypes.LongType, false),
+                                            DataTypes.createStructField(ShapesDao.VECTOR, DataTypes.createArrayType(DataTypes
+                                                    .DoubleType), false)
+                                    }))
+                            .option("inferSchema", "false") // Automatically infer data types
+                            .option("charset", "UTF-8")
+                            .option("mode", "DROPMALFORMED")
+                            .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri
+                                    (domainUri)))
+                            .load()
+                            .toJavaRDD()
+                            .flatMapToPair(new RowToShape());
 
 
-                LOG.info("calculating topic distributions in domain: " + domainUri + "..");
-                context.getSqlContext()
-                        .createDataFrame(rows, DistributionRow.class)
-                        .write()
-                        .format("org.apache.spark.sql.cassandra")
-                        .options(ImmutableMap.of("table", DistributionsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
-                        .save();
-                LOG.info("topic distributions saved!");
+                    JavaPairRDD<Long, InternalResource> topics = context.getCassandraSQLContext()
+                            .read()
+                            .format("org.apache.spark.sql.cassandra")
+                            .schema(DataTypes
+                                    .createStructType(new StructField[]{
+                                            DataTypes.createStructField(TopicsDao.URI, DataTypes.StringType, false),
+                                            DataTypes.createStructField(TopicsDao.ID, DataTypes.LongType, false)
+                                    }))
+                            .option("inferSchema", "false") // Automatically infer data types
+                            .option("charset", "UTF-8")
+                            .option("mode", "DROPMALFORMED")
+                            .options(ImmutableMap.of("table", TopicsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri
+                                    (domainUri)))
+                            .load()
+                            .toJavaRDD()
+                            .mapToPair(new RowToInternalResource());
 
-                helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
+                    JavaRDD<DistributionRow> rows = shapes
+                            .join(topics)
+                            .map(t -> new DistributionRow(
+                                    t._2._1.getUri(),
+                                    URIGenerator.typeFrom(t._2._1.getUri()).key(),
+                                    t._2._2.getUri(),
+                                    TimeUtils.asISO(),
+                                    t._2._1.getScore()))
+                            .cache();
 
-            } catch (Exception e){
-                // TODO Notify to event-bus when source has not been added
-                LOG.error("Error scheduling a new topic model for Items from domain: " + domainUri, e);
-            }
-        });
+
+                    LOG.info("calculating topic distributions in domain: " + domainUri + "..");
+                    context.getSqlContext()
+                            .createDataFrame(rows, DistributionRow.class)
+                            .write()
+                            .format("org.apache.spark.sql.cassandra")
+                            .options(ImmutableMap.of("table", DistributionsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                            .save();
+                    LOG.info("topic distributions saved!");
+
+                    helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
+
+                } catch (Exception e){
+                    // TODO Notify to event-bus when source has not been added
+                    LOG.error("Error creating topic distributions in domain: " + domainUri, e);
+                }
+            });
+        } catch (InterruptedException e) {
+            LOG.info("Execution interrupted.");
+        }
+
+
         
     }
 

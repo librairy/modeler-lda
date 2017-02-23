@@ -61,75 +61,83 @@ public class LDASimilarityGraphTask implements Runnable {
 
     private void saveNodesToFileSystem(){
 
-        final ComputingContext context = helper.getComputingHelper().newContext("lda.graph.nodes."+ URIGenerator.retrieveId(domainUri));
+        try{
+            final ComputingContext context = helper.getComputingHelper().newContext("lda.graph.nodes."+ URIGenerator.retrieveId(domainUri));
+            helper.getComputingHelper().execute(context, () -> {
+                try{
+                    LOG.info("creating vertices..");
+                    DataFrame shapes = context.getCassandraSQLContext()
+                            .read()
+                            .format("org.apache.spark.sql.cassandra")
+                            .schema(DataTypes
+                                    .createStructType(new StructField[]{
+                                            DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType,
+                                                    false)
+                                    }))
+                            .option("inferSchema", "false") // Automatically infer data types
+                            .option("charset", "UTF-8")
+        //                        .option("spark.sql.autoBroadcastJoinThreshold","-1")
+                            .option("mode", "DROPMALFORMED")
+                            .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager
+                                    .getKeyspaceFromUri
+                                            (domainUri)))
+                            .load()
+                            .repartition(context.getRecommendedPartitions());
 
-        helper.getComputingHelper().execute(context, () -> {
-            try{
-                LOG.info("creating vertices..");
-                DataFrame shapes = context.getCassandraSQLContext()
-                        .read()
-                        .format("org.apache.spark.sql.cassandra")
-                        .schema(DataTypes
-                                .createStructType(new StructField[]{
-                                        DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType,
-                                                false)
-                                }))
-                        .option("inferSchema", "false") // Automatically infer data types
-                        .option("charset", "UTF-8")
-    //                        .option("spark.sql.autoBroadcastJoinThreshold","-1")
-                        .option("mode", "DROPMALFORMED")
-                        .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager
-                                .getKeyspaceFromUri
-                                        (domainUri)))
-                        .load()
-                        .repartition(context.getRecommendedPartitions());
+                    helper.getSimilarityService().saveToFileSystem(shapes,URIGenerator.retrieveId(domainUri), "nodes");
+                } catch (Exception e){
+                    // TODO Notify to event-bus when source has not been added
+                    LOG.error("Error scheduling a new topic model for Items from domain: " + domainUri, e);
+                }
+            });
+        } catch (InterruptedException e) {
+            LOG.info("Execution interrupted.");
+        }
 
-                helper.getSimilarityService().saveToFileSystem(shapes,URIGenerator.retrieveId(domainUri), "nodes");
-            } catch (Exception e){
-                // TODO Notify to event-bus when source has not been added
-                LOG.error("Error scheduling a new topic model for Items from domain: " + domainUri, e);
-            }
-        });
 
     }
 
     private void saveEdgesToFileSystem(){
-        final ComputingContext context = helper.getComputingHelper().newContext("lda.graph.edges."+ URIGenerator.retrieveId(domainUri));
+        try{
+            final ComputingContext context = helper.getComputingHelper().newContext("lda.graph.edges."+ URIGenerator.retrieveId(domainUri));
+            helper.getComputingHelper().execute(context, () -> {
+                try{
+                    LOG.info("creating edges..");
+                    DataFrame similarities = context.getCassandraSQLContext()
+                            .read()
+                            .format("org.apache.spark.sql.cassandra")
+                            .schema(DataTypes
+                                    .createStructType(new StructField[]{
+                                            DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_1, DataTypes.StringType,
+                                                    false),
+                                            DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_2, DataTypes.StringType,
+                                                    false),
+                                            DataTypes.createStructField(SimilaritiesDao.SCORE, DataTypes.DoubleType,
+                                                    false),
+                                            DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_2, DataTypes.StringType,
+                                                    false)
+                                    }))
+                            .option("inferSchema", "false") // Automatically infer data types
+                            .option("charset", "UTF-8")
+    //                        .option("spark.sql.autoBroadcastJoinThreshold","-1")
+                            .option("mode", "DROPMALFORMED")
+                            .options(ImmutableMap.of("table", SimilaritiesDao.TABLE, "keyspace", SessionManager
+                                    .getKeyspaceFromUri(domainUri)))
+                            .load()
+                            .repartition(context.getRecommendedPartitions());
 
-        helper.getComputingHelper().execute(context, () -> {
-            try{
-                LOG.info("creating edges..");
-                DataFrame similarities = context.getCassandraSQLContext()
-                        .read()
-                        .format("org.apache.spark.sql.cassandra")
-                        .schema(DataTypes
-                                .createStructType(new StructField[]{
-                                        DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_1, DataTypes.StringType,
-                                                false),
-                                        DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_2, DataTypes.StringType,
-                                                false),
-                                        DataTypes.createStructField(SimilaritiesDao.SCORE, DataTypes.DoubleType,
-                                                false),
-                                        DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_2, DataTypes.StringType,
-                                                false)
-                                }))
-                        .option("inferSchema", "false") // Automatically infer data types
-                        .option("charset", "UTF-8")
-//                        .option("spark.sql.autoBroadcastJoinThreshold","-1")
-                        .option("mode", "DROPMALFORMED")
-                        .options(ImmutableMap.of("table", SimilaritiesDao.TABLE, "keyspace", SessionManager
-                                .getKeyspaceFromUri(domainUri)))
-                        .load()
-                        .repartition(context.getRecommendedPartitions());
+                    helper.getSimilarityService().saveToFileSystem(similarities,URIGenerator.retrieveId(domainUri),
+                            "edges");
 
-                helper.getSimilarityService().saveToFileSystem(similarities,URIGenerator.retrieveId(domainUri),
-                        "edges");
+                } catch (Exception e){
+                    // TODO Notify to event-bus when source has not been added
+                    LOG.error("Error scheduling a new topic model for Items from domain: " + domainUri, e);
+                }
+            });
+        } catch (InterruptedException e) {
+            LOG.info("Execution interrupted.");
+        }
 
-            } catch (Exception e){
-                // TODO Notify to event-bus when source has not been added
-                LOG.error("Error scheduling a new topic model for Items from domain: " + domainUri, e);
-            }
-        });
 
     }
 

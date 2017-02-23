@@ -167,7 +167,7 @@ public class ApiTest {
         List<String> types  = Collections.EMPTY_LIST;
         Integer maxLength   = 10;
 
-        List<Path> paths = api.getShortestPath(startUri, endUri, types,  maxLength, criteria);
+        List<Path> paths = api.getShortestPath(startUri, endUri, types,  maxLength, criteria, 5);
 
         LOG.info("Paths: " + paths);
 

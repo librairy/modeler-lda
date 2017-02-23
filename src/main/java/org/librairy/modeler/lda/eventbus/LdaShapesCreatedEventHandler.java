@@ -13,6 +13,7 @@ import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.helper.ModelingHelper;
+import org.librairy.modeler.lda.services.ParallelExecutorService;
 import org.librairy.modeler.lda.tasks.LDADistributionsTask;
 import org.librairy.modeler.lda.tasks.LDAShapingTask;
 import org.librairy.modeler.lda.tasks.LDASubdomainShapingTask;
@@ -37,12 +38,15 @@ public class LdaShapesCreatedEventHandler implements EventBusSubscriber {
     @Autowired
     ModelingHelper helper;
 
+    private ParallelExecutorService executor;
+
     @PostConstruct
     public void init(){
         BindingKey bindingKey = BindingKey.of(RoutingKey.of(LDAShapingTask.ROUTING_KEY_ID), "lda.shapes.created");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");
+        executor = new ParallelExecutorService();
     }
 
     @Override
@@ -51,8 +55,7 @@ public class LdaShapesCreatedEventHandler implements EventBusSubscriber {
         try{
             String domainUri = event.to(String.class);
 
-
-            new LDASubdomainShapingTask(domainUri, helper).run();
+            executor.execute(domainUri, 1000, new LDASubdomainShapingTask(domainUri, helper));
 //            new LDADistributionsTask(domainUri, helper).run();
 
         } catch (Exception e){

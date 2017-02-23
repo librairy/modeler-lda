@@ -27,9 +27,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import scala.collection.JavaConversions;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
@@ -50,20 +49,22 @@ public class SimilarityService {
                                          List<String> sectors, Double minScore, Integer maxLength, String domainUri, Integer maxResults) throws IllegalArgumentException{
 
         LOG.info("loading nodes..");
-        DataFrame shapesDF = loadShapes(context, domainUri, sectors).cache();
-        shapesDF.take(1);
+        DataFrame shapesDF = loadShapes(context, domainUri, sectors, resTypes).cache();
+        long numNodes = shapesDF.count();
+        LOG.info(numNodes + " nodes load!");
 
         LOG.info("loading similarities..");
-        DataFrame similaritiesDF = loadSimilarities(context, domainUri, sectors).cache();
-        similaritiesDF.take(1);
+        DataFrame similaritiesDF = loadSimilarities(context, domainUri, sectors, minScore, resTypes).cache();
+        long numSim = similaritiesDF.count();
+        LOG.info(numSim + " edges load!");
 
         LOG.info("discovering shortest path between:  '"+ startUris + "' and '"+endUris+"' in domain: '" +
-                domainUri+"' filtered by " + resTypes );
+                domainUri+"' filtered by " + resTypes + " with min score " + minScore + " and  max " + maxLength + " steps");
 
         scala.collection.immutable.List<String> start   = JavaConversions.asScalaBuffer(startUris).toList();
         scala.collection.immutable.List<String> end     = JavaConversions.asScalaBuffer(endUris).toList();
         scala.collection.immutable.List<String> types   = JavaConversions.asScalaBuffer(resTypes).toList();
-        return DiscoveryPath.apply(start, end, minScore, maxLength, types,  shapesDF, similaritiesDF, maxResults);
+        return DiscoveryPath.apply(start, end, minScore, maxLength, types,  shapesDF, similaritiesDF, maxResults, context.getRecommendedPartitions());
     }
 
     public Path[] getShortestPathBetweenCentroids(ComputingContext context, List<String> startUris, List<String> endUris, Double
@@ -81,7 +82,7 @@ public class SimilarityService {
         scala.collection.immutable.List<String> start   = JavaConversions.asScalaBuffer(startUris).toList();
         scala.collection.immutable.List<String> end     = JavaConversions.asScalaBuffer(endUris).toList();
         scala.collection.immutable.List<String> types   = JavaConversions.asScalaBuffer(Collections.EMPTY_LIST).toList();
-        return DiscoveryPath.apply(start, end, minScore, maxLength, types,  nodesDF, edgesDF, maxResults);
+        return DiscoveryPath.apply(start, end, minScore, maxLength, types,  nodesDF, edgesDF, maxResults, context.getRecommendedPartitions());
     }
 
     private DataFrame loadCentroids(ComputingContext context, String domainUri) throws IllegalArgumentException {
@@ -103,13 +104,14 @@ public class SimilarityService {
     }
 
 
-    private DataFrame loadShapes(ComputingContext context, String domainUri, List<String> sectors) throws IllegalArgumentException {
+    private DataFrame loadShapes(ComputingContext context, String domainUri, List<String> sectors, List<String> types) throws IllegalArgumentException {
 
         DataFrame df = null;
 
         for (String sectorId : sectors){
             LOG.info("loading nodes from sector: " + sectorId + " ...");
-            DataFrame sectorDF = loadSubgraphFromFileSystem(context, URIGenerator.retrieveId(domainUri), "nodes", sectorId);
+
+            DataFrame sectorDF = loadSubgraphFromFileSystem(context, URIGenerator.retrieveId(domainUri), "nodes", sectorId, Optional.empty(), types);
             if (df == null){
                 df = sectorDF;
             }else{
@@ -121,13 +123,13 @@ public class SimilarityService {
     }
 
 
-    private DataFrame loadSimilarities(ComputingContext context, String domainUri, List<String> sectors) throws IllegalArgumentException {
+    private DataFrame loadSimilarities(ComputingContext context, String domainUri, List<String> sectors, Double minScore, List<String> types) throws IllegalArgumentException {
 
         DataFrame df = null;
 
         for (String sectorId : sectors){
             LOG.info("loading edges from sector: " + sectorId + " ...");
-            DataFrame sectorDF = loadSubgraphFromFileSystem(context, URIGenerator.retrieveId(domainUri), "edges", sectorId);
+            DataFrame sectorDF = loadSubgraphFromFileSystem(context, URIGenerator.retrieveId(domainUri), "edges", sectorId, Optional.of(minScore), types);
             if (df == null){
                 df = sectorDF;
             }else{
@@ -205,11 +207,38 @@ public class SimilarityService {
         }
     }
 
-    public DataFrame loadSubgraphFromFileSystem(ComputingContext context, String id, String label, String centroidId){
+    public DataFrame loadSubgraphFromFileSystem(ComputingContext context, String id, String label, String centroidId, Optional<Double> minScore, List<String> types){
         String modelPath = storageHelper.absolutePath(storageHelper.path(id,
                 "lda/similarities/subgraphs/"+centroidId+"/"+label));
         LOG.info("loading subgraph "+centroidId + "/"+ label+" from graph-model:" + modelPath);
-        return context.getCassandraSQLContext().load(modelPath);
+
+        Boolean extendedTypeFilter = (label.equalsIgnoreCase("edges"));
+
+        String typeFilter = extendedTypeFilter?
+                "resource_type_1 in (" + types.stream().map(t -> "'"+t+"'").collect(Collectors.joining(",")) + ")" :
+                " type in (" + types.stream().map(t -> "'"+t+"'").collect(Collectors.joining(",")) + ")";
+
+        String scoreFilter = (minScore.isPresent())? " score > " + minScore.get() : "";
+
+
+        if (minScore.isPresent() && types.isEmpty())
+            return context.getCassandraSQLContext().load(modelPath).filter(scoreFilter);
+        else if (minScore.isPresent() && !types.isEmpty()){
+            if (extendedTypeFilter){
+                return context.getCassandraSQLContext().load(modelPath).filter(scoreFilter).filter(typeFilter).filter("resource_type_2 in (" + types.stream().map(t -> "'"+t+"'").collect(Collectors.joining(",")) + ")");
+            }else{
+                return context.getCassandraSQLContext().load(modelPath).filter(scoreFilter).filter(typeFilter);
+            }
+        }else if (!minScore.isPresent() && types.isEmpty()){
+            return context.getCassandraSQLContext().load(modelPath);
+        }else{
+
+            if (extendedTypeFilter){
+                return context.getCassandraSQLContext().load(modelPath).filter(typeFilter).filter("resource_type_2 in (" + types.stream().map(t -> "'"+t+"'").collect(Collectors.joining(",")) + ")");
+            }else{
+                return context.getCassandraSQLContext().load(modelPath).filter(typeFilter);
+            }
+        }
     }
 
     public void saveToFileSystem(DataFrame dataFrame, String id , String label){

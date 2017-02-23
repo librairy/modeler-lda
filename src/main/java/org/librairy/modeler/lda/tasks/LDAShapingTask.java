@@ -44,32 +44,36 @@ public class LDAShapingTask implements Runnable {
     @Override
     public void run() {
 
-        final ComputingContext context = helper.getComputingHelper().newContext("lda.shapes."+ URIGenerator.retrieveId(domainUri));
+        try{
+            final ComputingContext context = helper.getComputingHelper().newContext("lda.shapes."+ URIGenerator.retrieveId(domainUri));
+            helper.getComputingHelper().execute(context, () -> {
+                try{
+                    // Create corpus
+                    Corpus corpus = helper.getCorpusBuilder().build(context, domainUri, Arrays.asList(new Resource.Type[]{Resource.Type.ITEM, Resource.Type.PART}));
+
+                    // Load existing model
+                    String domainId = URIGenerator.retrieveId(domainUri);
+                    TopicModel model = helper.getLdaBuilder().load(context, domainId);
+
+                    // Use of existing vocabulary
+                    corpus.setCountVectorizerModel(model.getVocabModel());
+
+                    // Calculate topic distributions for Items and Parts
+                    helper.getDealsBuilder().build(context, corpus,model);
+
+                    helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
+
+                } catch (Exception e){
+                    if (e instanceof InterruptedException){ LOG.info("Execution interrupted during process.");}
+                    else LOG.error("Error scheduling a new topic model for Items from domain: " + domainUri, e);
+                }
+            });
+        } catch (InterruptedException e) {
+            LOG.info("Execution interrupted.");
+        }
 
 
-        helper.getComputingHelper().execute(context, () -> {
-            try{
-                // Create corpus
-                Corpus corpus = helper.getCorpusBuilder().build(context, domainUri, Arrays.asList(new Resource.Type[]{Resource.Type.ITEM, Resource.Type.PART}));
 
-                // Load existing model
-                String domainId = URIGenerator.retrieveId(domainUri);
-                TopicModel model = helper.getLdaBuilder().load(context, domainId);
-
-                // Use of existing vocabulary
-                corpus.setCountVectorizerModel(model.getVocabModel());
-
-                // Calculate topic distributions for Items and Parts
-                helper.getDealsBuilder().build(context, corpus,model);
-
-                helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
-
-            } catch (Exception e){
-                // TODO Notify to event-bus when source has not been added
-                LOG.error("Error scheduling a new topic model for Items from domain: " + domainUri, e);
-            }
-        });
-        
     }
 
 

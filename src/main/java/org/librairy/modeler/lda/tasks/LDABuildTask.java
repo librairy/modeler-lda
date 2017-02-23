@@ -93,7 +93,6 @@ public class LDABuildTask {
                             .getValue()[index]).collect(Collectors.toList()));
                     topicRow.setScores(Arrays.stream(pair._1._2).boxed().collect(Collectors.toList()));
                     topicRow.setDescription(topicRow.getElements().stream().limit(10).collect(Collectors.joining(" ")));
-                    System.out.println("TopicRow: " + topicRow);
                     return topicRow;
                 });
 

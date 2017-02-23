@@ -63,7 +63,7 @@ public class NSGAOptimizerTest {
     ComputingHelper computingHelper;
 
     @Test
-    public void buildByDomain(){
+    public void buildByDomain() throws InterruptedException {
 
         final ComputingContext context = computingHelper.newContext("test.nsga");
 

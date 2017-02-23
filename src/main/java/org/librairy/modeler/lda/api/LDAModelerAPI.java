@@ -31,6 +31,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -382,111 +383,159 @@ public class LDAModelerAPI {
 
 
 
-    public List<Path> getShortestPath(String startUri, String endUri, List<String> types, Integer maxLength, Criteria criteria) throws IllegalArgumentException {
+    public List<Path> getShortestPath(String startUri, String endUri, List<String> types, Integer maxLength, Criteria criteria, Integer maxMinutes) throws IllegalArgumentException {
 
-        final ComputingContext context = helper.getComputingHelper().newContext("lda.api.shortestpath."+ URIGenerator.retrieveId(criteria.getDomainUri()));
+        List<Path> pathsResult = new ArrayList<>();
+
         try{
+            final ComputingContext context = helper.getComputingHelper().newContext("lda.api.shortestpath."+ URIGenerator.retrieveId(criteria.getDomainUri()));
+
+            ExecutorService executor = Executors.newFixedThreadPool(1);
 
 
-            LOG.info("Getting shortest path between '"+startUri+"' and '"+endUri+"' ...");
 
-            // get similarity btw them
+            Future<?> future = executor.submit(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+
+
+                        LOG.info("Getting shortest path between '" + startUri + "' and '" + endUri + "' ...");
+
+                        // get similarity btw them
+                        try {
+                            Double score = helper.getSimilaritiesDao().getSimilarity(criteria.getDomainUri(), startUri, endUri);
+                            LOG.info("Direct link between them: " + score);
+                            if (criteria.getThreshold() != null && score >= criteria.getThreshold()) {
+                                Path path = new Path();
+                                Node node = new Node(endUri, score);
+                                path.add(node);
+                                pathsResult.addAll(Arrays.asList(new Path[]{path}));
+                                return;
+                            } else {
+                                LOG.info("Threshold (" + criteria.getThreshold() + ") greather than direct score");
+                            }
+
+                        } catch (DataNotFound e) {
+                            LOG.info("No direct link between them");
+                        }
+
+                        // get centroids of startUri
+                        List<String> startCentroids = helper.getClusterDao().getClusters(criteria.getDomainUri(), startUri)
+                                .stream().map(id -> String.valueOf(id)).collect(Collectors.toList());
+                        LOG.info("Starting sectors: " + startCentroids);
+
+                        // get centroids of endUri
+                        List<String> endCentroids = helper.getClusterDao().getClusters(criteria.getDomainUri(), endUri)
+                                .stream().map(id -> String.valueOf(id)).collect(Collectors.toList());
+                        LOG.info("Ending sectors: " + endCentroids);
+
+
+                        List<String> intersection = startCentroids.stream().filter(endCentroids::contains).collect(Collectors.toList());
+
+                        Set<Path> centroidBasedPaths = new TreeSet<>();
+                        centroidBasedPaths.addAll(intersection.stream().map(uri -> {
+                            Path intersectionPath = new Path();
+                            intersectionPath.add(new Node(uri, 1.0));
+                            return intersectionPath;
+                        }).collect(Collectors.toList()));
+
+                        if (!intersection.isEmpty()) {
+                            endCentroids.removeAll(intersection);
+                        }
+
+                        //
+                        if (!endCentroids.isEmpty()) {
+                            // get shortest path btw centroids
+                            Path[] centroidPaths = helper.getSimilarityService().getShortestPathBetweenCentroids(
+                                    context,
+                                    startCentroids,
+                                    endCentroids,
+                                    0.0,
+                                    maxLength,
+                                    criteria.getDomainUri(),
+                                    criteria.getMax());
+
+                            if (centroidPaths != null) {
+                                centroidBasedPaths.addAll(Arrays.asList(centroidPaths));
+                            }
+                        }
+
+
+                        if (centroidBasedPaths.isEmpty()) {
+                            LOG.info("No path found between centroids by criteria: " + criteria);
+                            return;
+                        }
+
+                        List<String> startUriList = Arrays.asList(new String[]{startUri});
+                        List<String> endUriList = Arrays.asList(new String[]{endUri});
+                        for (Path centroidPath : centroidBasedPaths) {
+
+                            // get shortest path in subgraphs
+                            List<String> sectors = centroidPath.getNodes().stream().map(node -> node.getUri()).collect(Collectors
+                                    .toList());
+                            LOG.info("Getting shortest-path by using the following centroids: " + sectors);
+
+                            Path[] paths = helper.getSimilarityService().getShortestPathBetween(
+                                    context,
+                                    startUriList,
+                                    endUriList,
+                                    types,
+                                    sectors,
+                                    criteria.getThreshold(),
+                                    maxLength,
+                                    criteria.getDomainUri(),
+                                    criteria.getMax());
+
+                            if (paths != null && paths.length > 0) {
+                                pathsResult.addAll(Arrays.asList(paths));
+                                return;
+                            }
+                        }
+
+                        LOG.info("No path found between elements after analyzed all sectors");
+                        return;
+                    } catch (Exception e){
+                        if (e instanceof InterruptedException){
+                            LOG.debug("Job interrupted");
+                        }else{
+                            LOG.error("Unexpected error", e);
+                        }
+                        return;
+                    }finally {
+                        helper.getComputingHelper().close(context);
+                    }
+                }
+            });
+
+            executor.shutdown();
+
             try {
-                Double score = helper.getSimilaritiesDao().getSimilarity(criteria.getDomainUri(), startUri, endUri);
-                LOG.info("Direct link between them: " + score);
-                if (criteria.getThreshold() != null && score >= criteria.getThreshold()){
-                    Path path = new Path();
-                    Node node = new Node(endUri, score);
-                    path.add(node);
-                    return Arrays.asList(new Path[]{path});
-                }else{
-                    LOG.info("Threshold ("+criteria.getThreshold()+") greather than direct score");
+                future.get(maxMinutes, TimeUnit.MINUTES);
+            } catch (InterruptedException e) {
+                LOG.error("job was interrupted");
+            } catch (ExecutionException e) {
+                LOG.error("caught exception: " + e.getCause());
+            } catch (TimeoutException e) {
+                future.cancel(true);
+                LOG.info("No paths found in time");
+            }
+
+            // wait all unfinished tasks for 2 sec
+            try {
+                if(!executor.awaitTermination(2, TimeUnit.SECONDS)){
+                    // force them to quit by interrupting
+                    executor.shutdownNow();
                 }
-
-            }catch (DataNotFound e){
-                LOG.info("No direct link between them");
+            } catch (InterruptedException e) {
+                LOG.debug("Interrupted job by timeout");
             }
-
-            // get centroids of startUri
-            List<String> startCentroids = helper.getClusterDao().getClusters(criteria.getDomainUri(), startUri)
-                    .stream().map(id -> String.valueOf(id)).collect(Collectors.toList());
-            LOG.info("Starting sectors: " + startCentroids);
-
-            // get centroids of endUri
-            List<String> endCentroids = helper.getClusterDao().getClusters(criteria.getDomainUri(), endUri)
-                    .stream().map(id -> String.valueOf(id)).collect(Collectors.toList());
-            LOG.info("Ending sectors: " + endCentroids);
-
-
-            List<String> intersection = startCentroids.stream().filter(endCentroids::contains).collect(Collectors.toList());
-
-            Set<Path> centroidBasedPaths = new TreeSet<>();
-            centroidBasedPaths.addAll(intersection.stream().map(uri -> {
-                Path intersectionPath = new Path();
-                intersectionPath.add(new Node(uri,1.0));
-                return intersectionPath;
-            }).collect(Collectors.toList()));
-
-            if (!intersection.isEmpty()){
-                endCentroids.removeAll(intersection);
-            }
-
-            //
-            if (!endCentroids.isEmpty()){
-                // get shortest path btw centroids
-                Path[] centroidPaths = helper.getSimilarityService().getShortestPathBetweenCentroids(
-                        context,
-                        startCentroids,
-                        endCentroids,
-                        0.0,
-                        maxLength,
-                        criteria.getDomainUri(),
-                        criteria.getMax());
-
-                if (centroidPaths != null){
-                    centroidBasedPaths.addAll(Arrays.asList(centroidPaths));
-                }
-            }
-
-
-            if (centroidBasedPaths.isEmpty()){
-                LOG.info("No path found between centroids by criteria: " + criteria);
-                return Collections.EMPTY_LIST;
-            }
-
-            List<String> startUriList = Arrays.asList(new String[]{startUri});
-            List<String> endUriList = Arrays.asList(new String[]{endUri});
-            for (Path centroidPath : centroidBasedPaths){
-
-                // get shortest path in subgraphs
-                List<String> sectors = centroidPath.getNodes().stream().map(node -> node.getUri()).collect(Collectors
-                        .toList());
-                LOG.info("Getting shortest-path by using the following centroids: " + sectors);
-
-                Path[] paths = helper.getSimilarityService().getShortestPathBetween(
-                        context,
-                        startUriList,
-                        endUriList,
-                        types,
-                        sectors,
-                        criteria.getThreshold(),
-                        maxLength,
-                        criteria.getDomainUri(),
-                        criteria.getMax());
-
-                if (paths != null && paths.length > 0){
-                    return Arrays.asList(paths);
-                }
-            }
-
-            LOG.info("No path found between elements after analyzed all sectors");
-            return Collections.EMPTY_LIST;
-        }catch (Exception e){
-            LOG.error("Unexpected error", e);
-            return Collections.emptyList();
-        }finally {
-            helper.getComputingHelper().close(context);
+        } catch (InterruptedException e) {
+            LOG.info("Execution interrupted.");
         }
+
+        return pathsResult;
+
     }
 
 
