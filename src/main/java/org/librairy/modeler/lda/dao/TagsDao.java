@@ -39,10 +39,14 @@ public class TagsDao extends AbstractDao{
 
     public void initialize(String domainUri){
         LOG.info("creating a LDA tags table for domain: " + domainUri);
-        getSession(domainUri).execute("create table if not exists "+table+"(" +
-                WORD+" text, " +
-                SCORE+" double, " +
-                "primary key ("+WORD+"));");
+        try{
+            getSession(domainUri).execute("create table if not exists "+table+"(" +
+                    WORD+" text, " +
+                    SCORE+" double, " +
+                    "primary key ("+WORD+"));");
+        }catch (InvalidQueryException e){
+            LOG.warn(e.getMessage());
+        }
     }
 
 

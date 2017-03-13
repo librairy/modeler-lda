@@ -19,6 +19,8 @@ import org.librairy.computing.helper.StorageHelper;
 import org.librairy.modeler.lda.graph.DiscoveryPath;
 import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.dao.SimilaritiesDao;
+import org.librairy.modeler.lda.graph.PregelSSSP;
+import org.librairy.modeler.lda.graph.ShortestPathBuilder;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Path;
 import org.slf4j.Logger;
@@ -27,6 +29,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import scala.collection.JavaConversions;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -44,27 +48,35 @@ public class SimilarityService {
     @Autowired
     StorageHelper storageHelper;
 
+    @Autowired
+    ShortestPathService shortestPathService;
+
 
     public Path[] getShortestPathBetween(ComputingContext context, List<String> startUris, List<String> endUris, List<String> resTypes,
                                          List<String> sectors, Double minScore, Integer maxLength, String domainUri, Integer maxResults) throws IllegalArgumentException{
+        try{
+            LOG.info("loading nodes..");
+            DataFrame shapesDF = loadShapes(context, domainUri, sectors, resTypes).cache();
+            long numNodes = shapesDF.count();
+            LOG.info(numNodes + " nodes load!");
 
-        LOG.info("loading nodes..");
-        DataFrame shapesDF = loadShapes(context, domainUri, sectors, resTypes).cache();
-        long numNodes = shapesDF.count();
-        LOG.info(numNodes + " nodes load!");
+            LOG.info("loading similarities..");
+            DataFrame similaritiesDF = loadSimilarities(context, domainUri, sectors, minScore, resTypes).cache();
+            long numSim = similaritiesDF.count();
+            LOG.info(numSim + " edges load!");
 
-        LOG.info("loading similarities..");
-        DataFrame similaritiesDF = loadSimilarities(context, domainUri, sectors, minScore, resTypes).cache();
-        long numSim = similaritiesDF.count();
-        LOG.info(numSim + " edges load!");
+            LOG.info("discovering shortest path between:  '"+ startUris + "' and '"+endUris+"' in domain: '" +
+                    domainUri+"' filtered by " + resTypes + " with min score " + minScore + " and  max " + maxLength + " steps");
 
-        LOG.info("discovering shortest path between:  '"+ startUris + "' and '"+endUris+"' in domain: '" +
-                domainUri+"' filtered by " + resTypes + " with min score " + minScore + " and  max " + maxLength + " steps");
+            Path[] paths = shortestPathService.calculate(domainUri, startUris, endUris, resTypes, minScore, maxLength, shapesDF, similaritiesDF, maxResults, context.getRecommendedPartitions(), true);
 
-        scala.collection.immutable.List<String> start   = JavaConversions.asScalaBuffer(startUris).toList();
-        scala.collection.immutable.List<String> end     = JavaConversions.asScalaBuffer(endUris).toList();
-        scala.collection.immutable.List<String> types   = JavaConversions.asScalaBuffer(resTypes).toList();
-        return DiscoveryPath.apply(start, end, minScore, maxLength, types,  shapesDF, similaritiesDF, maxResults, context.getRecommendedPartitions());
+            shapesDF.unpersist();
+            similaritiesDF.unpersist();
+            return paths;
+        } catch (IllegalArgumentException e){
+            LOG.warn(e.getMessage());
+            return new Path[]{};
+        }
     }
 
     public Path[] getShortestPathBetweenCentroids(ComputingContext context, List<String> startUris, List<String> endUris, Double
@@ -72,17 +84,27 @@ public class SimilarityService {
 
         LOG.info("loading nodes..");
         DataFrame nodesDF = loadCentroids(context, domainUri).cache();
-        nodesDF.take(1);
+        long numNodes = nodesDF.count();
+        LOG.info(numNodes + " nodes load!");
 
         LOG.info("loading edges..");
-        DataFrame edgesDF = loadCentroidSimilarities(context, domainUri).cache();
-        edgesDF.take(1);
+        DataFrame edgesDF = loadCentroidSimilarities(context, domainUri, minScore).cache();
+        long numSim = edgesDF.count();
+        LOG.info(numSim + " edges load!");
 
         LOG.info("discovering shortest path between centroids:  '"+ startUris + "' and '"+endUris+"' in domain: '" + domainUri+"'" );
         scala.collection.immutable.List<String> start   = JavaConversions.asScalaBuffer(startUris).toList();
         scala.collection.immutable.List<String> end     = JavaConversions.asScalaBuffer(endUris).toList();
         scala.collection.immutable.List<String> types   = JavaConversions.asScalaBuffer(Collections.EMPTY_LIST).toList();
-        return DiscoveryPath.apply(start, end, minScore, maxLength, types,  nodesDF, edgesDF, maxResults, context.getRecommendedPartitions());
+        Path[] paths = DiscoveryPath.apply(start, end, minScore, maxLength, types, nodesDF, edgesDF, maxResults, context.getRecommendedPartitions());
+
+
+//        Path[] paths = shortestPathService.calculate(domainUri, startUris, endUris, Collections.EMPTY_LIST, minScore, maxLength, nodesDF, edgesDF, maxResults, context.getRecommendedPartitions(), false);
+
+        nodesDF.unpersist();
+        edgesDF.unpersist();
+
+        return paths;
     }
 
     private DataFrame loadCentroids(ComputingContext context, String domainUri) throws IllegalArgumentException {
@@ -94,20 +116,24 @@ public class SimilarityService {
         return loadCentroidsFromFileSystem(context, URIGenerator.retrieveId(domainUri), "nodes");
     }
 
-    private DataFrame loadCentroidSimilarities(ComputingContext context, String domainUri) throws IllegalArgumentException {
+    private DataFrame loadCentroidSimilarities(ComputingContext context, String domainUri, Double minScore) throws IllegalArgumentException {
 
         if (!storageHelper.exists(storageHelper.path(URIGenerator.retrieveId(domainUri), "lda/similarities/centroids/edges"))){
             throw new IllegalArgumentException("No centroid-similarities found for domain: " + domainUri);
         }
 
-        return loadCentroidsFromFileSystem(context, URIGenerator.retrieveId(domainUri), "edges");
+        DataFrame df = loadCentroidsFromFileSystem(context, URIGenerator.retrieveId(domainUri), "edges").filter(SimilaritiesDao.SCORE + " >= " + minScore);
+
+        Arrays.stream(df.collect()).forEach(row -> LOG.info("ROW: " + row));
+
+        return df;
     }
 
 
-    private DataFrame loadShapes(ComputingContext context, String domainUri, List<String> sectors, List<String> types) throws IllegalArgumentException {
+    public DataFrame loadShapes(ComputingContext context, String domainUri, List<String> sectors, List<String> types) throws IllegalArgumentException {
 
         DataFrame df = null;
-
+        String previousSector = "";
         for (String sectorId : sectors){
             LOG.info("loading nodes from sector: " + sectorId + " ...");
 
@@ -115,15 +141,21 @@ public class SimilarityService {
             if (df == null){
                 df = sectorDF;
             }else{
+                long intersection = df.intersect(sectorDF).count();
+                LOG.info(intersection + " nodes in both sectors: [" + previousSector + " and " + sectorId + "]");
+                if (intersection == 0l) {
+                    throw new IllegalArgumentException("No intersection between [" + previousSector + " and " + sectorId + "]");
+                }
                 df = df.unionAll(sectorDF).distinct();
             }
+            previousSector = sectorId;
         }
         LOG.info("all nodes loaded");
         return df;
     }
 
 
-    private DataFrame loadSimilarities(ComputingContext context, String domainUri, List<String> sectors, Double minScore, List<String> types) throws IllegalArgumentException {
+    public DataFrame loadSimilarities(ComputingContext context, String domainUri, List<String> sectors, Double minScore, List<String> types) throws IllegalArgumentException {
 
         DataFrame df = null;
 
@@ -208,8 +240,7 @@ public class SimilarityService {
     }
 
     public DataFrame loadSubgraphFromFileSystem(ComputingContext context, String id, String label, String centroidId, Optional<Double> minScore, List<String> types){
-        String modelPath = storageHelper.absolutePath(storageHelper.path(id,
-                "lda/similarities/subgraphs/"+centroidId+"/"+label));
+        String modelPath = storageHelper.absolutePath(storageHelper.path(id, "lda/similarities/subgraphs/"+centroidId+"/"+label));
         LOG.info("loading subgraph "+centroidId + "/"+ label+" from graph-model:" + modelPath);
 
         Boolean extendedTypeFilter = (label.equalsIgnoreCase("edges"));
@@ -222,21 +253,21 @@ public class SimilarityService {
 
 
         if (minScore.isPresent() && types.isEmpty())
-            return context.getCassandraSQLContext().load(modelPath).filter(scoreFilter);
+            return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions()).filter(scoreFilter);
         else if (minScore.isPresent() && !types.isEmpty()){
             if (extendedTypeFilter){
-                return context.getCassandraSQLContext().load(modelPath).filter(scoreFilter).filter(typeFilter).filter("resource_type_2 in (" + types.stream().map(t -> "'"+t+"'").collect(Collectors.joining(",")) + ")");
+                return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions()).filter(scoreFilter).filter(typeFilter).filter("resource_type_2 in (" + types.stream().map(t -> "'"+t+"'").collect(Collectors.joining(",")) + ")");
             }else{
-                return context.getCassandraSQLContext().load(modelPath).filter(scoreFilter).filter(typeFilter);
+                return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions()).filter(scoreFilter).filter(typeFilter);
             }
         }else if (!minScore.isPresent() && types.isEmpty()){
-            return context.getCassandraSQLContext().load(modelPath);
+            return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions());
         }else{
 
             if (extendedTypeFilter){
-                return context.getCassandraSQLContext().load(modelPath).filter(typeFilter).filter("resource_type_2 in (" + types.stream().map(t -> "'"+t+"'").collect(Collectors.joining(",")) + ")");
+                return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions()).filter(typeFilter).filter("resource_type_2 in (" + types.stream().map(t -> "'"+t+"'").collect(Collectors.joining(",")) + ")");
             }else{
-                return context.getCassandraSQLContext().load(modelPath).filter(typeFilter);
+                return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions()).filter(typeFilter);
             }
         }
     }
@@ -265,13 +296,13 @@ public class SimilarityService {
     public DataFrame loadFromFileSystem(ComputingContext context, String id, String label){
         String modelPath = storageHelper.absolutePath(storageHelper.path(id,"lda/similarities/graph/"+label));
         LOG.info("loading "+label+" from graph-model:" + modelPath);
-        return context.getCassandraSQLContext().load(modelPath);
+        return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions());
     }
 
     public DataFrame loadCentroidsFromFileSystem(ComputingContext context, String id, String label){
         String modelPath = storageHelper.absolutePath(storageHelper.path(id,"lda/similarities/centroids/"+label));
         LOG.info("loading "+label+" from centroids-graph-model:" + modelPath);
-        return context.getCassandraSQLContext().load(modelPath);
+        return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions());
     }
 
 

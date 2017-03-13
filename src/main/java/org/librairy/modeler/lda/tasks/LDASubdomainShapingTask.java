@@ -131,27 +131,28 @@ public class LDASubdomainShapingTask implements Runnable {
                     DataFrame distTopicsDF = itemsDF
                             .join(shapesDF, itemsDF.col("uri").equalTo(shapesDF.col(ShapesDao.RESOURCE_URI)));
 
-
                     JavaRDD<double[]> rows = distTopicsDF
                             .toJavaRDD()
                             .filter(row -> row.get(2) != null)
                             .map(new RowToArray())
+                            .cache()
                             ;
 
                     LOG.info("generating shape for subdomain: " + subdomainUri + " in domain: " + domainUri + " ..");
                     double[] shape = rows.reduce((a, b) -> Bernoulli.apply(a, b));
 
-                    ShapeRow row = new ShapeRow();
-                    row.setUri(subdomainUri);
-                    row.setVector(Doubles.asList(shape));
-                    row.setId(Long.valueOf(Math.abs(subdomainUri.hashCode())));
+                    rows.unpersist();
+
+                    if ((shape != null) && (shape.length > 0)){
+                        ShapeRow row = new ShapeRow();
+                        row.setUri(subdomainUri);
+                        row.setVector(Doubles.asList(shape));
+                        row.setId(Long.valueOf(Math.abs(subdomainUri.hashCode())));
 
 
-                    helper.getShapesDao().save(domainUri, row);
-                    LOG.info("shape saved!");
-
-
-
+                        helper.getShapesDao().save(domainUri, row);
+                        LOG.info("shape saved!");
+                    }
                 } catch (Exception e){
                     // TODO Notify to event-bus when source has not been added
                     LOG.error("Error scheduling a new topic model for Items from domain: " + domainUri, e);

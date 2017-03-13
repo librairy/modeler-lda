@@ -61,6 +61,8 @@ public class LDAShapingTask implements Runnable {
                     // Calculate topic distributions for Items and Parts
                     helper.getDealsBuilder().build(context, corpus,model);
 
+                    corpus.clean();
+
                     helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
 
                 } catch (Exception e){

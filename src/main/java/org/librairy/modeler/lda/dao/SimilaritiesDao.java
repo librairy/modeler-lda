@@ -53,18 +53,22 @@ public class SimilaritiesDao extends  AbstractDao{
     }
 
     public void createTable(String table, String domainUri){
-        getSession(domainUri).execute("create table if not exists "+table+"(" +
-                RESOURCE_URI_1 +" text, " +
-                RESOURCE_TYPE_1+" text, " +
-                RESOURCE_URI_2 +" text, " +
-                RESOURCE_TYPE_2+" text, " +
-                SCORE+" double, " +
-                DATE+" text, " +
-                "primary key ("+RESOURCE_URI_1+", "+SCORE+","+RESOURCE_URI_2+"))" +
-                "with clustering order by ("+SCORE+" DESC, "+RESOURCE_URI_2+" ASC"+ ");");
-        getSession(domainUri).execute("create index if not exists on "+table+" ("+RESOURCE_URI_2+");");
-        getSession(domainUri).execute("create index if not exists on "+table+" ("+RESOURCE_TYPE_2+");");
-        LOG.info("created LDA "+table+" table for domain: " + domainUri);
+        try{
+            getSession(domainUri).execute("create table if not exists "+table+"(" +
+                    RESOURCE_URI_1 +" text, " +
+                    RESOURCE_TYPE_1+" text, " +
+                    RESOURCE_URI_2 +" text, " +
+                    RESOURCE_TYPE_2+" text, " +
+                    SCORE+" double, " +
+                    DATE+" text, " +
+                    "primary key ("+RESOURCE_URI_1+", "+SCORE+","+RESOURCE_URI_2+"))" +
+                    "with clustering order by ("+SCORE+" DESC, "+RESOURCE_URI_2+" ASC"+ ");");
+            getSession(domainUri).execute("create index if not exists on "+table+" ("+RESOURCE_URI_2+");");
+            getSession(domainUri).execute("create index if not exists on "+table+" ("+RESOURCE_TYPE_2+");");
+            LOG.info("created LDA "+table+" table for domain: " + domainUri);
+        }catch (InvalidQueryException e){
+            LOG.warn(e.getMessage());
+        }
     }
 
 
@@ -94,8 +98,12 @@ public class SimilaritiesDao extends  AbstractDao{
     @Override
     public void destroy(String domainUri){
         LOG.info("dropping existing LDA similarity  table for domain: " + domainUri);
-        sessionManager.getSession(domainUri).execute("truncate "+table+";");
-        sessionManager.getSession(domainUri).execute("truncate "+CENTROIDS_TABLE+";");
+        try{
+            sessionManager.getSession(domainUri).execute("truncate "+table+";");
+            sessionManager.getSession(domainUri).execute("truncate "+CENTROIDS_TABLE+";");
+        }catch (InvalidQueryException e){
+            LOG.warn(e.getMessage());
+        }
     }
 
 }

@@ -111,11 +111,17 @@ public class LDAComparisonTask implements Runnable {
                                 .options(ImmutableMap.of("table", ComparisonsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
                                 .mode(SaveMode.Append)
                                 .save();
+
+                        rows.unpersist();
+
+                        domainTopicsRDD.unpersist();
+
                     }
 
                     LOG.info("Comparisons created for " + domainUri);
 
-                    //TODO publish event
+                    topicsRDD.unpersist();
+
                     helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
 
                 } catch (Exception e) {

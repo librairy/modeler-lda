@@ -85,6 +85,9 @@ public class DealsBuilder {
                 .mode(SaveMode.Append)
                 .save()
                 ;
+
+        rows.unpersist();
+
         LOG.info("saved!");
     }
 }

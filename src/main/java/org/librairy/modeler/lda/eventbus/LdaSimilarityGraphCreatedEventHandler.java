@@ -43,7 +43,7 @@ public class LdaSimilarityGraphCreatedEventHandler implements EventBusSubscriber
 
     @PostConstruct
     public void init(){
-        BindingKey bindingKey = BindingKey.of(RoutingKey.of(LDASimilarityGraphTask.ROUTING_KEY_ID), "lda.similarity.graph.created");
+        BindingKey bindingKey = BindingKey.of(RoutingKey.of(LDASimilarityGraphTask.ROUTING_KEY_ID), "modeler.lda.similarity.graph.created");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");
@@ -59,7 +59,7 @@ public class LdaSimilarityGraphCreatedEventHandler implements EventBusSubscriber
             Domain domain = new Domain();
             domain.setUri(domainUri);
 
-            LOG.info("Domain updated by a new LDA Model!!");
+            LOG.info("Domain '"+domainUri+"' updated with a new LDA Model!!");
             eventBus.post(Event.from(domain), RoutingKey.of(Resource.Type.DOMAIN, Resource.State.UPDATED));
 
 

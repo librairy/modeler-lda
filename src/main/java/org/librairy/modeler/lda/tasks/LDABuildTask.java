@@ -110,6 +110,12 @@ public class LDABuildTask {
 
         LOG.info("saved!");
 
+        rows.unpersist();
+
+        topics.unpersist();
+
+        broadcastVocabulary.unpersist();
+
     }
 
     public TopicModel train(Corpus corpus){

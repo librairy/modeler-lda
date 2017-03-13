@@ -75,6 +75,11 @@ public class Corpus {
         this.types = types;
     }
 
+    public void clean(){
+        if (bow != null) bow.unpersist(false);
+        if (df != null) df.unpersist();
+    }
+
     public void updateRegistry(List<String> ids){
         this.registry = new ConcurrentHashMap<>();
         ids.stream().forEach(id -> registry.put(RowToPair.from(id),id));
@@ -144,6 +149,8 @@ public class Corpus {
 
         this.df = process(docsDF)
                 .cache();
+
+        docsDF.unpersist();
 
         LOG.info("processing documents ..");
         this.df.take(1);

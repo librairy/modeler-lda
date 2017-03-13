@@ -47,14 +47,18 @@ public class TopicsDao extends AbstractDao{
 
     public void initialize(String domainUri){
         LOG.info("creating a LDA topics table for domain: " + domainUri);
-        getSession(domainUri).execute("create table if not exists "+table+"(" +
-                URI+" text, " +
-                ID+" bigint, " +
-                DESCRIPTION+" text, " +
-                ELEMENTS+" list<text>, " +
-                SCORES+" list<double>, " +
-                DATE+" text, " +
-                "primary key ("+URI+","+ID+"));");
+        try{
+            getSession(domainUri).execute("create table if not exists "+table+"(" +
+                    URI+" text, " +
+                    ID+" bigint, " +
+                    DESCRIPTION+" text, " +
+                    ELEMENTS+" list<text>, " +
+                    SCORES+" list<double>, " +
+                    DATE+" text, " +
+                    "primary key ("+URI+","+ID+"));");
+        }catch (InvalidQueryException e){
+            LOG.warn(e.getMessage());
+        }
     }
 
 

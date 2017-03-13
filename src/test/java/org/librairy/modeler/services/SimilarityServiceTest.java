@@ -15,6 +15,7 @@ import org.apache.spark.sql.types.StructField;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
+import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.modeler.lda.Config;
@@ -62,7 +63,7 @@ public class SimilarityServiceTest {
 
 
     @Test
-    public void shortestPath() throws InterruptedException {
+    public void shortestPath() throws InterruptedException, DataNotFound {
         String startUri = "http://librairy.org/items/QPp_13RU16Sv1";
         String endUri   = "http://librairy.org/items/XyAE13Ei2RhQP";
         //List<String> types = Arrays.asList(new String[]{"item"});
@@ -101,9 +102,9 @@ public class SimilarityServiceTest {
                     .option("charset", "UTF-8")
                     .option("mode", "DROPMALFORMED")
                     .options(ImmutableMap.of("table", ShapesDao.CENTROIDS_TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
-                    .load()
-                    .repartition(context.getRecommendedPartitions())
-                    .cache();
+                    .load();
+//                    .repartition(context.getRecommendedPartitions())
+//                    .cache();
 
             LOG.info("Saving centroids in filesystem ...");
             helper.getSimilarityService().saveCentroids(domainUri, dataFrame);

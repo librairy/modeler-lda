@@ -65,14 +65,15 @@ object DiscoveryPath {
 
     result.show();
 
-    //TODO handle direct path
     val numNodes = result.columns.filter( _.contains("v")).length
 
     val res2 = result.rdd.map(row => PathBuilder.apply(row,numNodes))
 
-    val res3 = res2.sortBy(_.getAccScore, false);
-
     val paths = res2.take(maxResults)
+
+    v.unpersist()
+    e.unpersist()
+    result.unpersist()
 
 //    val paths : Array[Path] = result.rdd.map(row => PathBuilder.apply(row,numNodes)).sortBy( _.getAccScore, false).take(maxResults)
     logger.debug("Paths: " + paths)

@@ -87,7 +87,16 @@ public class LDADomainTagTask implements Runnable {
                                 .save();
                         LOG.info("tags saved!");
 
+                        rows.unpersist();
+
+                        tagsRDD.unpersist();
+
+                        wordsRDD.unpersist();
+
+                        trRDD.unpersist();
+
                         helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
+
                     }catch (Exception e){
                         LOG.error("Unexpected error", e);
                     }

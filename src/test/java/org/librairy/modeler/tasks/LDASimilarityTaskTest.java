@@ -9,6 +9,7 @@ package org.librairy.modeler.tasks;
 
 import com.google.common.collect.ImmutableMap;
 import es.cbadenes.lab.test.IntegrationTest;
+import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.mllib.clustering.KMeans;
 import org.apache.spark.mllib.clustering.KMeansModel;
@@ -19,6 +20,7 @@ import org.apache.spark.mllib.linalg.distributed.MatrixEntry;
 import org.apache.spark.mllib.linalg.distributed.RowMatrix;
 import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.DataFrame;
+import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.junit.Test;
@@ -33,12 +35,15 @@ import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
 import org.librairy.modeler.lda.Config;
 import org.librairy.modeler.lda.api.SessionManager;
+import org.librairy.modeler.lda.builder.WorkspaceBuilder;
+import org.librairy.modeler.lda.dao.ClusterDao;
 import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.dao.SimilaritiesDao;
 import org.librairy.modeler.lda.dao.SimilarityRow;
 import org.librairy.modeler.lda.functions.RowToTupleVector;
 import org.librairy.modeler.lda.functions.RowToVector;
 import org.librairy.modeler.lda.helper.ModelingHelper;
+import org.librairy.modeler.lda.models.Centroid;
 import org.librairy.modeler.lda.tasks.LDAAnnotationsTask;
 import org.librairy.modeler.lda.tasks.LDASimilarityTask;
 import org.slf4j.Logger;
@@ -49,9 +54,12 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import scala.Tuple2;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
@@ -63,11 +71,13 @@ import java.util.stream.IntStream;
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = Config.class)
 @TestPropertySource(properties = {
-        "librairy.lda.event.value = 60000",
+//        "librairy.lda.event.value = 60000",
+//        "librairy.eventbus.host = local",
 //        "librairy.computing.cluster = local[4]",
 //        "librairy.computing.cores = 8"
 //        "librairy.computing.cluster = spark://minetur.dia.fi.upm.es:7077",
-//        "librairy.computing.cores = 120",
+//        "librairy.computing.cores = 80",
+//        "librairy.computing.memory = 82",
         "librairy.computing.fs = hdfs://minetur.dia.fi.upm.es:9000"
 })
 public class LDASimilarityTaskTest {
@@ -78,9 +88,14 @@ public class LDASimilarityTaskTest {
     @Autowired
     ModelingHelper helper;
 
+    @Autowired
+    WorkspaceBuilder workspaceBuilder;
+
     @Test
     public void execute() throws InterruptedException, DataNotFound {
-        String domainUri = "http://librairy.org/domains/ae5753952f7db4b1d56a5942e08476f9";
+        String domainUri = "http://librairy.org/domains/eahb";
+
+//        workspaceBuilder.initialize(domainUri);
 
         LDASimilarityTask task = new LDASimilarityTask(domainUri, helper);
 
@@ -442,4 +457,138 @@ public class LDASimilarityTaskTest {
 
     }
 
+
+    @Test
+    public void updateSimCentroids() throws InterruptedException {
+
+        String domainUri = "http://librairy.org/domains/141fc5bbcf0212ec9bee5ef66c6096ab";
+
+        final ComputingContext context = helper.getComputingHelper().newContext("lda.similarity."+ URIGenerator.retrieveId(domainUri));
+
+        helper.getComputingHelper().execute(context, () -> {
+
+            Instant start = Instant.now();
+
+            List<SimilarityRow>  simcenRows = new ArrayList<>();
+
+
+            IntStream.range(1,188).forEach(id -> {
+
+                LOG.info("Reviewing centroid '" + id + "'");
+
+                Centroid centroid = new Centroid();
+                centroid.setId(Long.valueOf(id));
+
+                DataFrame refDF = context.getCassandraSQLContext()
+                        .read()
+                        .format("org.apache.spark.sql.cassandra")
+                        .schema(DataTypes
+                                .createStructType(new StructField[]{
+                                        DataTypes.createStructField(ClusterDao.URI, DataTypes.StringType, false),
+                                        DataTypes.createStructField(ClusterDao.CLUSTER, DataTypes.LongType, false)
+                                }))
+                        .option("inferSchema", "false") // Automatically infer data types
+                        .option("charset", "UTF-8")
+                        .option("mode", "DROPMALFORMED")
+                        .options(ImmutableMap.of("table", ClusterDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                        .load()
+                        .repartition(context.getRecommendedPartitions())
+                        .filter( ClusterDao.CLUSTER +" = " + centroid.getId())
+                        .cache()
+                        ;
+                long centroidSize = refDF.count();
+                LOG.debug(centroidSize + " elements in cluster: " + centroid);
+
+                boolean matched = false;
+
+                for (int nid = 1; nid < 188; nid ++){
+
+                    if ((id == nid) || (nid < id)) continue;
+
+                    DataFrame neighbourDF = context.getCassandraSQLContext()
+                            .read()
+                            .format("org.apache.spark.sql.cassandra")
+                            .schema(DataTypes
+                                    .createStructType(new StructField[]{
+                                            DataTypes.createStructField(ClusterDao.URI, DataTypes.StringType, false),
+                                            DataTypes.createStructField(ClusterDao.CLUSTER, DataTypes.LongType, false)
+                                    }))
+                            .option("inferSchema", "false") // Automatically infer data types
+                            .option("charset", "UTF-8")
+                            .option("mode", "DROPMALFORMED")
+                            .options(ImmutableMap.of("table", ClusterDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                            .load()
+                            .repartition(context.getRecommendedPartitions())
+                            .filter( ClusterDao.CLUSTER +" = " + nid)
+                            .cache();
+                    long neighbourSize = neighbourDF.count();
+
+                    long intersection = refDF.select(ClusterDao.URI).intersect(neighbourDF.select(ClusterDao.URI)).count();
+
+//                    neighbourDF.unpersist();
+
+                    if (intersection>0){
+                        LOG.info(intersection + " elements in both clusters: '" + id + "' and '" + nid+"'");
+                        matched = true;
+
+                        // From centroid to neighbour
+                        SimilarityRow row1 = new SimilarityRow();
+                        row1.setDate(TimeUtils.asISO());
+                        row1.setResource_uri_1(String.valueOf(id));
+                        row1.setResource_type_1("centroid");
+                        row1.setResource_uri_2(String.valueOf(nid));
+                        row1.setResource_type_2("centroid");
+                        row1.setScore((intersection == 0)? 0.0 : Double.valueOf(intersection)/Double.valueOf(centroidSize));
+                        simcenRows.add(row1);
+                        LOG.debug("Created similarity: " + row1);
+
+                        // From centroid to neighbour
+                        SimilarityRow row2 = new SimilarityRow();
+                        row2.setDate(TimeUtils.asISO());
+                        row2.setResource_uri_1(String.valueOf(nid));
+                        row2.setResource_type_1("centroid");
+                        row2.setResource_uri_2(String.valueOf(id));
+                        row2.setResource_type_2("centroid");
+                        row2.setScore((intersection == 0)? 0.0 : Double.valueOf(intersection)/Double.valueOf(neighbourSize));
+                        simcenRows.add(row2);
+                        LOG.debug("Created similarity: " + row2);
+
+
+                    }
+                }
+
+
+
+                if (!matched) LOG.warn("Cluster '" + centroid.getId() + "' has not intersections!!!");
+
+//                refDF.unpersist();
+
+            });
+
+            Instant end1 = Instant.now();
+            LOG.info("Calculated in: "       + ChronoUnit.HOURS.between(start,end1) + "h " +  ChronoUnit.MINUTES.between(start,end1) + "min " + (ChronoUnit.SECONDS.between(start,end1)%60) + "secs");
+
+            LOG.info("ready to save " + simcenRows.size() + " similarities!!");
+
+            JavaRDD<SimilarityRow> centroidRows = context.getSparkContext().parallelize(simcenRows);
+
+            LOG.debug("saving centroid-similarities ..");
+                context.getSqlContext()
+                        .createDataFrame(centroidRows, SimilarityRow.class)
+                        .write()
+                        .format("org.apache.spark.sql.cassandra")
+                        .options(ImmutableMap.of("table", SimilaritiesDao.CENTROIDS_TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                        .mode(SaveMode.Append)
+                        .save();
+
+            Instant end2 = Instant.now();
+            LOG.info("Completed in: "       + ChronoUnit.HOURS.between(start,end2) + "h " +  ChronoUnit.MINUTES.between(start,end2) + "min " + (ChronoUnit.SECONDS.between(start,end2)%60) + "secs");
+
+            });
+            try {
+                Thread.sleep(Long.MAX_VALUE);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
 }

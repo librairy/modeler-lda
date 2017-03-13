@@ -57,6 +57,8 @@ public class LDATrainingTask implements Runnable {
                     LOG.info("training the model ..");
                     helper.getLdaBuilder().build(context, corpus);
 
+                    corpus.clean();
+
                     helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
                 }catch (Exception e){
                     if (e instanceof InterruptedException) LOG.warn("Execution canceled");

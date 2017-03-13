@@ -57,7 +57,7 @@ public class PartCache {
                             public Boolean load(ComposedKey key) {
                                 //cachear item para no insertar más veces
                                 try {
-                                    partsDao.add(key.getDomainUri(), key.getResourceUri());
+                                    partsDao.addToDomain(key.getDomainUri(), key.getResourceUri());
 
                                     Long delay = delayCache.getDelay(key.getDomainUri());
 

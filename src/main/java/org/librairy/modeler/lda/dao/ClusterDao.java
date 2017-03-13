@@ -50,15 +50,19 @@ public class ClusterDao extends  AbstractDao{
     }
 
     public void create(String domainUri, String table){
-        ResultSet result = getSession(domainUri).execute("create table if not exists " +
-                table + "(" +
-                URI + " text, " +
-                CLUSTER+ " bigint, " +
-                "primary key ( " + URI+ " , " + CLUSTER + " ));");
-        if (!result.wasApplied()){
-            LOG.warn("Table " + table + " not created!!");
+        try{
+            ResultSet result = getSession(domainUri).execute("create table if not exists " +
+                    table + "(" +
+                    URI + " text, " +
+                    CLUSTER+ " bigint, " +
+                    "primary key ( " + URI+ " , " + CLUSTER + " ));");
+            if (!result.wasApplied()){
+                LOG.warn("Table " + table + " not created!!");
+            }
+            LOG.info("created LDA "+table+" table for domain: " + domainUri);
+        }catch (InvalidQueryException e){
+            LOG.warn(e.getMessage());
         }
-        LOG.info("created LDA "+table+" table for domain: " + domainUri);
     }
 
     public boolean save(String domainUri, ClusterRow row){

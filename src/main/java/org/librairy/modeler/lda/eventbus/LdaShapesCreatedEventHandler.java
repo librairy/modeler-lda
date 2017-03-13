@@ -42,7 +42,7 @@ public class LdaShapesCreatedEventHandler implements EventBusSubscriber {
 
     @PostConstruct
     public void init(){
-        BindingKey bindingKey = BindingKey.of(RoutingKey.of(LDAShapingTask.ROUTING_KEY_ID), "lda.shapes.created");
+        BindingKey bindingKey = BindingKey.of(RoutingKey.of(LDAShapingTask.ROUTING_KEY_ID), "modeler.lda.shapes.created");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");

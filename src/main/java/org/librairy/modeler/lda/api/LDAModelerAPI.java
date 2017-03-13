@@ -10,12 +10,18 @@ package org.librairy.modeler.lda.api;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.exceptions.InvalidQueryException;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.primitives.Doubles;
 import org.apache.commons.collections4.CollectionUtils;
+import org.apache.spark.sql.DataFrame;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.domain.resources.Domain;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
+import org.librairy.metrics.similarity.JensenShannonSimilarity;
 import org.librairy.modeler.lda.api.model.Criteria;
 import org.librairy.modeler.lda.api.model.ScoredResource;
 import org.librairy.modeler.lda.api.model.ScoredTopic;
@@ -23,6 +29,7 @@ import org.librairy.modeler.lda.api.model.ScoredWord;
 import org.librairy.modeler.lda.dao.*;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.*;
+import org.librairy.modeler.lda.services.ShortestPathService;
 import org.librairy.modeler.lda.tasks.LDAComparisonTask;
 import org.librairy.modeler.lda.tasks.LDATextTask;
 import org.slf4j.Logger;
@@ -49,6 +56,12 @@ public class LDAModelerAPI {
 
     @Autowired
     ModelingHelper helper;
+
+    @Autowired
+    ShortestPathAPI shortestPathAPI;
+
+    @Autowired
+    FreeTextAPI freeTextAPI;
 
 
     public String getItemFromDocument(String uri) throws DataNotFound {
@@ -306,13 +319,14 @@ public class LDAModelerAPI {
 
         LOG.info("Getting similar resources to a given text by criteria: " + criteria);
         try{
-            List<ScoredResource> resources = new LDATextTask(helper)
-                    .getSimilar(text, criteria.getMax(), criteria.getDomainUri(), criteria.getTypes())
+            List<String> types = criteria.getTypes().stream().map(type -> type.key()).collect(Collectors.toList());
+
+            return freeTextAPI
+                    .getSimilarResourcesTo(text, criteria.getDomainUri(), criteria.getThreshold(), criteria.getMax(), types)
                     .stream()
                     .map(simRes -> new ScoredResource(simRes.getUri(), "", simRes.getWeight(), simRes.getTime()))
                     .collect(Collectors.toList());
-            LOG.info("Took top-" + resources.size() + " similar resources");
-            return resources;
+
         }catch (Exception e){
             LOG.error("Unexpected error", e);
             return Collections.emptyList();
@@ -383,162 +397,28 @@ public class LDAModelerAPI {
 
 
 
-    public List<Path> getShortestPath(String startUri, String endUri, List<String> types, Integer maxLength, Criteria criteria, Integer maxMinutes) throws IllegalArgumentException {
+    public List<Path> getShortestPath(String startUri, String endUri, List<String> types, Integer maxLength, Criteria criteria, Integer maxMinutes) throws IllegalArgumentException, DataNotFound, InterruptedException {
 
-        List<Path> pathsResult = new ArrayList<>();
-
-        try{
-            final ComputingContext context = helper.getComputingHelper().newContext("lda.api.shortestpath."+ URIGenerator.retrieveId(criteria.getDomainUri()));
-
-            ExecutorService executor = Executors.newFixedThreadPool(1);
-
-
-
-            Future<?> future = executor.submit(new Runnable() {
-                @Override
-                public void run() {
-                    try {
-
-
-                        LOG.info("Getting shortest path between '" + startUri + "' and '" + endUri + "' ...");
-
-                        // get similarity btw them
-                        try {
-                            Double score = helper.getSimilaritiesDao().getSimilarity(criteria.getDomainUri(), startUri, endUri);
-                            LOG.info("Direct link between them: " + score);
-                            if (criteria.getThreshold() != null && score >= criteria.getThreshold()) {
-                                Path path = new Path();
-                                Node node = new Node(endUri, score);
-                                path.add(node);
-                                pathsResult.addAll(Arrays.asList(new Path[]{path}));
-                                return;
-                            } else {
-                                LOG.info("Threshold (" + criteria.getThreshold() + ") greather than direct score");
-                            }
-
-                        } catch (DataNotFound e) {
-                            LOG.info("No direct link between them");
-                        }
-
-                        // get centroids of startUri
-                        List<String> startCentroids = helper.getClusterDao().getClusters(criteria.getDomainUri(), startUri)
-                                .stream().map(id -> String.valueOf(id)).collect(Collectors.toList());
-                        LOG.info("Starting sectors: " + startCentroids);
-
-                        // get centroids of endUri
-                        List<String> endCentroids = helper.getClusterDao().getClusters(criteria.getDomainUri(), endUri)
-                                .stream().map(id -> String.valueOf(id)).collect(Collectors.toList());
-                        LOG.info("Ending sectors: " + endCentroids);
-
-
-                        List<String> intersection = startCentroids.stream().filter(endCentroids::contains).collect(Collectors.toList());
-
-                        Set<Path> centroidBasedPaths = new TreeSet<>();
-                        centroidBasedPaths.addAll(intersection.stream().map(uri -> {
-                            Path intersectionPath = new Path();
-                            intersectionPath.add(new Node(uri, 1.0));
-                            return intersectionPath;
-                        }).collect(Collectors.toList()));
-
-                        if (!intersection.isEmpty()) {
-                            endCentroids.removeAll(intersection);
-                        }
-
-                        //
-                        if (!endCentroids.isEmpty()) {
-                            // get shortest path btw centroids
-                            Path[] centroidPaths = helper.getSimilarityService().getShortestPathBetweenCentroids(
-                                    context,
-                                    startCentroids,
-                                    endCentroids,
-                                    0.0,
-                                    maxLength,
-                                    criteria.getDomainUri(),
-                                    criteria.getMax());
-
-                            if (centroidPaths != null) {
-                                centroidBasedPaths.addAll(Arrays.asList(centroidPaths));
-                            }
-                        }
-
-
-                        if (centroidBasedPaths.isEmpty()) {
-                            LOG.info("No path found between centroids by criteria: " + criteria);
-                            return;
-                        }
-
-                        List<String> startUriList = Arrays.asList(new String[]{startUri});
-                        List<String> endUriList = Arrays.asList(new String[]{endUri});
-                        for (Path centroidPath : centroidBasedPaths) {
-
-                            // get shortest path in subgraphs
-                            List<String> sectors = centroidPath.getNodes().stream().map(node -> node.getUri()).collect(Collectors
-                                    .toList());
-                            LOG.info("Getting shortest-path by using the following centroids: " + sectors);
-
-                            Path[] paths = helper.getSimilarityService().getShortestPathBetween(
-                                    context,
-                                    startUriList,
-                                    endUriList,
-                                    types,
-                                    sectors,
-                                    criteria.getThreshold(),
-                                    maxLength,
-                                    criteria.getDomainUri(),
-                                    criteria.getMax());
-
-                            if (paths != null && paths.length > 0) {
-                                pathsResult.addAll(Arrays.asList(paths));
-                                return;
-                            }
-                        }
-
-                        LOG.info("No path found between elements after analyzed all sectors");
-                        return;
-                    } catch (Exception e){
-                        if (e instanceof InterruptedException){
-                            LOG.debug("Job interrupted");
-                        }else{
-                            LOG.error("Unexpected error", e);
-                        }
-                        return;
-                    }finally {
-                        helper.getComputingHelper().close(context);
-                    }
-                }
-            });
-
-            executor.shutdown();
-
-            try {
-                future.get(maxMinutes, TimeUnit.MINUTES);
-            } catch (InterruptedException e) {
-                LOG.error("job was interrupted");
-            } catch (ExecutionException e) {
-                LOG.error("caught exception: " + e.getCause());
-            } catch (TimeoutException e) {
-                future.cancel(true);
-                LOG.info("No paths found in time");
-            }
-
-            // wait all unfinished tasks for 2 sec
-            try {
-                if(!executor.awaitTermination(2, TimeUnit.SECONDS)){
-                    // force them to quit by interrupting
-                    executor.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                LOG.debug("Interrupted job by timeout");
-            }
-        } catch (InterruptedException e) {
-            LOG.info("Execution interrupted.");
-        }
-
-        return pathsResult;
+        return shortestPathAPI.calculate(startUri, endUri, criteria.getDomainUri(), criteria.getThreshold(), maxLength, criteria.getMax(), types);
 
     }
 
 
+    public Double compare(String uri1,String uri2, String domainUri){
+
+        List<double[]> vectors = Arrays.asList(new String[]{uri1, uri2}).stream().map(uri -> {
+            String query = "select vector from shapes where uri='" + uri + "';";
+            ResultSet result = sessionManager.getSession(domainUri).execute(query);
+            List<Double> vector = result.one().getList(0, Double.class);
+            return Doubles.toArray(vector);
+
+        }).collect(Collectors.toList());
+
+        double score = JensenShannonSimilarity.apply(vectors.get(0), vectors.get(1));
+
+        return score;
+
+    }
 
 
 }

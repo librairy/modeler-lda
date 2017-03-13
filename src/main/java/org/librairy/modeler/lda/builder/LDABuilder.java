@@ -44,9 +44,6 @@ public class LDABuilder {
     private static Logger LOG = LoggerFactory.getLogger(LDABuilder.class);
 
     @Autowired
-    ComputingHelper computingHelper;
-
-    @Autowired
     StorageHelper storageHelper;
 
     @Autowired

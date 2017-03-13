@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016. Universidad Politecnica de Madrid
+ * Copyright (c) 2017. Universidad Politecnica de Madrid
  *
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
  *
@@ -8,19 +8,17 @@
 package org.librairy.modeler.lda.eventbus;
 
 import org.librairy.boot.model.Event;
+import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.modules.BindingKey;
 import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
-import org.librairy.modeler.lda.helper.ModelingHelper;
-import org.librairy.modeler.lda.services.ParallelExecutorService;
-import org.librairy.modeler.lda.tasks.LDAAnnotationsTask;
-import org.librairy.modeler.lda.tasks.LDASimilarityTask;
+import org.librairy.modeler.lda.cache.DelayCache;
+import org.librairy.modeler.lda.services.SubdomainShapingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import scala.collection.Parallel;
 
 import javax.annotation.PostConstruct;
 
@@ -28,39 +26,41 @@ import javax.annotation.PostConstruct;
  * Created by cbadenes on 11/01/16.
  */
 @Component
-public class LdaAnnotationsCreatedEventHandler implements EventBusSubscriber {
+public class SubdomainAddedEventHandler implements EventBusSubscriber {
 
-    private static final Logger LOG = LoggerFactory.getLogger(LdaAnnotationsCreatedEventHandler.class);
+    private static final Logger LOG = LoggerFactory.getLogger(SubdomainAddedEventHandler.class);
 
     @Autowired
     protected EventBus eventBus;
 
     @Autowired
-    ModelingHelper helper;
+    SubdomainShapingService service;
 
-    private ParallelExecutorService executor;
+    @Autowired
+    DelayCache delayCache;
 
     @PostConstruct
     public void init(){
-        BindingKey bindingKey = BindingKey.of(RoutingKey.of(LDAAnnotationsTask.ROUTING_KEY_ID), "modeler.lda.annotations" +
-                ".created");
+        BindingKey bindingKey = BindingKey.of(RoutingKey.of("subdomain.added"), "modeler.lda.subdomain.added");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");
-        executor = new ParallelExecutorService();
     }
 
     @Override
     public void handle(Event event) {
-        LOG.info("lda annotations created event received: " + event);
-        try{
-            String domainUri = event.to(String.class);
 
-            executor.execute(domainUri,1000, new LDASimilarityTask(domainUri,helper));
+        LOG.debug("Subdomain added event received: " + event);
+        try{
+            Resource resource = event.to(Resource.class);
+
+            Long delay = delayCache.getDelay(resource.getUri());
+
+            service.shape(resource.getUri(), delay);
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added
-            LOG.error("Error scheduling similarities in domain: " + event, e);
+            LOG.error("Error scheduling a new topic model for Items from domain: " + event, e);
         }
     }
 }

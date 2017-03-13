@@ -11,6 +11,8 @@ import es.cbadenes.lab.test.IntegrationTest;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
+import org.librairy.boot.model.domain.resources.Resource;
+import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.modeler.lda.api.ApiConfig;
 import org.librairy.modeler.lda.api.LDAModelerAPI;
 import org.librairy.modeler.lda.api.model.Criteria;
@@ -25,6 +27,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.util.Arrays;
@@ -37,13 +40,9 @@ import java.util.List;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = ApiConfig.class)
-//@TestPropertySource(properties = {
-//        "librairy.columndb.host = zavijava.dia.fi.upm.es",
-//        "librairy.documentdb.host = zavijava.dia.fi.upm.es",
-//        "librairy.graphdb.host = zavijava.dia.fi.upm.es",
-//        "librairy.eventbus.host = zavijava.dia.fi.upm.es"
-////        "librairy.uri = drinventor.eu" //librairy.org
-//})
+@TestPropertySource(properties = {
+        "librairy.computing.fs = hdfs://minetur.dia.fi.upm.es:9000"
+})
 public class ApiTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ApiTest.class);
@@ -82,9 +81,16 @@ public class ApiTest {
 
     @Test
     public void similarResourcesFromText(){
+        String domainUri    = "http://librairy.org/domains/eahb";
+        Criteria criteria = new Criteria();
+        criteria.setDomainUri(domainUri);
+        criteria.setThreshold(0.7);
+        criteria.setMax(10);
+        criteria.setTypes(Arrays.asList(new Resource.Type[]{Resource.Type.ITEM}));
+
 
         Text text = new Text("sample","Remember, as you use CQL, that query planning is not meant to be one of its strengths. Cassandra code typically makes the assumption that you have huge amounts of data, so it will try to avoid doing any queries that might end up being expensive. In the RMDBS world, you structure your data according to intrinsic relationships (3rd normal form, etc), whereas in Cassandra, you structure your data according to the queries you expect to need. Denormalization is (forgive the pun) the norm.");
-        List<ScoredResource> resources = api.getSimilarResources(text,new Criteria());
+        List<ScoredResource> resources = api.getSimilarResources(text,criteria);
 
         resources.forEach(res -> LOG.info("Resource: " + res));
     }
@@ -155,21 +161,25 @@ public class ApiTest {
 
 
     @Test
-    public void shortestPath() throws IllegalArgumentException {
-        String startUri     = "http://librairy.org/items/D5_1xZ1T8u6";
-        String endUri       = "http://librairy.org/items/P57zDdAuxSy";
+    public void shortestPath() throws IllegalArgumentException, DataNotFound, InterruptedException {
+        String startUri     = "http://librairy.org/parts/abs-2-s2.0-35348956577";
+        String endUri       = "http://librairy.org/parts/abs-2-s2.0-0034215531";
+        String domainUri    = "http://librairy.org/domains/eahb";
+
 
         Criteria criteria = new Criteria();
-        criteria.setDomainUri("http://librairy.org/domains/141fc5bbcf0212ec9bee5ef66c6096ab");
-        criteria.setThreshold(0.7);
+        criteria.setDomainUri(domainUri);
+        criteria.setThreshold(0.5);
         criteria.setMax(10);
 
         List<String> types  = Collections.EMPTY_LIST;
         Integer maxLength   = 10;
+        Integer maxMinutes  = 10;
 
-        List<Path> paths = api.getShortestPath(startUri, endUri, types,  maxLength, criteria, 5);
+
+        List<Path> paths = api.getShortestPath(startUri, endUri, types,  maxLength, criteria, maxMinutes);
 
         LOG.info("Paths: " + paths);
-
     }
+
 }

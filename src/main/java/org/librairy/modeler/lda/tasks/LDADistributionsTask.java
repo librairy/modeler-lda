@@ -114,8 +114,13 @@ public class LDADistributionsTask implements Runnable {
                             .save();
                     LOG.info("topic distributions saved!");
 
-                    helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
+                    rows.unpersist();
 
+                    topics.unpersist();
+
+                    shapes.unpersist();
+
+                    helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
                 } catch (Exception e){
                     // TODO Notify to event-bus when source has not been added
                     LOG.error("Error creating topic distributions in domain: " + domainUri, e);

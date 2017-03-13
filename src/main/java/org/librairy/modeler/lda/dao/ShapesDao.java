@@ -52,23 +52,32 @@ public class ShapesDao extends  AbstractDao{
     }
 
     public void create(String domainUri, String table){
-        ResultSet result = getSession(domainUri).execute("create table if not exists " +
-                table + "(" +
-                RESOURCE_ID + " bigint, " +
-                RESOURCE_URI + " text, " +
-                RESOURCE_TYPE + " text, " +
-                VECTOR + " list<double>, " +
-                DATE + " text, " +
-                "primary key (" + RESOURCE_ID + "));");
-        if (!result.wasApplied()){
-            LOG.warn("Table " + table + " not created!!");
+        try{
+            ResultSet result = getSession(domainUri).execute("create table if not exists " +
+                    table + "(" +
+                    RESOURCE_ID + " bigint, " +
+                    RESOURCE_URI + " text, " +
+                    RESOURCE_TYPE + " text, " +
+                    VECTOR + " list<double>, " +
+                    DATE + " text, " +
+                    "primary key (" + RESOURCE_ID + "));");
+            if (!result.wasApplied()){
+                LOG.warn("Table " + table + " not created!!");
+            }
+            getSession(domainUri).execute("create index if not exists on "+table+" ("+RESOURCE_URI+");");
+            getSession(domainUri).execute("create index if not exists on "+table+" ("+RESOURCE_TYPE+");");
+            LOG.info("created LDA "+table+" table for domain: " + domainUri);
+        }catch (InvalidQueryException e){
+            LOG.warn(e.getMessage());
         }
-        getSession(domainUri).execute("create index if not exists on "+table+" ("+RESOURCE_URI+");");
-        getSession(domainUri).execute("create index if not exists on "+table+" ("+RESOURCE_TYPE+");");
-        LOG.info("created LDA "+table+" table for domain: " + domainUri);
     }
 
     public boolean save(String domainUri, ShapeRow row){
+        try{
+            if (row.getUri() != null) row.setType(URIGenerator.typeFrom(row.getUri()).name());
+        }catch (RuntimeException e){
+            LOG.debug(e.getMessage());
+        }
         return save(domainUri, row, TABLE);
     }
 
@@ -78,16 +87,9 @@ public class ShapesDao extends  AbstractDao{
 
     public boolean save(String domainUri, ShapeRow row, String table){
 
-        String type = "";
-        try{
-            type = URIGenerator.typeFrom(row.getUri()).name();
-        }catch (RuntimeException e){
-            LOG.debug(e.getMessage());
-        }
-
         String query = "insert into "+table+" ("+RESOURCE_ID+","+RESOURCE_URI+","+RESOURCE_TYPE+","+VECTOR+"," +
                 ""+DATE+") " +
-                "values ("+row.getId()+", '" + row.getUri() +"' , '"+ type + "', " + row.getVector() +", '" +TimeUtils
+                "values ("+row.getId()+", '" + row.getUri() +"' , '"+ row.getType() + "', " + row.getVector() +", '" +TimeUtils
                 .asISO() +"');";
 
         try{
@@ -103,8 +105,21 @@ public class ShapesDao extends  AbstractDao{
     @Override
     public void destroy(String domainUri){
         LOG.info("dropping existing LDA shapes table for domain: " + domainUri);
-        sessionManager.getSession(domainUri).execute("truncate "+table+";");
-        sessionManager.getSession(domainUri).execute("truncate "+CENTROIDS_TABLE+";");
+        try{
+            sessionManager.getSession(domainUri).execute("truncate "+table+";");
+            sessionManager.getSession(domainUri).execute("truncate "+CENTROIDS_TABLE+";");
+        }catch (InvalidQueryException e){
+            LOG.warn(e.getMessage());
+        }
+    }
+
+    public void destroyCentroids(String domainUri){
+        LOG.info("dropping existing centroids shapes table for domain: " + domainUri);
+        try{
+            sessionManager.getSession(domainUri).execute("truncate "+CENTROIDS_TABLE+";");
+        }catch (InvalidQueryException e){
+            LOG.warn(e.getMessage());
+        }
     }
 
 }

@@ -41,7 +41,7 @@ public class LdaDistributionsCreatedEventHandler implements EventBusSubscriber {
 
     @PostConstruct
     public void init(){
-        BindingKey bindingKey = BindingKey.of(RoutingKey.of(LDADistributionsTask.ROUTING_KEY_ID), "lda.distributions.created");
+        BindingKey bindingKey = BindingKey.of(RoutingKey.of(LDADistributionsTask.ROUTING_KEY_ID), "modeler.lda.distributions.created");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");

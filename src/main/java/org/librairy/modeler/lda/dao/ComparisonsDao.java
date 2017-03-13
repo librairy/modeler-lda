@@ -46,14 +46,18 @@ public class ComparisonsDao extends  AbstractDao{
     public void initialize(String domainUri){
         LOG.info("creating LDA comparisons table for domain: " + domainUri);
 
-        getSession(domainUri).execute("create table if not exists "+table+"(" +
-                DOMAIN_URI +" text, " +
-                DOMAIN_TOPIC_URI +" text, " +
-                TOPIC_URI+" text, " +
-                SCORE+" double, " +
-                DATE+" text, " +
-                "primary key ("+DOMAIN_URI+", "+TOPIC_URI+","+SCORE+","+ DOMAIN_TOPIC_URI+"))" +
-                "with clustering order by ("+TOPIC_URI+" ASC, "+SCORE+" DESC, "+ DOMAIN_TOPIC_URI +" ASC );");
+        try{
+            getSession(domainUri).execute("create table if not exists "+table+"(" +
+                    DOMAIN_URI +" text, " +
+                    DOMAIN_TOPIC_URI +" text, " +
+                    TOPIC_URI+" text, " +
+                    SCORE+" double, " +
+                    DATE+" text, " +
+                    "primary key ("+DOMAIN_URI+", "+TOPIC_URI+","+SCORE+","+ DOMAIN_TOPIC_URI+"))" +
+                    "with clustering order by ("+TOPIC_URI+" ASC, "+SCORE+" DESC, "+ DOMAIN_TOPIC_URI +" ASC );");
+        }catch (InvalidQueryException e){
+            LOG.warn(e.getMessage());
+        }
     }
 
     public List<ComparisonRow> get(String domainUri1, String domainUri2){

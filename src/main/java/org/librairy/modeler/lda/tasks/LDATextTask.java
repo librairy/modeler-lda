@@ -76,9 +76,8 @@ public class LDATextTask implements Runnable {
                 corpus.setCountVectorizerModel(topicModel.getVocabModel());
 
                 // Documents
-                RDD<Tuple2<Object, Vector>> documents = corpus
-                        .getBagOfWords()
-                        .cache();
+                RDD<Tuple2<Object, Vector>> documents = corpus.getBagOfWords();
+
 
                 LOG.info("Created bow from text");
 
@@ -89,6 +88,8 @@ public class LDATextTask implements Runnable {
                         .toJavaRDD()
                         .map(new TupleToResourceShape(text.getId()))
                         .cache();
+
+                corpus.clean();
 
                 LOG.info("Created topic-based vector from text");
 
@@ -139,6 +140,12 @@ public class LDATextTask implements Runnable {
                             return sr;
                         })
                         .takeOrdered(topValues);
+
+
+                shapes.unpersist();
+
+                topicDistribution.unpersist();
+
             }catch (Exception e){
                 LOG.error("Unexpected error getting similar resources", e);
             }finally {

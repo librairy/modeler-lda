@@ -113,6 +113,14 @@ public class LDAAnnotationsTask implements Runnable {
                             .save();
                     LOG.info("annotation saved!");
 
+                    rows.unpersist();
+
+                    distTopicsDF.unpersist();
+
+                    topicsDF.unpersist();
+
+                    distributionsDF.unpersist();
+
                     helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
 
                 } catch (Exception e){

@@ -7,6 +7,7 @@
 
 package org.librairy.modeler.lda.dao;
 
+import com.datastax.driver.core.exceptions.InvalidQueryException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -41,16 +42,20 @@ public class AnnotationsDao extends  AbstractDao{
 
     public void initialize(String domainUri){
         LOG.info("creating LDA annotations table for domain: " + domainUri);
-        getSession(domainUri).execute("create table if not exists "+table+"(" +
-                COMBINED_KEY +" bigint, " +
-                RESOURCE_URI +" text, " +
-                RESOURCE_TYPE +" text, " +
-                TYPE+" text, " +
-                VALUE+" text, " +
-                SCORE+" double, " +
-                DATE+" text, " +
-                "primary key ("+RESOURCE_URI+", "+SCORE+","+TYPE+","+VALUE+"))" +
-                "with clustering order by ("+SCORE+" DESC, " + TYPE + " ASC, "+VALUE+" ASC);");
+        try{
+            getSession(domainUri).execute("create table if not exists "+table+"(" +
+                    COMBINED_KEY +" bigint, " +
+                    RESOURCE_URI +" text, " +
+                    RESOURCE_TYPE +" text, " +
+                    TYPE+" text, " +
+                    VALUE+" text, " +
+                    SCORE+" double, " +
+                    DATE+" text, " +
+                    "primary key ("+RESOURCE_URI+", "+SCORE+","+TYPE+","+VALUE+"))" +
+                    "with clustering order by ("+SCORE+" DESC, " + TYPE + " ASC, "+VALUE+" ASC);");
+        }catch (InvalidQueryException e){
+            LOG.warn(e.getMessage());
+        }
     }
 
 

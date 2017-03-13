@@ -24,8 +24,4 @@ public class ShapeRow implements Serializable{
     private List<Double> vector;
     private String date;
     private String type;
-
-    public String getType(){
-        return URIGenerator.typeFrom(uri).key();
-    }
 }

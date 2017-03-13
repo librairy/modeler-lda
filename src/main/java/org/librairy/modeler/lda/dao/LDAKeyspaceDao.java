@@ -7,6 +7,7 @@
 
 package org.librairy.modeler.lda.dao;
 
+import com.datastax.driver.core.exceptions.InvalidQueryException;
 import org.librairy.modeler.lda.api.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,13 +27,21 @@ public class LDAKeyspaceDao {
 
     public void initialize(String domainUri){
         LOG.info("creating a new LDA workspace for domain: " + domainUri);
-        sessionManager.getSession().execute("create keyspace if not exists "+sessionManager.getKeyspace(domainUri)+
-                " with replication = {'class' : 'SimpleStrategy', 'replication_factor' : 1};");
+        try{
+            sessionManager.getSession().execute("create keyspace if not exists "+sessionManager.getKeyspace(domainUri)+
+                    " with replication = {'class' : 'SimpleStrategy', 'replication_factor' : 1};");
+        }catch (InvalidQueryException e){
+            LOG.warn(e.getMessage());
+        }
     }
 
     public void destroy(String domainUri){
         LOG.info("dropping existing LDA workspace for domain: " + domainUri);
-        sessionManager.getSession().execute("drop keyspace if exists " + sessionManager.getKeyspace(domainUri)+ ";");
+        try{
+            sessionManager.getSession().execute("drop keyspace if exists " + sessionManager.getKeyspace(domainUri)+ ";");
+        }catch (InvalidQueryException e){
+            LOG.warn(e.getMessage());
+        }
     }
 
 }

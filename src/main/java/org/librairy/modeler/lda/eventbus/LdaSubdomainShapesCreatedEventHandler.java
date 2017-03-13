@@ -41,7 +41,7 @@ public class LdaSubdomainShapesCreatedEventHandler implements EventBusSubscriber
 
     @PostConstruct
     public void init(){
-        BindingKey bindingKey = BindingKey.of(RoutingKey.of(LDASubdomainShapingTask.ROUTING_KEY_ID), "lda.subdomains" +
+        BindingKey bindingKey = BindingKey.of(RoutingKey.of(LDASubdomainShapingTask.ROUTING_KEY_ID), "modeler.lda.subdomains" +
                 ".shapes.created");
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );

@@ -15,6 +15,7 @@ import org.librairy.boot.storage.generator.URIGenerator;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -34,7 +35,17 @@ public class Path implements Serializable, Comparable {
 
 
     public Double getAccScore(){
-        return this.accScore;
+
+        if ((nodes == null) || (nodes.isEmpty())) return 0.0;
+
+        return this.nodes.stream().reduce((a, b) -> new Node("", a.getScore() + b.getScore())).map(f -> f.getScore()).get();
+    }
+
+    public Double getAvgScore(){
+
+        if ((nodes == null) || (nodes.isEmpty())) return 0.0;
+
+        return this.nodes.stream().reduce((a, b) -> new Node("", ((a.getScore() + b.getScore())/2.0))).map(f -> f.getScore()).get();
     }
 
     public void add(Node node){

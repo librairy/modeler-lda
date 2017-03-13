@@ -85,6 +85,9 @@ public class LDASimilarityGraphTask implements Runnable {
                             .repartition(context.getRecommendedPartitions());
 
                     helper.getSimilarityService().saveToFileSystem(shapes,URIGenerator.retrieveId(domainUri), "nodes");
+
+                    shapes.unpersist();
+
                 } catch (Exception e){
                     // TODO Notify to event-bus when source has not been added
                     LOG.error("Error scheduling a new topic model for Items from domain: " + domainUri, e);
@@ -128,6 +131,8 @@ public class LDASimilarityGraphTask implements Runnable {
 
                     helper.getSimilarityService().saveToFileSystem(similarities,URIGenerator.retrieveId(domainUri),
                             "edges");
+
+                    similarities.unpersist();
 
                 } catch (Exception e){
                     // TODO Notify to event-bus when source has not been added

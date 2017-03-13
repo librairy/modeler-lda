@@ -7,6 +7,7 @@
 
 package org.librairy.modeler.lda.dao;
 
+import com.datastax.driver.core.exceptions.InvalidQueryException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -37,14 +38,18 @@ public class DistributionsDao extends  AbstractDao{
 
     public void initialize(String domainUri){
         LOG.info("creating LDA distributions table for domain: " + domainUri);
-        getSession(domainUri).execute("create table if not exists "+table+"(" +
-                RESOURCE_URI+" text, " +
-                RESOURCE_TYPE+" text, " +
-                TOPIC_URI+" text, " +
-                SCORE+" double, " +
-                DATE+" text, " +
-                "primary key ("+TOPIC_URI+", "+SCORE+","+RESOURCE_URI+"))" +
-                "with clustering order by ("+SCORE+" DESC, "+RESOURCE_URI+" ASC"+ ");");
+        try{
+            getSession(domainUri).execute("create table if not exists "+table+"(" +
+                    RESOURCE_URI+" text, " +
+                    RESOURCE_TYPE+" text, " +
+                    TOPIC_URI+" text, " +
+                    SCORE+" double, " +
+                    DATE+" text, " +
+                    "primary key ("+TOPIC_URI+", "+SCORE+","+RESOURCE_URI+"))" +
+                    "with clustering order by ("+SCORE+" DESC, "+RESOURCE_URI+" ASC"+ ");");
+        }catch (InvalidQueryException e){
+            LOG.warn(e.getMessage());
+        }
     }
 
 
