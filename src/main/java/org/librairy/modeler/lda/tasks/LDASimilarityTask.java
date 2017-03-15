@@ -355,9 +355,7 @@ public class LDASimilarityTask implements Runnable {
         centroidRow.setId(centroid.getId());
         centroidRow.setUri(String.valueOf(centroid.getId()));
         centroidRow.setType(Resource.Type.ANY.name().toLowerCase());
-        if (centroid.getVector() == null){
-            centroidRow.setVector(calculateCentroid(vectors.map(t -> t._2).rdd()));
-        }
+        centroidRow.setVector((centroid.getVector() != null)? Doubles.asList(centroid.getVector().toArray()) : calculateCentroid(vectors.map(t -> t._2).rdd()));
         centroidRow.setDate(TimeUtils.asISO());
         LOG.info("saving sector " + centroid.getId());
         helper.getShapesDao().saveCentroid(domainUri, centroidRow);
