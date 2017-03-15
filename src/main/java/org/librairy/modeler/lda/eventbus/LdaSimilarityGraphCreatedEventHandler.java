@@ -7,6 +7,8 @@
 
 package org.librairy.modeler.lda.eventbus;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.librairy.boot.eventbus.EventMessage;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.domain.resources.Domain;
 import org.librairy.boot.model.domain.resources.Resource;
@@ -14,6 +16,8 @@ import org.librairy.boot.model.modules.BindingKey;
 import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
+import org.librairy.boot.model.utils.TimeUtils;
+import org.librairy.boot.storage.dao.DomainsDao;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.services.ParallelExecutorService;
@@ -41,6 +45,7 @@ public class LdaSimilarityGraphCreatedEventHandler implements EventBusSubscriber
     ModelingHelper helper;
 
     private ParallelExecutorService executor;
+    private ObjectMapper jsonMapper;
 
     @PostConstruct
     public void init(){
@@ -48,7 +53,8 @@ public class LdaSimilarityGraphCreatedEventHandler implements EventBusSubscriber
         LOG.info("Trying to register as subscriber of '" + bindingKey + "' events ..");
         eventBus.subscribe(this,bindingKey );
         LOG.info("registered successfully");
-        executor = new ParallelExecutorService();
+        executor    = new ParallelExecutorService();
+        jsonMapper   = new ObjectMapper();
     }
 
     @Override
@@ -57,13 +63,18 @@ public class LdaSimilarityGraphCreatedEventHandler implements EventBusSubscriber
         try{
             String domainUri = event.to(String.class);
 
-            Domain domain = new Domain();
-            domain.setUri(domainUri);
+            Domain domain = helper.getDomainsDao().get(domainUri);
 
             LOG.info("Domain '"+domainUri+"' updated with a new LDA Model!!");
             eventBus.post(Event.from(domain), RoutingKey.of(Resource.Type.DOMAIN, Resource.State.UPDATED));
 
-            eventBus.directPost(URIGenerator.retrieveId(domainUri), "domain.analyzed");
+            EventMessage eventMessage = new EventMessage();
+            eventMessage.setName(domain.getName());
+            eventMessage.setId(URIGenerator.retrieveId(domainUri));
+            eventMessage.setTime(TimeUtils.asISO());
+
+            String jsonMsg = jsonMapper.writeValueAsString(eventMessage);
+            eventBus.publish(jsonMsg, "domains.analyzed");
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added
