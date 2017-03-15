@@ -14,6 +14,7 @@ import org.librairy.boot.model.modules.BindingKey;
 import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
+import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.services.ParallelExecutorService;
 import org.librairy.modeler.lda.tasks.LDASimilarityGraphTask;
@@ -62,6 +63,7 @@ public class LdaSimilarityGraphCreatedEventHandler implements EventBusSubscriber
             LOG.info("Domain '"+domainUri+"' updated with a new LDA Model!!");
             eventBus.post(Event.from(domain), RoutingKey.of(Resource.Type.DOMAIN, Resource.State.UPDATED));
 
+            eventBus.directPost(URIGenerator.retrieveId(domainUri), "domain.analyzed");
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added
