@@ -7,22 +7,39 @@
 
 package org.librairy.modeler.api;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.primitives.Doubles;
 import es.cbadenes.lab.test.IntegrationTest;
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.mllib.linalg.Vectors;
+import org.apache.spark.sql.DataFrame;
+import org.apache.spark.sql.Row;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.storage.exception.DataNotFound;
+import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.computing.cluster.ComputingContext;
+import org.librairy.metrics.similarity.JensenShannonSimilarity;
 import org.librairy.modeler.lda.api.ApiConfig;
 import org.librairy.modeler.lda.api.LDAModelerAPI;
+import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.api.model.Criteria;
 import org.librairy.modeler.lda.api.model.ScoredResource;
 import org.librairy.modeler.lda.api.model.ScoredTopic;
 import org.librairy.modeler.lda.api.model.ScoredWord;
+import org.librairy.modeler.lda.dao.ShapesDao;
+import org.librairy.modeler.lda.dao.SimilaritiesDao;
+import org.librairy.modeler.lda.dao.SimilarityRow;
+import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Comparison;
 import org.librairy.modeler.lda.models.Field;
 import org.librairy.modeler.lda.models.Path;
 import org.librairy.modeler.lda.models.Text;
+import org.librairy.modeler.lda.services.SimilarityService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,6 +50,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
@@ -40,15 +58,21 @@ import java.util.List;
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
 @ContextConfiguration(classes = ApiConfig.class)
-@TestPropertySource(properties = {
-        "librairy.computing.fs = hdfs://minetur.dia.fi.upm.es:9000"
-})
+//@TestPropertySource(properties = {
+////        "librairy.computing.fs = hdfs://minetur.dia.fi.upm.es:9000"
+//})
 public class ApiTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ApiTest.class);
 
     @Autowired
     LDAModelerAPI api;
+
+    @Autowired
+    ModelingHelper helper;
+
+    @Autowired
+    SimilarityService similarityService;
 
     @Test
     public void mostRelevantResources(){
@@ -162,14 +186,14 @@ public class ApiTest {
 
     @Test
     public void shortestPath() throws IllegalArgumentException, DataNotFound, InterruptedException {
-        String startUri     = "http://librairy.org/parts/abs-2-s2.0-35348956577";
-        String endUri       = "http://librairy.org/parts/abs-2-s2.0-0034215531";
-        String domainUri    = "http://librairy.org/domains/eahb";
+        String startUri     = "http://librairy.org/items/mV_NJ_Ku6Qs49";
+        String endUri       = "http://librairy.org/items/nV_NJR0FYSq";
+        String domainUri    = "http://librairy.org/domains/test";
 
 
         Criteria criteria = new Criteria();
         criteria.setDomainUri(domainUri);
-        criteria.setThreshold(0.5);
+        criteria.setThreshold(0.7);
         criteria.setMax(10);
 
         List<String> types  = Collections.EMPTY_LIST;
@@ -180,6 +204,93 @@ public class ApiTest {
         List<Path> paths = api.getShortestPath(startUri, endUri, types,  maxLength, criteria, maxMinutes);
 
         LOG.info("Paths: " + paths);
+    }
+
+    @Test
+    public void similarities() throws InterruptedException {
+
+        String domainUri    = "http://librairy.org/domains/test";
+        final ComputingContext context = helper.getComputingHelper().newContext("lda.similarity."+ URIGenerator.retrieveId(domainUri));
+        DataFrame dataFrame = context.getCassandraSQLContext()
+                .read()
+                .format("org.apache.spark.sql.cassandra")
+                .schema(DataTypes
+                        .createStructType(new StructField[]{
+                                DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType, false),
+                                DataTypes.createStructField(ShapesDao.RESOURCE_TYPE, DataTypes.StringType, false),
+                                DataTypes.createStructField(ShapesDao.VECTOR, DataTypes.createArrayType(DataTypes.DoubleType), false)
+                        }))
+                .option("inferSchema", "false") // Automatically infer data types
+                .option("charset", "UTF-8")
+                .option("mode", "DROPMALFORMED")
+                .options(ImmutableMap.of("table", ShapesDao.CENTROIDS_TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                .load()
+                .repartition(context.getRecommendedPartitions())
+                .cache()
+                ;
+        dataFrame.take(1);
+
+
+        LOG.info("Calculatig centroid-similarities...");
+
+        JavaRDD<SimilarityRow> similarities = dataFrame.toJavaRDD().cartesian(dataFrame.toJavaRDD())
+                .filter(r -> !r._1.getString(0).equals(r._2.getString(0)))
+                .filter(r -> r._1.getString(1).equals(r._2.getString(1)))
+                .map(t -> {
+                            SimilarityRow row = new SimilarityRow();
+                            row.setResource_uri_1(t._1.getString(0));
+                            row.setResource_uri_2(t._2.getString(0));
+                            row.setScore(JensenShannonSimilarity.apply(Vectors.dense(Doubles.toArray(t._1.getList(2))).toArray(), Vectors.dense(Doubles.toArray(t._2.getList(2))).toArray()));
+                            row.setResource_type_1(t._1.getString(1));
+                            row.setResource_type_2(t._2.getString(1));
+                            return row;
+                        }
+                )
+                .repartition(context.getRecommendedPartitions())
+                .cache()
+                ;
+        similarities.take(1);
+
+        LOG.info(similarities.count() + " similarities calculated!");
+
+        List<SimilarityRow> byEight = similarities.filter(sr -> sr.getResource_uri_1().equals("8") || sr.getResource_uri_2().equals("8")).collect();
+        for (SimilarityRow row : byEight){
+            LOG.info("From o To 8: " + row);
+        }
+
+        List<SimilarityRow> bySeven = similarities.filter(sr -> sr.getResource_uri_1().equals("7") || sr.getResource_uri_2().equals("7")).collect();
+        for (SimilarityRow row : bySeven){
+            LOG.info("From o To 7: " + row);
+        }
+
+    }
+
+    @Test
+    public void fromFS() throws InterruptedException {
+        String domainUri    = "http://librairy.org/domains/test";
+        final ComputingContext context = helper.getComputingHelper().newContext("lda.similarity."+ URIGenerator.retrieveId(domainUri));
+
+        DataFrame similarities = similarityService.loadCentroidsFromFileSystem(context, URIGenerator.retrieveId(domainUri), "edges");
+
+        List<String> types = Collections.emptyList();
+
+
+        DataFrame sim;
+        if (types.isEmpty()) {
+            sim = similarities.filter( SimilaritiesDao.RESOURCE_TYPE_1+ "= '"+ Resource.Type.ANY.name().toLowerCase()+"'");
+        }else{
+            String filterExpression = types.stream().map(type -> SimilaritiesDao.RESOURCE_TYPE_1 + "= '" + type + "' ").collect(Collectors.joining("or "));
+
+            sim = similarities.filter(filterExpression);
+        }
+
+        sim = sim.filter(SimilaritiesDao.RESOURCE_URI_1 + "= '8'");
+
+
+        for (Row row: sim.collect()){
+            LOG.info("Similarity: " + row);
+        }
+
     }
 
 }

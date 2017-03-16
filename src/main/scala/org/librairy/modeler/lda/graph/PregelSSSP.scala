@@ -24,6 +24,7 @@ object PregelSSSP {
 
   def apply (startUri: List[String], endUri: List[String], minScore: Double, maxLength: Integer, reltype: List[String], vertices: DataFrame, edges: DataFrame, maxResults: Integer, partitions: Integer) : Array[Path]={
 
+    logger.info("min score: " + minScore)
 
     val nodes: RDD[(VertexId, (String,String))] = vertices.rdd.map(row => (row.getString(0).hashCode.toLong,(row.getString(0),row.getString(1))))
 
@@ -69,19 +70,18 @@ object PregelSSSP {
 
     var path = new Path();
 
-
     val partialResult =sssp.vertices.filter( res => res._1 == v2)
 
     if (partialResult.isEmpty()) return Array.empty[Path];
 
     val result = partialResult.sortBy(t => t._2._1, false, partitions).first()._2
     logger.info("Accumulated Score: " + result._1)
+    logger.debug("Pregel result: " + sssp.vertices.collect.mkString("\n"))
 
     if (result._1 == Double.PositiveInfinity) return Array.empty[Path];
 
     result._2.foreach( v => path.add(new Node(nodes.filter( t => t._1 == v).first()._2._1,0.0)))
 
-    logger.debug("Pregel result: " + sssp.vertices.collect.mkString("\n"))
 
     return Array(path)
   }

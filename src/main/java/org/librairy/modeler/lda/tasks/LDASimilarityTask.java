@@ -271,6 +271,7 @@ public class LDASimilarityTask implements Runnable {
 
         JavaRDD<SimilarityRow> similarities = dataFrame.toJavaRDD().cartesian(dataFrame.toJavaRDD())
                 .filter(r -> !r._1.getString(0).equals(r._2.getString(0)))
+                .filter(r -> r._1.getString(1).equals(r._2.getString(1)))
                 .map(t -> {
                             SimilarityRow row = new SimilarityRow();
                             row.setResource_uri_1(t._1.getString(0));
@@ -278,13 +279,18 @@ public class LDASimilarityTask implements Runnable {
                             row.setScore(JensenShannonSimilarity.apply(Vectors.dense(Doubles.toArray(t._1.getList(2))).toArray(), Vectors.dense(Doubles.toArray(t._2.getList(2))).toArray()));
                             row.setResource_type_1(t._1.getString(1));
                             row.setResource_type_2(t._2.getString(1));
+                            row.setDate(TimeUtils.asISO());
                             return row;
                         }
-                );
+                )
+                .repartition(context.getRecommendedPartitions())
+                .cache()
+                ;
+        similarities.take(1);
 
         dataFrame.unpersist();
 
-        DataFrame similaritiesDF = context.getSqlContext().createDataFrame(similarities, SimilarityRow.class).cache();
+        DataFrame similaritiesDF = context.getSqlContext().createDataFrame(similarities, SimilarityRow.class);
 
         similaritiesDF
                 .write()
@@ -293,9 +299,21 @@ public class LDASimilarityTask implements Runnable {
                 .mode(SaveMode.Overwrite)
                 .save();
 
-        helper.getSimilarityService().saveCentroidSimilarities(domainUri, similaritiesDF);
+        StructType simDataType = DataTypes
+                .createStructType(new StructField[]{
+                        DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_1, DataTypes.StringType, false),
+                        DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_2, DataTypes.StringType, false),
+                        DataTypes.createStructField(SimilaritiesDao.SCORE, DataTypes.DoubleType, false),
+                        DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_1, DataTypes.StringType, false),
+                        DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_2, DataTypes.StringType, false)
+                });
 
-        similaritiesDF.unpersist();
+
+        DataFrame similaritiesRowDF = context.getSqlContext().createDataFrame(similarities.map( sr -> RowFactory.create(sr.getResource_uri_1(), sr.getResource_uri_2(), sr.getScore(), sr.getResource_type_1(), sr.getResource_type_2())), simDataType);
+
+        helper.getSimilarityService().saveCentroidSimilarities(domainUri, similaritiesRowDF);
+
+        similarities.unpersist();
 
         LOG.info("Centroids saved!!");
 
@@ -363,48 +381,6 @@ public class LDASimilarityTask implements Runnable {
         saveCentroidByType(vectors, centroid.getId(), Resource.Type.ITEM);
         saveCentroidByType(vectors, centroid.getId(), Resource.Type.PART);
         saveCentroidByType(vectors, centroid.getId(), Resource.Type.DOMAIN);
-
-
-
-
-//        //Save centroid similarities
-//        if (!neighbors.isEmpty()){
-//
-//            JavaRDD<Centroid> centroidRDD = context.getSparkContext().parallelize(Arrays.asList(new Centroid[]{centroid}));
-//            JavaRDD<Centroid> neighborsRDD = context.getSparkContext().parallelize(neighbors);
-//            JavaRDD<SimilarityRow> centroidRows = centroidRDD
-//                    .cartesian(neighborsRDD)
-//                    .flatMap(pair -> {
-//                        double score = JensenShannonSimilarity.apply(pair._1.getVector().toArray(), pair._2.getVector().toArray());
-//                        SimilarityRow row1 = new SimilarityRow();
-//                        row1.setDate(TimeUtils.asISO());
-//                        row1.setResource_uri_1(String.valueOf(pair._1.getId()));
-//                        row1.setResource_type_1(pair._1.getType());
-//                        row1.setResource_uri_2(String.valueOf(pair._2.getId()));
-//                        row1.setResource_type_2(pair._2.getType());
-//                        row1.setScore(score);
-//
-//                        SimilarityRow row2 = new SimilarityRow();
-//                        row2.setDate(TimeUtils.asISO());
-//                        row2.setResource_uri_1(String.valueOf(pair._2.getId()));
-//                        row2.setResource_type_1(pair._2.getType());
-//                        row2.setResource_uri_2(String.valueOf(pair._1.getId()));
-//                        row2.setResource_type_2(pair._1.getType());
-//                        row2.setScore(score);
-//
-//                        return Arrays.asList(new SimilarityRow[]{row1, row2});
-//                    });
-//
-//
-//            LOG.debug("saving centroid-similarities from sector " + centroid.getId() + " to: " + neighbors);
-//            context.getSqlContext()
-//                    .createDataFrame(centroidRows, SimilarityRow.class)
-//                    .write()
-//                    .format("org.apache.spark.sql.cassandra")
-//                    .options(ImmutableMap.of("table", SimilaritiesDao.CENTROIDS_TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
-//                    .mode(SaveMode.Append)
-//                    .save();
-//        }
 
         JavaRDD<ClusterRow> clusterRows = vectors.map(tuple -> {
             ClusterRow clusterRow = new ClusterRow();

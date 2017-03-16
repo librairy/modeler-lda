@@ -11,6 +11,7 @@ import com.google.common.primitives.Doubles;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.sql.DataFrame;
+import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
@@ -69,31 +70,41 @@ public class ShortestPathAPI {
         long numCentroids = centroids.count();
         LOG.info(numCentroids + " centroids loaded from domain: " + domainUri);
 
-        // shortest path between centroids
-        DataFrame centroidNodes = centroids.select(ShapesDao.RESOURCE_URI, ShapesDao.RESOURCE_TYPE).toDF("id", "type");
+        Path initialPath = new Path();
+        initialPath.add(new Node("1",0.0));
+        Path[] centroidPaths = new Path[]{initialPath};
 
-        DataFrame centroidEdges = similarityService.loadCentroidsFromFileSystem(context, URIGenerator.retrieveId(domainUri), "edges").filter(SimilaritiesDao.SCORE + " >= " + minCentroidScore);
+        if (numCentroids > 1){
+            // shortest path between centroids
+            DataFrame centroidNodes = centroids.select(ShapesDao.RESOURCE_URI, ShapesDao.RESOURCE_TYPE).toDF("id", "type");
 
-        List<Centroid> startCentroids = readClustersOf(context, domainUri, startUri);
-        LOG.info("Start centroids: " + startCentroids);
-        List<Centroid> endCentroids = readClustersOf(context, domainUri, endUri);
-        LOG.info("End centroids: " + endCentroids);
-        List<String> startC = startCentroids.stream().map(c -> c.getId().toString()).collect(Collectors.toList());
-        List<String> endC = endCentroids.stream().map(c -> c.getId().toString()).collect(Collectors.toList());
+            DataFrame centroidEdges = readCentroidSimilarities(context, domainUri, types).filter(SimilaritiesDao.SCORE + " >= " + minCentroidScore);
+            long numEdges = centroidEdges.count();
+            LOG.info(numEdges + " centroid-similarities loaded from domain: " + domainUri);
 
-        Path[] centroidPaths = shortestPathService.calculate(
-                domainUri,
-                startC,
-                endC,
-                Collections.EMPTY_LIST,
-                minScore,
-                maxLength,
-                centroidNodes,
-                centroidEdges,
-                maxResults,
-                context.getRecommendedPartitions(),
-                false
-        );
+            List<Centroid> startCentroids = readClustersOf(context, domainUri, startUri);
+            LOG.info("Start centroids: " + startCentroids);
+            List<Centroid> endCentroids = readClustersOf(context, domainUri, endUri);
+            LOG.info("End centroids: " + endCentroids);
+            List<String> startC = startCentroids.stream().map(c -> c.getId().toString()).collect(Collectors.toList());
+            List<String> endC = endCentroids.stream().map(c -> c.getId().toString()).collect(Collectors.toList());
+
+            centroidPaths = shortestPathService.calculate(
+                    domainUri,
+                    startC,
+                    endC,
+                    Collections.EMPTY_LIST,
+                    minCentroidScore,
+                    maxLength,
+                    centroidNodes,
+                    centroidEdges,
+                    maxResults,
+                    context.getRecommendedPartitions(),
+                    false
+            );
+
+        }
+
 
         centroids.unpersist();
 
@@ -163,6 +174,17 @@ public class ShortestPathAPI {
         String filterExpression = types.stream().map(type -> ShapesDao.RESOURCE_TYPE + "= '" + type + "' ").collect(Collectors.joining("or "));
 
         return centroids.filter(filterExpression);
+    }
+
+    private DataFrame readCentroidSimilarities(ComputingContext context, String domainUri, List<String> types){
+
+        DataFrame similarities = similarityService.loadCentroidsFromFileSystem(context, URIGenerator.retrieveId(domainUri), "edges");
+
+        if (types.isEmpty()) return similarities.filter( SimilaritiesDao.RESOURCE_TYPE_1+ "= '"+ Resource.Type.ANY.name().toLowerCase()+"'");
+
+        String filterExpression = types.stream().map(type -> SimilaritiesDao.RESOURCE_TYPE_1 + "= '" + type + "' ").collect(Collectors.joining("or "));
+
+        return similarities.filter(filterExpression);
     }
 
     private DataFrame readResources(ComputingContext context, String domainUri, String clusterId, List<String> types){
