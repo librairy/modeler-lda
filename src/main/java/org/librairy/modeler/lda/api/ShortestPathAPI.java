@@ -114,11 +114,17 @@ public class ShortestPathAPI {
 
                 Path[] spaths = shortestPath(context, domainUri, centroidPath.getNodes(), types, Arrays.asList(new String[]{startUri}), Arrays.asList(new String[]{endUri}), minScore, maxLength, maxResults);
 
-                List<Path> result = Arrays.stream(spaths).filter(p -> p.getNodes().size() < maxLength).collect(Collectors.toList());
+                if ((spaths != null) && (spaths.length>0)){
+                    LOG.info("Found paths!. Checking maximum size...");
+                }
+
+                List<Path> result = Arrays.stream(spaths).filter(p -> p.getNodes().size() <= maxLength).collect(Collectors.toList());
 
                 if (!result.isEmpty()){
                     LOG.info("Found paths!! => "  + result);
                     return result.stream().limit(maxResults).collect(Collectors.toList());
+                }else{
+                    LOG.info("No valid paths found by using as centroids: " + centroidPath.getNodes());
                 }
             }
             LOG.info("No path found!");
@@ -140,12 +146,14 @@ public class ShortestPathAPI {
         Tuple2<DataFrame, DataFrame> simGraph = composeSimilarityGraph(context, domainUri, clusters, types, null, null, null, minScore);
 
         DataFrame nodes = simGraph._1.select(ShapesDao.RESOURCE_URI, ShapesDao.RESOURCE_TYPE).repartition(context.getRecommendedPartitions()).cache();
-        long numNodes = nodes.count();
-        LOG.info(numNodes + " nodes load!");
+//        long numNodes = nodes.count();
+//        LOG.info(numNodes + " nodes load!");
+        nodes.take(1);
 
         DataFrame edges = simGraph._2.repartition(context.getRecommendedPartitions()).cache();
-        long numSim = edges.count();
-        LOG.info(numSim + " edges load!");
+//        long numSim = edges.count();
+//        LOG.info(numSim + " edges load!");
+        edges.take(1);
 
         List<String> resTypes = Collections.emptyList();
 
@@ -187,12 +195,6 @@ public class ShortestPathAPI {
         return similarities.filter(filterExpression);
     }
 
-    private DataFrame readResources(ComputingContext context, String domainUri, String clusterId, List<String> types){
-
-        return similarityService.loadSubgraphFromFileSystem(context, URIGenerator.retrieveId(domainUri), "nodes", clusterId, Optional.empty(), types);
-
-    }
-
     private Tuple2<DataFrame,DataFrame> composeSimilarityGraph(ComputingContext context, String domainUri, List<Node> clusters, List<String> types, DataFrame nodes, DataFrame edges, DataFrame neighbours, Double minScore){
 
         LOG.info("Composing similarity graph from clusters: " + clusters);
@@ -200,9 +202,11 @@ public class ShortestPathAPI {
 
         String currentCluster = clusters.get(0).getUri();
 
-        DataFrame currentNodes = readResources(context, domainUri, currentCluster, types);
+        DataFrame currentNodes = similarityService.loadSubgraphFromFileSystem(context, URIGenerator.retrieveId(domainUri), "nodes", currentCluster, Optional.empty(), types).cache();
+        currentNodes.take(1);
 
-        DataFrame currentEdges = similarityService.loadSubgraphFromFileSystem(context, URIGenerator.retrieveId(domainUri), "edges", currentCluster, Optional.of(minScore), types);
+        DataFrame currentEdges = similarityService.loadSubgraphFromFileSystem(context, URIGenerator.retrieveId(domainUri), "edges", currentCluster, Optional.of(minScore), types).cache();
+        currentEdges.take(1);
 
         DataFrame newNodes = (nodes == null)? currentNodes : nodes.unionAll(currentNodes);
 

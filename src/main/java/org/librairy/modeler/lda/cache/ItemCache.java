@@ -57,14 +57,11 @@ public class ItemCache {
 
                                 try {
                                     itemsDao.add(key.getDomainUri(), key.getResourceUri());
-
                                     Long delay = delayCache.getDelay(key.getDomainUri());
-
                                     modelingService.train(key.getDomainUri(),delay);
-
                                     return true;
                                 } catch (DataNotFound dataNotFound) {
-                                    LOG.debug(dataNotFound.getMessage());
+                                    LOG.info(dataNotFound.getMessage());
                                     return false;
                                 }
 
@@ -79,7 +76,10 @@ public class ItemCache {
             ComposedKey key = new ComposedKey();
             key.setDomainUri(domainUri);
             key.setResourceUri(itemUri);
-            if (!cache.get(key)) cache.refresh(key);
+            if (!cache.get(key)){
+                cache.refresh(key);
+                return cache.get(key);
+            }
             return true;
         } catch (ExecutionException e) {
             LOG.warn("Error reading cache", e);

@@ -80,7 +80,10 @@ public class PartCache {
             ComposedKey key = new ComposedKey();
             key.setDomainUri(domainUri);
             key.setResourceUri(partUri);
-            if (!cache.get(key)) cache.refresh(key);
+            if (!cache.get(key)){
+                cache.refresh(key);
+                return cache.get(key);
+            }
             return true;
         } catch (ExecutionException e) {
             LOG.warn("Error reading cache", e);

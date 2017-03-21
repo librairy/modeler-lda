@@ -49,7 +49,7 @@ public class ItemUpdated implements EventBusSubscriber {
 
     @Override
     public void handle(Event event) {
-        LOG.debug("event received: " + event);
+        LOG.debug("Item updated: " + event);
         try{
             Resource resource = event.to(Resource.class);
 

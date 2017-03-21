@@ -62,7 +62,10 @@ public class DomainCache {
     public List<Domain> getDomainsFrom(String uri){
         try {
             List<Domain> domains = cache.get(uri);
-            return domains;
+            if (!domains.isEmpty()) return domains;
+
+            cache.refresh(uri);
+            return cache.get(uri);
         } catch (ExecutionException e) {
             LOG.warn("Error reading cache", e);
             return Collections.emptyList();

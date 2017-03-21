@@ -14,6 +14,7 @@ import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.cache.DelayCache;
+import org.librairy.modeler.lda.cache.PartCache;
 import org.librairy.modeler.lda.services.ModelingService;
 import org.librairy.modeler.lda.services.ParallelExecutorService;
 import org.slf4j.Logger;
@@ -40,6 +41,9 @@ public class PartAddedEventHandler implements EventBusSubscriber {
 
     @Autowired
     DelayCache delayCache;
+
+    @Autowired
+    PartCache partCache;
 
     @PostConstruct
     public void init(){

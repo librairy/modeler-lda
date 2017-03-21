@@ -15,6 +15,7 @@ import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.cache.DelayCache;
+import org.librairy.modeler.lda.cache.ItemCache;
 import org.librairy.modeler.lda.services.ModelingService;
 import org.librairy.boot.storage.UDM;
 import org.librairy.boot.storage.system.column.repository.UnifiedColumnRepository;
@@ -44,6 +45,9 @@ public class ItemAddedEventHandler implements EventBusSubscriber {
     @Autowired
     DelayCache delayCache;
 
+    @Autowired
+    ItemCache itemCache;
+
     @PostConstruct
     public void init(){
         BindingKey bindingKey = BindingKey.of(RoutingKey.of(Relation.Type.CONTAINS_TO_ITEM, Relation.State.CREATED), "modeler.lda.item.added");
@@ -55,7 +59,7 @@ public class ItemAddedEventHandler implements EventBusSubscriber {
     @Override
     public void handle(Event event) {
 
-        LOG.debug("Item bundled event received: " + event);
+        LOG.debug("Item added event received: " + event);
         try{
             Relation relation = event.to(Relation.class);
 

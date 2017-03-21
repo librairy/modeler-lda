@@ -39,6 +39,7 @@ import org.librairy.modeler.lda.models.Comparison;
 import org.librairy.modeler.lda.models.Field;
 import org.librairy.modeler.lda.models.Path;
 import org.librairy.modeler.lda.models.Text;
+import org.librairy.modeler.lda.services.ShortestPathService;
 import org.librairy.modeler.lda.services.SimilarityService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -47,6 +48,8 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -73,6 +76,9 @@ public class ApiTest {
 
     @Autowired
     SimilarityService similarityService;
+
+    @Autowired
+    ShortestPathService shortestPathService;
 
     @Test
     public void mostRelevantResources(){
@@ -186,24 +192,31 @@ public class ApiTest {
 
     @Test
     public void shortestPath() throws IllegalArgumentException, DataNotFound, InterruptedException {
-        String startUri     = "http://librairy.org/items/mV_NJ_Ku6Qs49";
-        String endUri       = "http://librairy.org/items/nV_NJR0FYSq";
-        String domainUri    = "http://librairy.org/domains/test";
+//        String startUri     = "http://librairy.org/items/yn_0LKzSGSE";
+//        String endUri       = "http://librairy.org/items/BrdvqdnF7f-";
+//        String domainUri    = "http://librairy.org/domains/141fc5bbcf0212ec9bee5ef66c6096ab";
+
+        String startUri     = "http://librairy.org/items/2-s2.0-41849087732";
+        String endUri       = "http://librairy.org/items/2-s2.0-34547850955";
+        String domainUri    = "http://librairy.org/domains/eahb";
+
 
 
         Criteria criteria = new Criteria();
         criteria.setDomainUri(domainUri);
-        criteria.setThreshold(0.7);
+        criteria.setThreshold(0.9);
         criteria.setMax(10);
 
         List<String> types  = Collections.EMPTY_LIST;
         Integer maxLength   = 10;
         Integer maxMinutes  = 10;
 
-
+        Instant start = Instant.now();
         List<Path> paths = api.getShortestPath(startUri, endUri, types,  maxLength, criteria, maxMinutes);
-
+        Instant end = Instant.now();
         LOG.info("Paths: " + paths);
+        LOG.info("Elapsed time: " + Duration.between(start, end).toMillis() + " msecs");
+
     }
 
     @Test
@@ -290,6 +303,103 @@ public class ApiTest {
         for (Row row: sim.collect()){
             LOG.info("Similarity: " + row);
         }
+
+    }
+
+    @Test
+    public void shortestPathInMemory() throws InterruptedException {
+
+        String domainUri    = "http://librairy.org/domains/141fc5bbcf0212ec9bee5ef66c6096ab";
+
+        final ComputingContext context = helper.getComputingHelper().newContext("lda.similarity."+ URIGenerator.retrieveId(domainUri));
+
+        DataFrame nodes = context.getCassandraSQLContext()
+                .read()
+                .format("org.apache.spark.sql.cassandra")
+                .schema(DataTypes
+                        .createStructType(new StructField[]{
+                                DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType, false),
+                                DataTypes.createStructField(ShapesDao.RESOURCE_TYPE, DataTypes.StringType, false)
+                        }))
+                .option("inferSchema", "false") // Automatically infer data types
+                .option("charset", "UTF-8")
+                .option("mode", "DROPMALFORMED")
+                .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                .load()
+                .repartition(context.getRecommendedPartitions())
+                .cache()
+                ;
+        LOG.info("loading nodes...");
+        nodes.take(1);
+        LOG.info("done!");
+
+
+        DataFrame edges = context.getCassandraSQLContext()
+                .read()
+                .format("org.apache.spark.sql.cassandra")
+                .schema(DataTypes
+                        .createStructType(new StructField[]{
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_1, DataTypes.StringType, false),
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_2, DataTypes.StringType, false),
+                                DataTypes.createStructField(SimilaritiesDao.SCORE, DataTypes.DoubleType, false),
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_1, DataTypes.StringType, false),
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_2, DataTypes.StringType, false)
+                        }))
+                .option("inferSchema", "false") // Automatically infer data types
+                .option("charset", "UTF-8")
+                .option("mode", "DROPMALFORMED")
+                .options(ImmutableMap.of("table", SimilaritiesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                .load()
+                .repartition(context.getRecommendedPartitions())
+                .cache()
+                ;
+        LOG.info("loading edges...");
+        edges.take(1);
+        LOG.info("done!");
+
+        Boolean exit = false;
+
+        while(!exit){
+
+            System.out.print("From:");
+            String startId = System.console().readLine();
+            String startUri = URIGenerator.fromId(Resource.Type.ITEM, startId);
+
+            System.out.print("To:");
+            String endId = System.console().readLine();
+            String endUri = URIGenerator.fromId(Resource.Type.ITEM, endId);
+
+            System.out.print("Min Score:");
+            String score = System.console().readLine();
+
+            System.out.print("Max Nodes:");
+            String max = System.console().readLine();
+
+            Criteria criteria = new Criteria();
+            criteria.setDomainUri(domainUri);
+            criteria.setThreshold(Double.valueOf(score));
+            criteria.setMax(10);
+
+            List<String> types  = Collections.EMPTY_LIST;
+            Integer maxLength   = Integer.valueOf(max);
+            Integer maxMinutes  = 10;
+
+            edges.filter( SimilaritiesDao.SCORE + " >= " + criteria.getThreshold());
+
+            Instant start = Instant.now();
+            Path[] paths = null;
+            LOG.info("discovering shortest path between:  '"+ startUri + "' and '"+endUri+"' in domain: '" +
+                    domainUri+"' filtered by " + types + " with min score " + criteria.getThreshold() + " and  max " + maxLength + " steps");
+
+            paths = shortestPathService.calculate(domainUri, Arrays.asList(new String[]{startUri}), Arrays.asList(new String[]{startUri}), types, criteria.getThreshold(), maxLength, nodes, edges, criteria.getMax(), context.getRecommendedPartitions(), true);
+
+            Instant end = Instant.now();
+            LOG.info("Paths: " + Arrays.asList(paths));
+            LOG.info("Elapsed time: " + Duration.between(start, end).toMillis() + " msecs");
+
+        }
+
+
 
     }
 

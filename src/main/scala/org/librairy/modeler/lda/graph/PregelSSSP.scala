@@ -24,13 +24,16 @@ object PregelSSSP {
 
   def apply (startUri: List[String], endUri: List[String], minScore: Double, maxLength: Integer, reltype: List[String], vertices: DataFrame, edges: DataFrame, maxResults: Integer, partitions: Integer) : Array[Path]={
 
-    logger.info("min score: " + minScore)
 
-    val nodes: RDD[(VertexId, (String,String))] = vertices.rdd.map(row => (row.getString(0).hashCode.toLong,(row.getString(0),row.getString(1))))
+    val nodes: RDD[(VertexId, (String,String))] = vertices.rdd.map(row => (row.getString(0).hashCode.toLong,(row.getString(0),row.getString(1)))).cache()
+    nodes.take(1)
+    logger.info("nodes ready")
 
 //    logger.info("nodes: " + nodes.collect().mkString("\n"))
 
-    val relationships: RDD[Edge[Double]] =  edges.rdd.map(row => Edge(row.getString(0).hashCode.toLong, row.getString(1).hashCode.toLong, row.getDouble(2)))
+    val relationships: RDD[Edge[Double]] =  edges.rdd.map(row => Edge(row.getString(0).hashCode.toLong, row.getString(1).hashCode.toLong, row.getDouble(2))).cache()
+    relationships.take(1)
+    logger.info("edges ready")
 
 //    logger.info("relationships: " + relationships.collect().mkString("\n"))
 
@@ -40,13 +43,13 @@ object PregelSSSP {
     // Build the initial Graph
     val graph : Graph[(String, String), Double] = Graph(nodes, relationships, defaultUser)
 
-    val v2 = endUri(0).hashCode.toLong
+    logger.info("min score: " + minScore)
 
-    logger.info("End node ID: " + v2)
+    val v2 = endUri(0).hashCode.toLong
+    logger.info("end node ID: " + v2)
 
     val v1 = startUri(0).hashCode.toLong
-
-    logger.info("Start node ID: " + v1)
+    logger.info("start node ID: " + v1)
 
     // Initialize the graph such that all vertices except the root have distance infinity.
     val initialGraph : Graph[(Double, List[VertexId]), Double] = graph.mapVertices((id, _) => if (id == v1) (0.0, List[VertexId](v1)) else (Double.PositiveInfinity, List[VertexId]()))
@@ -80,8 +83,9 @@ object PregelSSSP {
 
     if (result._1 == Double.PositiveInfinity) return Array.empty[Path];
 
-    result._2.foreach( v => path.add(new Node(nodes.filter( t => t._1 == v).first()._2._1,0.0)))
-
+    for( node <- result._2){
+      path.add(new Node(nodes.filter( t => t._1 == node).first()._2._1,0.0))
+    }
 
     return Array(path)
   }

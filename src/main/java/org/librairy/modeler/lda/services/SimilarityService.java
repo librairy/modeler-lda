@@ -10,6 +10,7 @@ package org.librairy.modeler.lda.services;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.RowFactory;
+import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.apache.spark.sql.types.StructType;
@@ -182,7 +183,11 @@ public class SimilarityService {
 
             // Save the model
              String absoluteModelPath = helper.getStorageHelper().absolutePath(helper.getStorageHelper().path(id, "lda/similarities/centroids/nodes"));
-             dataFrame.save(absoluteModelPath);
+             dataFrame
+                     .repartition(1)
+                     .write()
+                     .mode(SaveMode.Overwrite)
+                     .save(absoluteModelPath);
              LOG.info("Saved centroids at: " + absoluteModelPath);
 
         }catch (Exception e){
@@ -205,7 +210,10 @@ public class SimilarityService {
             // Save the model
             String absoluteModelPath = helper.getStorageHelper().absolutePath(helper.getStorageHelper().path(id,
                     "lda/similarities/centroids/edges"));
-            dataFrame.save(absoluteModelPath);
+            dataFrame.repartition(1)
+                    .write()
+                    .mode(SaveMode.Overwrite)
+                    .save(absoluteModelPath);
             LOG.info("Saved centroids at: " + absoluteModelPath);
 
         }catch (Exception e){
@@ -227,7 +235,10 @@ public class SimilarityService {
 
             // Save the model
             String absoluteModelPath = storageHelper.absolutePath(storageHelper.path(id, "lda/similarities/subgraphs/"+centroidId+"/"+label));
-            dataFrame.save(absoluteModelPath);
+            dataFrame.repartition(1)
+                    .write()
+                    .mode(SaveMode.Overwrite)
+                    .save(absoluteModelPath);
             LOG.info("Saved subgraph "+centroidId+"/"+label+" from graph-model at: " + absoluteModelPath);
 
         }catch (Exception e){
@@ -251,23 +262,77 @@ public class SimilarityService {
 
         String scoreFilter = (minScore.isPresent())? " score > " + minScore.get() : "";
 
+        StructType structType = (label.equalsIgnoreCase("nodes"))?
+                DataTypes
+                        .createStructType(new StructField[]{
+                                DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType, false),
+                                DataTypes.createStructField(ShapesDao.RESOURCE_TYPE, DataTypes.StringType, false),
+                                DataTypes.createStructField(ShapesDao.VECTOR, DataTypes.createArrayType(DataTypes.DoubleType), false)
+                        }) :
+                DataTypes
+                        .createStructType(new StructField[]{
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_1, DataTypes.StringType, false),
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_2, DataTypes.StringType, false),
+                                DataTypes.createStructField(SimilaritiesDao.SCORE, DataTypes.DoubleType, false),
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_1, DataTypes.StringType, false),
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_2, DataTypes.StringType, false)
+                        });
 
-        if (minScore.isPresent() && types.isEmpty())
-            return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions()).filter(scoreFilter);
+        if (minScore.isPresent() && types.isEmpty()){
+            LOG.info("min score and no types filter");
+            return context.getSqlContext()
+                    .read()
+                    .schema(structType)
+                    .load(modelPath)
+                    .repartition(context.getRecommendedPartitions())
+                    .filter(scoreFilter);
+        }
         else if (minScore.isPresent() && !types.isEmpty()){
             if (extendedTypeFilter){
-                return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions()).filter(scoreFilter).filter(typeFilter).filter("resource_type_2 in (" + types.stream().map(t -> "'"+t+"'").collect(Collectors.joining(",")) + ")");
+                LOG.info("min score and types and extended type filter");
+                return context.getSqlContext()
+                        .read()
+                        .schema(structType)
+                        .load(modelPath)
+                        .repartition(context.getRecommendedPartitions())
+                        .filter(scoreFilter)
+                        .filter(typeFilter)
+                        .filter("resource_type_2 in (" + types.stream().map(t -> "'"+t+"'").collect(Collectors.joining(",")) + ")");
             }else{
-                return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions()).filter(scoreFilter).filter(typeFilter);
+                LOG.info("min score and types and not extended type filter");
+                return context.getSqlContext()
+                        .read()
+                        .schema(structType)
+                        .load(modelPath)
+                        .repartition(context.getRecommendedPartitions())
+                        .filter(scoreFilter)
+                        .filter(typeFilter);
             }
         }else if (!minScore.isPresent() && types.isEmpty()){
-            return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions());
+            LOG.info("no min score and types is empty");
+            return context.getSqlContext()
+                    .read()
+                    .schema(structType)
+                    .load(modelPath)
+                    .repartition(context.getRecommendedPartitions());
         }else{
 
             if (extendedTypeFilter){
-                return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions()).filter(typeFilter).filter("resource_type_2 in (" + types.stream().map(t -> "'"+t+"'").collect(Collectors.joining(",")) + ")");
+                LOG.info("else and extended types filter");
+                return context.getSqlContext()
+                        .read()
+                        .schema(structType)
+                        .load(modelPath)
+                        .repartition(context.getRecommendedPartitions())
+                        .filter(typeFilter).filter("resource_type_2 in (" + types.stream().map(t -> "'"+t+"'").collect(Collectors.joining(",")) + ")");
             }else{
-                return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions()).filter(typeFilter);
+                LOG.info("else and else");
+                return context.getSqlContext()
+                        .read()
+                        .schema(structType)
+                        .load(modelPath)
+                        .repartition(context.getRecommendedPartitions())
+                        .filter(typeFilter);
             }
         }
     }
@@ -281,7 +346,12 @@ public class SimilarityService {
 
             // Save the model
             String absoluteModelPath = storageHelper.absolutePath(storageHelper.path(id, "lda/similarities/graph/"+label));
-            dataFrame.save(absoluteModelPath);
+            dataFrame
+                    .repartition(1)
+                    .write()
+                    .mode(SaveMode.Overwrite)
+                    .save(absoluteModelPath);
+
             LOG.info("Saved "+label +" from graph-model at: " + absoluteModelPath);
 
         }catch (Exception e){
@@ -296,13 +366,35 @@ public class SimilarityService {
     public DataFrame loadFromFileSystem(ComputingContext context, String id, String label){
         String modelPath = storageHelper.absolutePath(storageHelper.path(id,"lda/similarities/graph/"+label));
         LOG.info("loading "+label+" from graph-model:" + modelPath);
-        return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions());
+        return context.getSqlContext().load(modelPath).repartition(context.getRecommendedPartitions());
     }
 
     public DataFrame loadCentroidsFromFileSystem(ComputingContext context, String id, String label){
         String modelPath = storageHelper.absolutePath(storageHelper.path(id,"lda/similarities/centroids/"+label));
         LOG.info("loading "+label+" from centroids-graph-model:" + modelPath);
-        return context.getCassandraSQLContext().load(modelPath).repartition(context.getRecommendedPartitions());
+
+        StructType nodeDataType = (label.equalsIgnoreCase("nodes"))?
+                DataTypes
+                .createStructType(new StructField[]{
+                        DataTypes.createStructField(ShapesDao.RESOURCE_URI, DataTypes.StringType, false),
+                        DataTypes.createStructField(ShapesDao.RESOURCE_TYPE, DataTypes.StringType, false),
+                        DataTypes.createStructField(ShapesDao.VECTOR, DataTypes.createArrayType(DataTypes.DoubleType), false)
+                }) :
+                DataTypes
+                        .createStructType(new StructField[]{
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_1, DataTypes.StringType, false),
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_2, DataTypes.StringType, false),
+                                DataTypes.createStructField(SimilaritiesDao.SCORE, DataTypes.DoubleType, false),
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_1, DataTypes.StringType, false),
+                                DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_2, DataTypes.StringType, false)
+                        });
+
+
+        return context.getSqlContext()
+                .read()
+                .schema(nodeDataType)
+                .load(modelPath)
+                .repartition(context.getRecommendedPartitions());
     }
 
 
