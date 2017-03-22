@@ -265,7 +265,7 @@ public class LDASimilarityTask implements Runnable {
         dataFrame.take(1);
 
         LOG.info("Saving centroids in filesystem ...");
-        helper.getSimilarityService().saveCentroids(domainUri, dataFrame.select(ShapesDao.RESOURCE_URI, ShapesDao.RESOURCE_TYPE));
+        helper.getSimilarityService().saveCentroids(context, domainUri, dataFrame.select(ShapesDao.RESOURCE_URI, ShapesDao.RESOURCE_TYPE));
 
         LOG.info("Saving centroid-similarities in filesystem ...");
 
@@ -311,7 +311,7 @@ public class LDASimilarityTask implements Runnable {
 
         DataFrame similaritiesRowDF = context.getSqlContext().createDataFrame(similarities.map( sr -> RowFactory.create(sr.getResource_uri_1(), sr.getResource_uri_2(), sr.getScore(), sr.getResource_type_1(), sr.getResource_type_2())), simDataType);
 
-        helper.getSimilarityService().saveCentroidSimilarities(domainUri, similaritiesRowDF);
+        helper.getSimilarityService().saveCentroidSimilarities(context, domainUri, similaritiesRowDF);
 
         similarities.unpersist();
 
@@ -364,7 +364,7 @@ public class LDASimilarityTask implements Runnable {
 
         LOG.info("saving subgraph edges from sector " + centroid.getId());
         JavaRDD<Row> rows = simRows.map(sr -> RowFactory.create(sr.getResource_uri_1(), sr.getResource_uri_2(), sr.getScore(), sr.getResource_type_1(), sr.getResource_type_2()));
-        helper.getSimilarityService().saveSubGraphToFileSystem(context.getSqlContext().createDataFrame(rows, edgeDataType),URIGenerator.retrieveId(domainUri), "edges", String.valueOf(centroid.getId()));
+        helper.getSimilarityService().saveSubGraphToFileSystem(context, context.getSqlContext().createDataFrame(rows, edgeDataType),URIGenerator.retrieveId(domainUri), "edges", String.valueOf(centroid.getId()));
 
         simRows.unpersist();
 
@@ -410,7 +410,7 @@ public class LDASimilarityTask implements Runnable {
         DataFrame nodesFrame = context.getSqlContext().createDataFrame(nodeRows, nodeDataType);
 
         LOG.info("saving subgraph nodes from sector " + centroid.getId());
-        helper.getSimilarityService().saveSubGraphToFileSystem(nodesFrame,URIGenerator.retrieveId(domainUri), "nodes", String.valueOf(centroid.getId()));
+        helper.getSimilarityService().saveSubGraphToFileSystem(context, nodesFrame,URIGenerator.retrieveId(domainUri), "nodes", String.valueOf(centroid.getId()));
 
     }
 

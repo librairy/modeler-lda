@@ -84,7 +84,7 @@ public class LDASimilarityGraphTask implements Runnable {
                             .load()
                             .repartition(context.getRecommendedPartitions());
 
-                    helper.getSimilarityService().saveToFileSystem(shapes,URIGenerator.retrieveId(domainUri), "nodes");
+                    helper.getSimilarityService().saveToFileSystem(context, shapes,URIGenerator.retrieveId(domainUri), "nodes");
 
                     shapes.unpersist();
 
@@ -129,8 +129,7 @@ public class LDASimilarityGraphTask implements Runnable {
                             .load()
                             .repartition(context.getRecommendedPartitions());
 
-                    helper.getSimilarityService().saveToFileSystem(similarities,URIGenerator.retrieveId(domainUri),
-                            "edges");
+                    helper.getSimilarityService().saveToFileSystem(context, similarities,URIGenerator.retrieveId(domainUri), "edges");
 
                     similarities.unpersist();
 

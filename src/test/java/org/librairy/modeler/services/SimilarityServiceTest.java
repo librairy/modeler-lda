@@ -107,7 +107,7 @@ public class SimilarityServiceTest {
 //                    .cache();
 
             LOG.info("Saving centroids in filesystem ...");
-            helper.getSimilarityService().saveCentroids(domainUri, dataFrame);
+            helper.getSimilarityService().saveCentroids(context, domainUri, dataFrame);
         }catch (Exception e){
             LOG.error("Unexpected error", e);
         };

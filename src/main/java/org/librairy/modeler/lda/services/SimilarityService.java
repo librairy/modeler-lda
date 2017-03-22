@@ -173,7 +173,7 @@ public class SimilarityService {
         return df;
     }
 
-    public void saveCentroids(String domainUri, DataFrame dataFrame){
+    public void saveCentroids(ComputingContext context,String domainUri, DataFrame dataFrame){
          try{
              // Clean previous model
              String id = URIGenerator.retrieveId(domainUri);
@@ -184,7 +184,7 @@ public class SimilarityService {
             // Save the model
              String absoluteModelPath = helper.getStorageHelper().absolutePath(helper.getStorageHelper().path(id, "lda/similarities/centroids/nodes"));
              dataFrame
-                     .repartition(1)
+                     .repartition(context.getRecommendedPartitions()/2)
                      .write()
                      .mode(SaveMode.Overwrite)
                      .save(absoluteModelPath);
@@ -199,7 +199,7 @@ public class SimilarityService {
         }
     }
 
-    public void saveCentroidSimilarities(String domainUri, DataFrame dataFrame){
+    public void saveCentroidSimilarities(ComputingContext context, String domainUri, DataFrame dataFrame){
         try{
             // Clean previous model
             String id = URIGenerator.retrieveId(domainUri);
@@ -210,7 +210,8 @@ public class SimilarityService {
             // Save the model
             String absoluteModelPath = helper.getStorageHelper().absolutePath(helper.getStorageHelper().path(id,
                     "lda/similarities/centroids/edges"));
-            dataFrame.repartition(1)
+            dataFrame
+                    .repartition(context.getRecommendedPartitions()/2)
                     .write()
                     .mode(SaveMode.Overwrite)
                     .save(absoluteModelPath);
@@ -226,7 +227,7 @@ public class SimilarityService {
     }
 
 
-    public void saveSubGraphToFileSystem(DataFrame dataFrame, String id , String label, String centroidId){
+    public void saveSubGraphToFileSystem(ComputingContext context,DataFrame dataFrame, String id , String label, String centroidId){
         try {
             helper.getStorageHelper().create(id);
             // Clean previous model
@@ -235,7 +236,8 @@ public class SimilarityService {
 
             // Save the model
             String absoluteModelPath = storageHelper.absolutePath(storageHelper.path(id, "lda/similarities/subgraphs/"+centroidId+"/"+label));
-            dataFrame.repartition(1)
+            dataFrame
+                    .repartition(context.getRecommendedPartitions()/2)
                     .write()
                     .mode(SaveMode.Overwrite)
                     .save(absoluteModelPath);
@@ -284,7 +286,6 @@ public class SimilarityService {
                     .read()
                     .schema(structType)
                     .load(modelPath)
-                    .repartition(context.getRecommendedPartitions())
                     .filter(scoreFilter);
         }
         else if (minScore.isPresent() && !types.isEmpty()){
@@ -294,7 +295,6 @@ public class SimilarityService {
                         .read()
                         .schema(structType)
                         .load(modelPath)
-                        .repartition(context.getRecommendedPartitions())
                         .filter(scoreFilter)
                         .filter(typeFilter)
                         .filter("resource_type_2 in (" + types.stream().map(t -> "'"+t+"'").collect(Collectors.joining(",")) + ")");
@@ -304,7 +304,6 @@ public class SimilarityService {
                         .read()
                         .schema(structType)
                         .load(modelPath)
-                        .repartition(context.getRecommendedPartitions())
                         .filter(scoreFilter)
                         .filter(typeFilter);
             }
@@ -313,8 +312,7 @@ public class SimilarityService {
             return context.getSqlContext()
                     .read()
                     .schema(structType)
-                    .load(modelPath)
-                    .repartition(context.getRecommendedPartitions());
+                    .load(modelPath);
         }else{
 
             if (extendedTypeFilter){
@@ -323,7 +321,6 @@ public class SimilarityService {
                         .read()
                         .schema(structType)
                         .load(modelPath)
-                        .repartition(context.getRecommendedPartitions())
                         .filter(typeFilter).filter("resource_type_2 in (" + types.stream().map(t -> "'"+t+"'").collect(Collectors.joining(",")) + ")");
             }else{
                 LOG.info("else and else");
@@ -331,13 +328,12 @@ public class SimilarityService {
                         .read()
                         .schema(structType)
                         .load(modelPath)
-                        .repartition(context.getRecommendedPartitions())
                         .filter(typeFilter);
             }
         }
     }
 
-    public void saveToFileSystem(DataFrame dataFrame, String id , String label){
+    public void saveToFileSystem(ComputingContext context, DataFrame dataFrame, String id , String label){
         try {
             helper.getStorageHelper().create(id);
             // Clean previous model
@@ -347,7 +343,7 @@ public class SimilarityService {
             // Save the model
             String absoluteModelPath = storageHelper.absolutePath(storageHelper.path(id, "lda/similarities/graph/"+label));
             dataFrame
-                    .repartition(1)
+                    .repartition(context.getRecommendedPartitions()/2)
                     .write()
                     .mode(SaveMode.Overwrite)
                     .save(absoluteModelPath);
@@ -393,8 +389,7 @@ public class SimilarityService {
         return context.getSqlContext()
                 .read()
                 .schema(nodeDataType)
-                .load(modelPath)
-                .repartition(context.getRecommendedPartitions());
+                .load(modelPath);
     }
 
 
