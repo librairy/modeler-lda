@@ -29,7 +29,6 @@ import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
-import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.ShapeRow;
 import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.functions.RowToPair;
@@ -117,7 +116,7 @@ public class Corpus {
                 .map(type -> readElements(domainUri, type))
                 .reduce((df1, df2) -> df1.unionAll(df2))
                 .get()
-                .cache()
+                .persist(helper.getCacheModeHelper().getLevel());
                 ;
 
         docsDF.take(1);
@@ -139,7 +138,7 @@ public class Corpus {
                 .createDataFrame(rows, ShapeRow.class)
                 .write()
                 .format("org.apache.spark.sql.cassandra")
-                .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromId(id)))
+                .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",id)))
                 .mode(SaveMode.Overwrite)
                 .save();
         LOG.info("saved!");
@@ -148,7 +147,7 @@ public class Corpus {
 //                join(resourcesDF, containsDF.col("enduri").equalTo(resourcesDF.col("uri")));
 
         this.df = process(docsDF)
-                .cache();
+                .persist(helper.getCacheModeHelper().getLevel());
 
         docsDF.unpersist();
 
@@ -233,7 +232,7 @@ public class Corpus {
                 .select("uri", "features")
                 .repartition(partitions)
                 .map(new RowToPair(), ClassTag$.MODULE$.<Tuple2<Object, Vector>>apply(tuple.getClass()))
-                .cache()
+                 .persist(helper.getCacheModeHelper().getLevel());
         ;
         
         return bow;

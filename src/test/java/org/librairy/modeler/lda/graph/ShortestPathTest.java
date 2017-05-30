@@ -7,7 +7,6 @@
 
 package org.librairy.modeler.lda.graph;
 
-import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Doubles;
 import es.cbadenes.lab.test.IntegrationTest;
 import org.apache.spark.api.java.JavaRDD;
@@ -22,18 +21,18 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.librairy.boot.model.domain.resources.Resource;
-import org.librairy.boot.model.utils.TimeUtils;
 import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
-import org.librairy.metrics.distance.JensenShannonDivergence;
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
 import org.librairy.modeler.lda.api.ApiConfig;
-import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.api.ShortestPathAPI;
-import org.librairy.modeler.lda.dao.*;
+import org.librairy.modeler.lda.dao.ShapesDao;
+import org.librairy.modeler.lda.dao.SimilaritiesDao;
 import org.librairy.modeler.lda.helper.ModelingHelper;
-import org.librairy.modeler.lda.models.*;
+import org.librairy.modeler.lda.models.Centroid;
+import org.librairy.modeler.lda.models.Node;
+import org.librairy.modeler.lda.models.Path;
 import org.librairy.modeler.lda.services.ShortestPathService;
 import org.librairy.modeler.lda.services.SimilarityService;
 import org.slf4j.Logger;
@@ -43,7 +42,6 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import scala.Tuple2;
-import scala.collection.JavaConversions;
 
 import java.util.Arrays;
 import java.util.Collections;

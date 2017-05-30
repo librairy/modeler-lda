@@ -10,17 +10,11 @@ package org.librairy.modeler.lda.api;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.exceptions.InvalidQueryException;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Doubles;
-import org.apache.commons.collections4.CollectionUtils;
-import org.apache.spark.sql.DataFrame;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.domain.resources.Domain;
-import org.librairy.boot.model.domain.resources.Resource;
+import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.boot.storage.generator.URIGenerator;
-import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
 import org.librairy.modeler.lda.api.model.Criteria;
 import org.librairy.modeler.lda.api.model.ScoredResource;
@@ -28,20 +22,21 @@ import org.librairy.modeler.lda.api.model.ScoredTopic;
 import org.librairy.modeler.lda.api.model.ScoredWord;
 import org.librairy.modeler.lda.dao.*;
 import org.librairy.modeler.lda.helper.ModelingHelper;
-import org.librairy.modeler.lda.models.*;
-import org.librairy.modeler.lda.services.ShortestPathService;
-import org.librairy.modeler.lda.tasks.LDAComparisonTask;
-import org.librairy.modeler.lda.tasks.LDATextTask;
+import org.librairy.modeler.lda.models.Comparison;
+import org.librairy.modeler.lda.models.Field;
+import org.librairy.modeler.lda.models.Path;
+import org.librairy.modeler.lda.models.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 /**
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
@@ -52,7 +47,7 @@ public class LDAModelerAPI {
     private static final Logger LOG = LoggerFactory.getLogger(LDAModelerAPI.class);
 
     @Autowired
-    SessionManager sessionManager;
+    DBSessionManager sessionManager;
 
     @Autowired
     ModelingHelper helper;
@@ -66,12 +61,12 @@ public class LDAModelerAPI {
 
     public String getItemFromDocument(String uri) throws DataNotFound {
         // TODO handle criteria.type
-        String query = "select enduri from research.bundles where starturi='"+uri+"';";
+        String query = "select enduri from bundles where starturi='"+uri+"';";
 
 
         LOG.debug("Executing query: " + query);
         try{
-            ResultSet result = sessionManager.getSession().execute(query);
+            ResultSet result = sessionManager.getCommonSession().execute(query);
             Row row = result.one();
 
             if (row == null ) return "";
@@ -100,7 +95,7 @@ public class LDAModelerAPI {
 
         LOG.debug("Executing query: " + query);
         try{
-            ResultSet result = sessionManager.getSession(criteria.getDomainUri()).execute(query);
+            ResultSet result = sessionManager.getSpecificSession("lda",URIGenerator.retrieveId(criteria.getDomainUri())).execute(query);
             List<Row> rows = result.all();
 
             if (rows == null || rows.isEmpty()) return Collections.emptyList();
@@ -128,7 +123,7 @@ public class LDAModelerAPI {
 
         LOG.debug("Executing query: " + query);
         try{
-            ResultSet result = sessionManager.getSession(criteria.getDomainUri()).execute(query);
+            ResultSet result = sessionManager.getSpecificSession("lda",URIGenerator.retrieveId(criteria.getDomainUri())).execute(query);
             Row row = result.one();
 
             if (row == null ) return Collections.emptyList();
@@ -170,7 +165,7 @@ public class LDAModelerAPI {
 
         LOG.debug("Executing query: " + query);
         try{
-            ResultSet result = sessionManager.getSession(criteria.getDomainUri()).execute(query);
+            ResultSet result = sessionManager.getSpecificSession("lda",URIGenerator.retrieveId(criteria.getDomainUri())).execute(query);
             List<Row> rows = result.all();
 
             if (rows == null ) return Collections.emptyList();
@@ -207,7 +202,7 @@ public class LDAModelerAPI {
 
         LOG.debug("Executing query: " + query);
         try{
-            ResultSet result = sessionManager.getSession(domainUri).execute(query);
+            ResultSet result = sessionManager.getSpecificSession("lda",URIGenerator.retrieveId(domainUri)).execute(query);
 
             Row row = result.one();
 
@@ -247,7 +242,7 @@ public class LDAModelerAPI {
 
         LOG.debug("Executing query: " + query);
         try{
-            ResultSet result = sessionManager.getSession(criteria.getDomainUri()).execute(query);
+            ResultSet result = sessionManager.getSpecificSession("lda",URIGenerator.retrieveId(criteria.getDomainUri())).execute(query);
             List<Row> rows = result.all();
 
             if (rows == null || rows.isEmpty()) return Collections.emptyList();
@@ -295,7 +290,7 @@ public class LDAModelerAPI {
 
         LOG.debug("Executing query: " + query);
         try{
-            ResultSet result = sessionManager.getSession(criteria.getDomainUri()).execute(query);
+            ResultSet result = sessionManager.getSpecificSession("lda",URIGenerator.retrieveId(criteria.getDomainUri())).execute(query);
             List<Row> rows = result.all();
 
             if (rows == null || rows.isEmpty()) return Collections.emptyList();
@@ -408,7 +403,7 @@ public class LDAModelerAPI {
 
         List<double[]> vectors = Arrays.asList(new String[]{uri1, uri2}).stream().map(uri -> {
             String query = "select vector from shapes where uri='" + uri + "';";
-            ResultSet result = sessionManager.getSession(domainUri).execute(query);
+            ResultSet result = sessionManager.getSpecificSession("lda",URIGenerator.retrieveId(domainUri)).execute(query);
             List<Double> vector = result.one().getList(0, Double.class);
             return Doubles.toArray(vector);
 

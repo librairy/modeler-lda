@@ -10,10 +10,7 @@ package org.librairy.modeler.lda.dao;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Row;
 import com.datastax.driver.core.exceptions.InvalidQueryException;
-import org.librairy.boot.model.utils.TimeUtils;
 import org.librairy.boot.storage.exception.DataNotFound;
-import org.librairy.boot.storage.generator.URIGenerator;
-import org.librairy.modeler.lda.api.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,10 +33,6 @@ public class ClusterDao extends  AbstractDao{
     public static final String CLUSTER = "cluster";
 
     public static final String TABLE = "clusters";
-
-
-    @Autowired
-    SessionManager sessionManager;
 
     public ClusterDao() {
         super(TABLE);
@@ -74,7 +67,7 @@ public class ClusterDao extends  AbstractDao{
                 "values ( '"+row.getUri()+"' , " + row.getCluster() +");";
 
         try{
-            ResultSet result = sessionManager.getSession(domainUri).execute(query);
+            ResultSet result = getSession(domainUri).execute(query);
             LOG.info("assigned : "+row.getUri()+"' in '"+domainUri+"' to cluster " + row.getCluster());
             return result.wasApplied();
         }catch (InvalidQueryException e){
@@ -87,7 +80,7 @@ public class ClusterDao extends  AbstractDao{
         String query = "select "+CLUSTER+" from "+TABLE+" where "+URI+"='"+uri+ "';";
 
         try{
-            ResultSet result = sessionManager.getSession(domainUri).execute(query);
+            ResultSet result = getSession(domainUri).execute(query);
 
             List<Row> rows = result.all();
 

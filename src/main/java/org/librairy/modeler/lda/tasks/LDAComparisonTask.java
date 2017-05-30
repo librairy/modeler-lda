@@ -7,42 +7,28 @@
 
 package org.librairy.modeler.lda.tasks;
 
-import com.datastax.spark.connector.japi.CassandraJavaUtil;
 import com.google.common.collect.ImmutableMap;
-import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.SaveMode;
-import org.apache.spark.sql.types.DataTypes;
-import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.domain.resources.Domain;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.boot.model.utils.TimeUtils;
+import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
-import org.librairy.metrics.data.Ranking;
-import org.librairy.metrics.distance.ExtendedKendallsTauDistance;
 import org.librairy.metrics.distance.ExtendedKendallsTauSimilarity;
-import org.librairy.modeler.lda.api.SessionManager;
-import org.librairy.modeler.lda.dao.*;
-import org.librairy.modeler.lda.functions.RowToRank;
-import org.librairy.modeler.lda.functions.RowToTopic;
+import org.librairy.modeler.lda.dao.ComparisonRow;
+import org.librairy.modeler.lda.dao.ComparisonsDao;
+import org.librairy.modeler.lda.dao.TopicRank;
 import org.librairy.modeler.lda.helper.ModelingHelper;
-import org.librairy.modeler.lda.models.Comparison;
-import org.librairy.modeler.lda.models.Field;
 import org.librairy.modeler.lda.utils.LevenshteinSimilarity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import static com.datastax.spark.connector.japi.CassandraJavaUtil.mapToRow;
 
 /**
  * Created on 12/08/16:
@@ -76,45 +62,51 @@ public class LDAComparisonTask implements Runnable {
 
                     LOG.info("Comparing " + domainUri + " with others");
 
-                    // get domains
-                    List<String> domains = helper.getDomainsDao().listOnly(Domain.URI)
-                            .stream()
-                            .filter(uri -> !uri.equalsIgnoreCase(domainUri))
-                            .collect(Collectors.toList());
-
                     // get topics
                     List<TopicRank> topics = helper.getTopicsDao().listAsRank(domainUri, 100);
-                    JavaRDD<TopicRank> topicsRDD = context.getSparkContext().parallelize(topics, partitions).cache();
+                    JavaRDD<TopicRank> topicsRDD = context.getSparkContext().parallelize(topics, partitions)
+                            .persist(helper.getCacheModeHelper().getLevel());
                     topicsRDD.take(1);//force cache
 
-                    for (String domain : domains) {
+                    Integer windowSize = 100;
+                    Optional<String> offset = Optional.empty();
+                    Boolean finished = false;
 
-                        // get topics per domain
-                        List<TopicRank> domainTopics = helper.getTopicsDao().listAsRank(domain, 100);
-                        JavaRDD<TopicRank> domainTopicsRDD = context.getSparkContext().parallelize(domainTopics, partitions);
+                    while(!finished){
+                        List<Domain> domains = helper.getDomainsDao().list(windowSize,offset,false);
 
-                        // compare
-                        JavaRDD<ComparisonRow> rows = topicsRDD.cartesian(domainTopicsRDD).map(t -> new ComparisonRow(
-                                t._2.getDomainUri(),
-                                t._2.getTopicUri(),
-                                t._1.getTopicUri(),
-                                TimeUtils.asISO(),
-                                new ExtendedKendallsTauSimilarity<String>().calculate(t._1.getWords(), t._2.getWords(), new LevenshteinSimilarity()))
-                        );
+                        for (Domain domain: domains){
+                            // get topics per domain
+                            List<TopicRank> domainTopics = helper.getTopicsDao().listAsRank(domain.getUri(), 100);
+                            JavaRDD<TopicRank> domainTopicsRDD = context.getSparkContext().parallelize(domainTopics, partitions);
 
-                        // save
-                        LOG.info("saving comparisons between: " + domainUri + " and " + domain);
-                        context.getSqlContext()
-                                .createDataFrame(rows, ComparisonRow.class)
-                                .write()
-                                .format("org.apache.spark.sql.cassandra")
-                                .options(ImmutableMap.of("table", ComparisonsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
-                                .mode(SaveMode.Append)
-                                .save();
+                            // compare
+                            JavaRDD<ComparisonRow> rows = topicsRDD.cartesian(domainTopicsRDD).map(t -> new ComparisonRow(
+                                    t._2.getDomainUri(),
+                                    t._2.getTopicUri(),
+                                    t._1.getTopicUri(),
+                                    TimeUtils.asISO(),
+                                    new ExtendedKendallsTauSimilarity<String>().calculate(t._1.getWords(), t._2.getWords(), new LevenshteinSimilarity()))
+                            );
 
-                        rows.unpersist();
+                            // save
+                            LOG.info("saving comparisons between: " + domainUri + " and " + domain);
+                            context.getSqlContext()
+                                    .createDataFrame(rows, ComparisonRow.class)
+                                    .write()
+                                    .format("org.apache.spark.sql.cassandra")
+                                    .options(ImmutableMap.of("table", ComparisonsDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
+                                    .mode(SaveMode.Append)
+                                    .save();
 
-                        domainTopicsRDD.unpersist();
+                            rows.unpersist();
+
+                            domainTopicsRDD.unpersist();
+                        }
+
+                        if (domains.size() < windowSize) break;
+
+                        offset = Optional.of(URIGenerator.retrieveId(domains.get(windowSize-1).getUri()));
 
                     }
 

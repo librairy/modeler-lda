@@ -13,10 +13,10 @@ import org.librairy.boot.storage.dao.CounterDao;
 import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.dao.DomainsDao;
 import org.librairy.boot.storage.dao.ParametersDao;
+import org.librairy.computing.cache.CacheModeHelper;
 import org.librairy.computing.cluster.Partitioner;
 import org.librairy.computing.helper.ComputingHelper;
 import org.librairy.computing.helper.StorageHelper;
-import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.builder.CorpusBuilder;
 import org.librairy.modeler.lda.builder.DealsBuilder;
 import org.librairy.modeler.lda.builder.LDABuilder;
@@ -43,6 +43,9 @@ public class ModelingHelper {
     ComputingHelper computingHelper;
 
     @Autowired
+    CacheModeHelper cacheModeHelper;
+
+    @Autowired
     LDABuilder ldaBuilder;
 
     @Autowired
@@ -62,9 +65,6 @@ public class ModelingHelper {
 
     @Autowired
     EventBus eventBus;
-
-    @Autowired
-    SessionManager sessionManager;
 
     @Autowired
     DBSessionManager dbSessionManager;

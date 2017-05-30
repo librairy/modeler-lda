@@ -12,7 +12,11 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import org.librairy.boot.model.domain.resources.Domain;
+import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.storage.dao.DomainsDao;
+import org.librairy.boot.storage.dao.ItemsDao;
+import org.librairy.boot.storage.dao.PartsDao;
+import org.librairy.boot.storage.generator.URIGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,7 +38,10 @@ public class DomainCache {
     private static final Logger LOG = LoggerFactory.getLogger(DomainCache.class);
 
     @Autowired
-    DomainsDao domainsDao;
+    ItemsDao itemsDao;
+
+    @Autowired
+    PartsDao partsDao;
 
     LoadingCache<String, List<Domain>> cache;
 
@@ -42,17 +49,19 @@ public class DomainCache {
     public void setup(){
         this.cache = CacheBuilder.newBuilder()
                 .maximumSize(2000)
-                .expireAfterWrite(1, TimeUnit.MINUTES)
+                .expireAfterWrite(10, TimeUnit.SECONDS)
                 .build(
                         new CacheLoader<String, List<Domain>>() {
                             public List<Domain> load(String uri) {
-                                return StreamSupport.stream(Spliterators.spliteratorUnknownSize(domainsDao.listFrom(uri), Spliterator.ORDERED), false)
-                                        .map(row -> {
-                                            Domain domain = new Domain();
-                                            domain.setUri(row.getString(0));
-                                            return domain;
-                                        })
-                                        .collect(Collectors.toList());
+
+                                Resource.Type type = URIGenerator.typeFrom(uri);
+
+                                switch (type){
+                                    case ITEM: return itemsDao.listDomains(uri,100,Optional.empty(),true);
+                                    case PART: return partsDao.listDomains(uri,100,Optional.empty());
+                                    default: return Collections.emptyList();
+                                }
+
                             }
                         });
 

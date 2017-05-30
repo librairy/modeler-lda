@@ -18,25 +18,22 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.utils.TimeUtils;
+import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
-import org.librairy.modeler.lda.api.SessionManager;
-import org.librairy.modeler.lda.dao.*;
+import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.functions.RowToResourceShape;
-import org.librairy.modeler.lda.functions.RowToTupleVector;
 import org.librairy.modeler.lda.functions.TupleToResourceShape;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
-import scala.collection.JavaConversions;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Created on 12/08/16:
@@ -87,7 +84,7 @@ public class LDATextTask implements Runnable {
                         .topicDistributions(documents)
                         .toJavaRDD()
                         .map(new TupleToResourceShape(text.getId()))
-                        .cache();
+                        .persist(helper.getCacheModeHelper().getLevel());
 
                 corpus.clean();
 
@@ -109,7 +106,7 @@ public class LDATextTask implements Runnable {
                         .option("inferSchema", "false") // Automatically infer data types
                         .option("charset", "UTF-8")
                         .option("mode", "DROPMALFORMED")
-                        .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                        .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                         .load();
 
                 DataFrame shapesDF = baseDF;
@@ -126,7 +123,7 @@ public class LDATextTask implements Runnable {
                         .repartition(context.getRecommendedPartitions())
                         .toJavaRDD()
                         .map(new RowToResourceShape())
-                        .cache();
+                        .persist(helper.getCacheModeHelper().getLevel());
 
                 shapes.take(1);
 

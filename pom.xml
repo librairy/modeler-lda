@@ -93,8 +93,8 @@
         <jena.version>2.10.1</jena.version>
         <jgrapht.version>0.9.0</jgrapht.version>
         <junit.version>4.12</junit.version>
-        <librairy.metrics.version>1.17</librairy.metrics.version>
-        <librairy.computing.version>0.16</librairy.computing.version>
+        <librairy.metrics.version>1.18</librairy.metrics.version>
+        <librairy.computing.version>0.17</librairy.computing.version>
         <librairy.boot.version>1.6.0</librairy.boot.version>
         <log4j.version>1.2.17</log4j.version>
         <log4j.slf4j.version>1.7.14</log4j.slf4j.version>
@@ -489,7 +489,29 @@
         <!-- Internal Dependencies -->
         <dependency>
             <groupId>org.librairy</groupId>
+            <artifactId>librairy-boot</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.librairy</groupId>
             <artifactId>librairy-metrics</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>log4j</groupId>
+                    <artifactId>log4j</artifactId>
+                    </exclusion>
+                <exclusion>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>slf4j-log4j12</artifactId>
+                    </exclusion>
+                <exclusion>
+                        <groupId>org.slf4j</groupId>
+                        <artifactId>log4j-over-slf4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>org.librairy</groupId>
+            <artifactId>librairy-computing</artifactId>
         </dependency>
 
         <!-- Spark GraphFrames -->
@@ -497,6 +519,11 @@
             <groupId>graphframes</groupId>
             <artifactId>graphframes</artifactId>
             <version>0.3.0-spark1.6-s_2.10</version>
+        </dependency>
+        <dependency>
+            <groupId>com.databricks</groupId>
+            <artifactId>spark-csv_2.10</artifactId>
+            <version>1.5.0</version>
         </dependency>
 
         <!-- Unit tests -->
@@ -631,6 +658,21 @@
             <artifactId>scala-logging-slf4j_2.10</artifactId>
             <version>2.1.2</version>
         </dependency>
+
+        <!-- Test String -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-text</artifactId>
+            <version>1.0</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>cc.mallet</groupId>
+            <artifactId>mallet</artifactId>
+            <version>2.0.8</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
     <build>

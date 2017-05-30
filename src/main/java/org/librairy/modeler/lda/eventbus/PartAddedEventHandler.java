@@ -14,13 +14,10 @@ import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.cache.DelayCache;
-import org.librairy.modeler.lda.cache.PartCache;
 import org.librairy.modeler.lda.services.ModelingService;
-import org.librairy.modeler.lda.services.ParallelExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -41,9 +38,6 @@ public class PartAddedEventHandler implements EventBusSubscriber {
 
     @Autowired
     DelayCache delayCache;
-
-    @Autowired
-    PartCache partCache;
 
     @PostConstruct
     public void init(){

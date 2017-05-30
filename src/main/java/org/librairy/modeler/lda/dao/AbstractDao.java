@@ -8,7 +8,8 @@
 package org.librairy.modeler.lda.dao;
 
 import com.datastax.driver.core.Session;
-import org.librairy.modeler.lda.api.SessionManager;
+import org.librairy.boot.storage.dao.DBSessionManager;
+import org.librairy.boot.storage.generator.URIGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +22,7 @@ public abstract class AbstractDao {
     private static final Logger LOG = LoggerFactory.getLogger(AbstractDao.class);
 
     @Autowired
-    protected SessionManager sessionManager;
+    protected DBSessionManager sessionManager;
 
     protected final String table;
 
@@ -33,11 +34,11 @@ public abstract class AbstractDao {
 
     public void destroy(String domainUri){
         LOG.info("dropping existing LDA "+table+" table for domain: " + domainUri);
-        sessionManager.getSession(domainUri).execute("truncate "+table+";");
+        sessionManager.getSpecificSession("lda", URIGenerator.retrieveId(domainUri).toLowerCase()).execute("truncate "+table+";");
     }
 
     public Session getSession(String domainUri){
-        return sessionManager.getSession(domainUri);
+        return sessionManager.getSpecificSession("lda", URIGenerator.retrieveId(domainUri).toLowerCase());
     }
 
 }

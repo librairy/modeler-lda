@@ -13,8 +13,9 @@ import org.librairy.boot.model.modules.BindingKey;
 import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
+import org.librairy.modeler.lda.cache.DelayCache;
 import org.librairy.modeler.lda.cache.DomainCache;
-import org.librairy.modeler.lda.cache.ItemCache;
+import org.librairy.modeler.lda.services.ModelingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,7 +38,10 @@ public class ItemUpdated implements EventBusSubscriber {
     DomainCache domainCache;
 
     @Autowired
-    ItemCache itemCache;
+    ModelingService modelingService;
+
+    @Autowired
+    DelayCache delayCache;
 
     @PostConstruct
     public void init(){
@@ -56,7 +60,8 @@ public class ItemUpdated implements EventBusSubscriber {
             // update domains containing item
             domainCache.getDomainsFrom(resource.getUri())
                     .forEach(domain ->{
-                            itemCache.updateItem(domain.getUri(), resource.getUri());
+                        Long delay = delayCache.getDelay(domain.getUri());
+                        modelingService.train(domain.getUri(),delay);
                         }
                     );
 

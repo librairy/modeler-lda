@@ -23,8 +23,8 @@ import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.utils.TimeUtils;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
-import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.ShapesDao;
+import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Corpus;
 import org.librairy.modeler.lda.models.TopicModel;
 import org.slf4j.Logger;
@@ -46,6 +46,9 @@ public class DealsBuilder {
     @Autowired
     URIGenerator uriGenerator;
 
+    @Autowired
+    ModelingHelper helper;
+
     public void build(ComputingContext context, Corpus corpus, TopicModel topicModel){
 
         String domainUri = uriGenerator.from(Resource.Type.DOMAIN, corpus.getId());
@@ -63,7 +66,7 @@ public class DealsBuilder {
                 .topicDistributions(documents)
                 .toJavaRDD()
                 .map(t -> RowFactory.create(t._1, TimeUtils.asISO(), Doubles.asList(t._2.toArray())))
-                .cache()
+                .persist(helper.getCacheModeHelper().getLevel());
                 ;
 
         LOG.info("saving " + corpus.getSize() + " topic distributions of " + corpus.getTypes()+ " to " +
@@ -81,7 +84,7 @@ public class DealsBuilder {
                 .createDataFrame(rows, schema)
                 .write()
                 .format("org.apache.spark.sql.cassandra")
-                .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", "lda_"+ URIGenerator.retrieveId(domainUri).toLowerCase()))
                 .mode(SaveMode.Append)
                 .save()
                 ;

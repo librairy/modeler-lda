@@ -13,9 +13,9 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.modules.RoutingKey;
+import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
-import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.dao.SimilaritiesDao;
 import org.librairy.modeler.lda.helper.ModelingHelper;
@@ -46,13 +46,13 @@ public class LDASimilarityGraphTask implements Runnable {
     @Override
     public void run() {
 
-        LOG.info("creating similarity-graph from domain: " + domainUri);
-
-        saveNodesToFileSystem();
-
-        saveEdgesToFileSystem();
-
-        LOG.info("similarity-graph created from domain: " + domainUri);
+//        LOG.info("creating similarity-graph from domain: " + domainUri);
+//
+//        saveNodesToFileSystem();
+//
+//        saveEdgesToFileSystem();
+//
+//        LOG.info("similarity-graph created from domain: " + domainUri);
 
         helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
         
@@ -78,9 +78,7 @@ public class LDASimilarityGraphTask implements Runnable {
                             .option("charset", "UTF-8")
         //                        .option("spark.sql.autoBroadcastJoinThreshold","-1")
                             .option("mode", "DROPMALFORMED")
-                            .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager
-                                    .getKeyspaceFromUri
-                                            (domainUri)))
+                            .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                             .load()
                             .repartition(context.getRecommendedPartitions());
 
@@ -124,8 +122,7 @@ public class LDASimilarityGraphTask implements Runnable {
                             .option("charset", "UTF-8")
     //                        .option("spark.sql.autoBroadcastJoinThreshold","-1")
                             .option("mode", "DROPMALFORMED")
-                            .options(ImmutableMap.of("table", SimilaritiesDao.TABLE, "keyspace", SessionManager
-                                    .getKeyspaceFromUri(domainUri)))
+                            .options(ImmutableMap.of("table", SimilaritiesDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                             .load()
                             .repartition(context.getRecommendedPartitions());
 

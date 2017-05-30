@@ -18,6 +18,7 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.utils.TimeUtils;
+import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
@@ -78,7 +79,7 @@ public class FreeTextAPI {
                     .topicDistributions(documents)
                     .toJavaRDD()
                     .map(new TupleToResourceShape(text.getId()))
-                    .cache();
+                    .persist(helper.getCacheModeHelper().getLevel());
 
             corpus.clean();
 
@@ -155,10 +156,10 @@ public class FreeTextAPI {
                 .option("inferSchema", "false") // Automatically infer data types
                 .option("charset", "UTF-8")
                 .option("mode", "DROPMALFORMED")
-                .options(ImmutableMap.of("table", ShapesDao.CENTROIDS_TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                .options(ImmutableMap.of("table", ShapesDao.CENTROIDS_TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                 .load()
                 .repartition(context.getRecommendedPartitions())
-                .cache()
+                .persist(helper.getCacheModeHelper().getLevel());
                 ;
         centroids.take(1);
 

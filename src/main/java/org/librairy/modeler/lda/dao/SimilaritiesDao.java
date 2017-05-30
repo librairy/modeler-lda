@@ -99,8 +99,8 @@ public class SimilaritiesDao extends  AbstractDao{
     public void destroy(String domainUri){
         LOG.info("dropping existing LDA similarity  table for domain: " + domainUri);
         try{
-            sessionManager.getSession(domainUri).execute("truncate "+table+";");
-            sessionManager.getSession(domainUri).execute("truncate "+CENTROIDS_TABLE+";");
+            getSession(domainUri).execute("truncate "+table+";");
+            getSession(domainUri).execute("truncate "+CENTROIDS_TABLE+";");
         }catch (InvalidQueryException e){
             LOG.warn(e.getMessage());
         }

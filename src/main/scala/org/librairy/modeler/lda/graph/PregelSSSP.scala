@@ -25,13 +25,13 @@ object PregelSSSP {
   def apply (startUri: List[String], endUri: List[String], minScore: Double, maxLength: Integer, reltype: List[String], vertices: DataFrame, edges: DataFrame, maxResults: Integer, partitions: Integer) : Array[Path]={
 
 
-    val nodes: RDD[(VertexId, (String,String))] = vertices.rdd.map(row => (row.getString(0).hashCode.toLong,(row.getString(0),row.getString(1)))).cache()
+    val nodes: RDD[(VertexId, (String,String))] = vertices.rdd.map(row => (row.getString(0).hashCode.toLong,(row.getString(0),row.getString(1)))).repartition(partitions).cache()
     nodes.take(1)
     logger.info("nodes ready")
 
 //    logger.info("nodes: " + nodes.collect().mkString("\n"))
 
-    val relationships: RDD[Edge[Double]] =  edges.rdd.map(row => Edge(row.getString(0).hashCode.toLong, row.getString(1).hashCode.toLong, row.getDouble(2))).cache()
+    val relationships: RDD[Edge[Double]] =  edges.rdd.map(row => Edge(row.getString(0).hashCode.toLong, row.getString(1).hashCode.toLong, row.getDouble(2))).repartition(partitions).cache()
     relationships.take(1)
     logger.info("edges ready")
 

@@ -63,52 +63,52 @@ public class ShortestPathAPI {
 
         Double minCentroidScore  = minScore / 2.0;
 
-        final ComputingContext context = helper.getComputingHelper().newContext("lda.similarity."+ URIGenerator.retrieveId(domainUri));
-
-        // get centroids from domain
-        DataFrame centroids = readCentroids(context, domainUri, types).repartition(context.getRecommendedPartitions());//.cache();
-        long numCentroids = centroids.count();
-        LOG.info(numCentroids + " centroids loaded from domain: " + domainUri);
-
-        Path initialPath = new Path();
-        initialPath.add(new Node("1",0.0));
-        Path[] centroidPaths = new Path[]{initialPath};
-
-        if (numCentroids > 1){
-            // shortest path between centroids
-            DataFrame centroidNodes = centroids.select(ShapesDao.RESOURCE_URI, ShapesDao.RESOURCE_TYPE).toDF("id", "type");
-
-            DataFrame centroidEdges = readCentroidSimilarities(context, domainUri, types).filter(SimilaritiesDao.SCORE + " >= " + minCentroidScore);
-            long numEdges = centroidEdges.count();
-            LOG.info(numEdges + " centroid-similarities loaded from domain: " + domainUri);
-
-            List<Centroid> startCentroids = readClustersOf(context, domainUri, startUri);
-            LOG.info("Start centroids: " + startCentroids);
-            List<Centroid> endCentroids = readClustersOf(context, domainUri, endUri);
-            LOG.info("End centroids: " + endCentroids);
-            List<String> startC = startCentroids.stream().map(c -> c.getId().toString()).collect(Collectors.toList());
-            List<String> endC = endCentroids.stream().map(c -> c.getId().toString()).collect(Collectors.toList());
-
-            centroidPaths = shortestPathService.calculate(
-                    domainUri,
-                    startC,
-                    endC,
-                    Collections.EMPTY_LIST,
-                    minCentroidScore,
-                    maxLength,
-                    centroidNodes,
-                    centroidEdges,
-                    maxResults,
-                    context.getRecommendedPartitions(),
-                    false
-            );
-
-        }
-
-
-        centroids.unpersist();
-
+        final ComputingContext context = helper.getComputingHelper().newContext("lda.shortestpath."+ URIGenerator.retrieveId(domainUri));
         try{
+            // get centroids from domain
+            DataFrame centroids = readCentroids(context, domainUri, types).repartition(context.getRecommendedPartitions()).cache();
+            long numCentroids = centroids.count();
+            LOG.info(numCentroids + " centroids loaded from domain: " + domainUri);
+
+            Path initialPath = new Path();
+            initialPath.add(new Node("1",0.0));
+            Path[] centroidPaths = new Path[]{initialPath};
+
+            if (numCentroids > 1){
+                // shortest path between centroids
+                DataFrame centroidNodes = centroids.select(ShapesDao.RESOURCE_URI, ShapesDao.RESOURCE_TYPE).toDF("id", "type");
+
+                DataFrame centroidEdges = readCentroidSimilarities(context, domainUri, types).filter(SimilaritiesDao.SCORE + " >= " + minCentroidScore).cache();
+                long numEdges = centroidEdges.count();
+                LOG.info(numEdges + " centroid-similarities loaded from domain: " + domainUri);
+
+                List<Centroid> startCentroids = readClustersOf(context, domainUri, startUri);
+                LOG.info("Start centroids: " + startCentroids);
+                List<Centroid> endCentroids = readClustersOf(context, domainUri, endUri);
+                LOG.info("End centroids: " + endCentroids);
+                List<String> startC = startCentroids.stream().map(c -> c.getId().toString()).collect(Collectors.toList());
+                List<String> endC = endCentroids.stream().map(c -> c.getId().toString()).collect(Collectors.toList());
+
+                centroidPaths = shortestPathService.calculate(
+                        domainUri,
+                        startC,
+                        endC,
+                        Collections.EMPTY_LIST,
+                        minCentroidScore,
+                        maxLength,
+                        centroidNodes,
+                        centroidEdges,
+                        maxResults,
+                        context.getRecommendedPartitions(),
+                        false
+                );
+
+            }
+
+
+            centroids.unpersist();
+
+
             for (Path centroidPath: centroidPaths){
                 LOG.info("Trying by using the centroid-path: " + centroidPath);
 
@@ -145,14 +145,14 @@ public class ShortestPathAPI {
 
         Tuple2<DataFrame, DataFrame> simGraph = composeSimilarityGraph(context, domainUri, clusters, types, null, null, null, minScore);
 
-        DataFrame nodes = simGraph._1.select(ShapesDao.RESOURCE_URI, ShapesDao.RESOURCE_TYPE).repartition(context.getRecommendedPartitions()).cache();
+        DataFrame nodes = simGraph._1.select(ShapesDao.RESOURCE_URI, ShapesDao.RESOURCE_TYPE);//.cache();
 //        long numNodes = nodes.count();
-//        LOG.info(numNodes + " nodes load!");
+//        LOG.info(numNodes + " total nodes load!");
         nodes.take(1);
 
-        DataFrame edges = simGraph._2.repartition(context.getRecommendedPartitions()).cache();
+        DataFrame edges = simGraph._2;//.cache();
 //        long numSim = edges.count();
-//        LOG.info(numSim + " edges load!");
+//        LOG.info(numSim + " total edges load!");
         edges.take(1);
 
         List<String> resTypes = Collections.emptyList();
@@ -203,10 +203,10 @@ public class ShortestPathAPI {
         String currentCluster = clusters.get(0).getUri();
 
         DataFrame currentNodes = similarityService.loadSubgraphFromFileSystem(context, URIGenerator.retrieveId(domainUri), "nodes", currentCluster, Optional.empty(), types).cache();
-        currentNodes.take(1);
+        LOG.info(currentNodes.count() + " nodes load!");
 
         DataFrame currentEdges = similarityService.loadSubgraphFromFileSystem(context, URIGenerator.retrieveId(domainUri), "edges", currentCluster, Optional.of(minScore), types).cache();
-        currentEdges.take(1);
+        LOG.info(currentEdges.count() + " edges load!");
 
         DataFrame newNodes = (nodes == null)? currentNodes : nodes.unionAll(currentNodes);
 
@@ -235,9 +235,10 @@ public class ShortestPathAPI {
                             DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_1, DataTypes.StringType, false),
                             DataTypes.createStructField(SimilaritiesDao.RESOURCE_TYPE_2, DataTypes.StringType, false)
                     });
-            DataFrame neighbourEdges = context.getCassandraSQLContext().createDataFrame(neighbourSimilarities, edgeDataType);
+            DataFrame neighbourEdges = context.getCassandraSQLContext().createDataFrame(neighbourSimilarities, edgeDataType).repartition(context.getRecommendedPartitions()).cache();
+            LOG.info(neighbourEdges.count() + " new edges load!");
             newEdges = edges.unionAll(currentEdges).unionAll(neighbourEdges);
-            neighbours.unpersist();
+//            neighbours.unpersist();
         }
 
         return composeSimilarityGraph(context, domainUri, clusters.subList(1,clusters.size()), types, newNodes, newEdges, currentNodes, minScore);

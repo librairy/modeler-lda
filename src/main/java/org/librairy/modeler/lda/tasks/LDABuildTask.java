@@ -18,9 +18,9 @@ import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.rdd.RDD;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.utils.TimeUtils;
+import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
-import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.TopicRow;
 import org.librairy.modeler.lda.dao.TopicsDao;
 import org.librairy.modeler.lda.helper.ModelingHelper;
@@ -84,8 +84,7 @@ public class LDABuildTask {
                 .zipWithIndex()
                 .map(pair -> {
                     TopicRow topicRow = new TopicRow();
-                    String topicUri = URIGenerator.compositionFromId(Resource.Type.DOMAIN, corpusId, Resource.Type
-                            .TOPIC, String.valueOf(pair._2));
+                    String topicUri = URIGenerator.compositeFromId(Resource.Type.DOMAIN, corpusId, Resource.Type.TOPIC, String.valueOf(pair._2));
                     topicRow.setUri(topicUri);
                     topicRow.setId(pair._2);
                     topicRow.setDate(TimeUtils.asISO());
@@ -103,7 +102,7 @@ public class LDABuildTask {
                 .createDataFrame(rows, TopicRow.class)
                 .write()
                 .format("org.apache.spark.sql.cassandra")
-                .options(ImmutableMap.of("table", TopicsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromId(corpusId)))
+                .options(ImmutableMap.of("table", TopicsDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",corpusId)))
                 .save()
         ;
 

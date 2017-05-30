@@ -13,9 +13,9 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.sql.SaveMode;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.modules.RoutingKey;
+import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
-import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.TagRow;
 import org.librairy.modeler.lda.dao.TagsDao;
 import org.librairy.modeler.lda.dao.TopicRank;
@@ -82,7 +82,7 @@ public class LDADomainTagTask implements Runnable {
                                 .createDataFrame(rows, TagRow.class)
                                 .write()
                                 .format("org.apache.spark.sql.cassandra")
-                                .options(ImmutableMap.of("table", TagsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                                .options(ImmutableMap.of("table", TagsDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                                 .mode(SaveMode.Overwrite)
                                 .save();
                         LOG.info("tags saved!");

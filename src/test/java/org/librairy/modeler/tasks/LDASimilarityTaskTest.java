@@ -9,7 +9,6 @@ package org.librairy.modeler.tasks;
 
 import com.google.common.collect.ImmutableMap;
 import es.cbadenes.lab.test.IntegrationTest;
-import org.apache.commons.collections4.queue.CircularFifoQueue;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.mllib.clustering.KMeans;
 import org.apache.spark.mllib.clustering.KMeansModel;
@@ -29,12 +28,12 @@ import org.junit.runner.RunWith;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.boot.model.utils.TimeUtils;
+import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
 import org.librairy.modeler.lda.Config;
-import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.builder.WorkspaceBuilder;
 import org.librairy.modeler.lda.dao.ClusterDao;
 import org.librairy.modeler.lda.dao.ShapesDao;
@@ -59,7 +58,6 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
@@ -75,7 +73,7 @@ import java.util.stream.IntStream;
 //        "librairy.eventbus.host = local",
 //        "librairy.computing.cluster = local[4]",
 //        "librairy.computing.cores = 8"
-//        "librairy.computing.cluster = spark://minetur.dia.fi.upm.es:7077",
+        "librairy.computing.cluster = spark://minetur.dia.fi.upm.es:7077",
 //        "librairy.computing.cores = 80",
 //        "librairy.computing.memory = 82",
         "librairy.computing.fs = hdfs://minetur.dia.fi.upm.es:9000"
@@ -93,7 +91,7 @@ public class LDASimilarityTaskTest {
 
     @Test
     public void execute() throws InterruptedException, DataNotFound {
-        String domainUri = "http://librairy.org/domains/eahb";
+        String domainUri = "http://librairy.linkeddata.es/resources/domains/patentsNSGA";
 
 //        workspaceBuilder.initialize(domainUri);
 
@@ -137,12 +135,10 @@ public class LDASimilarityTaskTest {
                 .option("charset", "UTF-8")
 //                        .option("spark.sql.autoBroadcastJoinThreshold","-1")
                 .option("mode", "DROPMALFORMED")
-                .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager
-                        .getKeyspaceFromUri
-                                (domainUri)))
+                .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                 .load()
                 .repartition(32)
-                .cache();
+                .persist(helper.getCacheModeHelper().getLevel());
 
 
         shapesDF.take(1);
@@ -151,7 +147,7 @@ public class LDASimilarityTaskTest {
                 .toJavaRDD()
                 .map(new RowToVector())
                 .rdd()
-                .cache();
+                .persist(helper.getCacheModeHelper().getLevel());
 
         vectors.take(1); // force cache
 ////
@@ -210,7 +206,7 @@ public class LDASimilarityTaskTest {
         RDD<Vector> vectors = context.getSparkContext().parallelize(vectorList,128)
 //                .repartition(32)
                 .rdd()
-                .cache();
+                .persist(helper.getCacheModeHelper().getLevel());
 
         vectors.take(1); // force cache
 ////
@@ -273,12 +269,10 @@ public class LDASimilarityTaskTest {
                 .option("charset", "UTF-8")
 //                        .option("spark.sql.autoBroadcastJoinThreshold","-1")
                 .option("mode", "DROPMALFORMED")
-                .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager
-                        .getKeyspaceFromUri
-                                (domainUri)))
+                .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                 .load()
                 .repartition(32)
-                .cache();
+                .persist(helper.getCacheModeHelper().getLevel());
 
 
         shapesDF.take(1);
@@ -287,7 +281,7 @@ public class LDASimilarityTaskTest {
                 .toJavaRDD()
                 .map(new RowToVector())
 //                .rdd()
-                .cache();
+                .persist(helper.getCacheModeHelper().getLevel());
 
         vectors.take(1); // force cache
 
@@ -304,7 +298,7 @@ public class LDASimilarityTaskTest {
                 .toJavaRDD()
                 .map(new RowToTupleVector())
 //                .rdd()
-                .cache();
+                .persist(helper.getCacheModeHelper().getLevel());
 
         for(Tuple2<Vector, Double> centroid : centroids){
                 calculateSimilarities(context, docs, centroid, domainUri);
@@ -345,7 +339,7 @@ public class LDASimilarityTaskTest {
 
             JavaRDD<Vector> cluster = points
                     .filter(el -> (Vectors.sqdist(el, centroid) < maxDistance))
-                    .cache();
+                    .persist(helper.getCacheModeHelper().getLevel());
 
             cluster.take(1);
 
@@ -387,7 +381,7 @@ public class LDASimilarityTaskTest {
                                        domainUri){
         JavaRDD<Tuple2<String,Vector>> cluster = points
                 .filter(el -> (Vectors.sqdist(el._2, centroid._1) < centroid._2))
-                .cache();
+                .persist(helper.getCacheModeHelper().getLevel());
 
         cluster.take(1);
 
@@ -451,7 +445,7 @@ public class LDASimilarityTaskTest {
                 .createDataFrame(rows, SimilarityRow.class)
                 .write()
                 .format("org.apache.spark.sql.cassandra")
-                .options(ImmutableMap.of("table", SimilaritiesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                .options(ImmutableMap.of("table", SimilaritiesDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                 .save();
         LOG.info("similarities saved!");
 
@@ -490,11 +484,11 @@ public class LDASimilarityTaskTest {
                         .option("inferSchema", "false") // Automatically infer data types
                         .option("charset", "UTF-8")
                         .option("mode", "DROPMALFORMED")
-                        .options(ImmutableMap.of("table", ClusterDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                        .options(ImmutableMap.of("table", ClusterDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                         .load()
                         .repartition(context.getRecommendedPartitions())
                         .filter( ClusterDao.CLUSTER +" = " + centroid.getId())
-                        .cache()
+                        .persist(helper.getCacheModeHelper().getLevel());
                         ;
                 long centroidSize = refDF.count();
                 LOG.debug(centroidSize + " elements in cluster: " + centroid);
@@ -516,11 +510,11 @@ public class LDASimilarityTaskTest {
                             .option("inferSchema", "false") // Automatically infer data types
                             .option("charset", "UTF-8")
                             .option("mode", "DROPMALFORMED")
-                            .options(ImmutableMap.of("table", ClusterDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                            .options(ImmutableMap.of("table", ClusterDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                             .load()
                             .repartition(context.getRecommendedPartitions())
                             .filter( ClusterDao.CLUSTER +" = " + nid)
-                            .cache();
+                            .persist(helper.getCacheModeHelper().getLevel());
                     long neighbourSize = neighbourDF.count();
 
                     long intersection = refDF.select(ClusterDao.URI).intersect(neighbourDF.select(ClusterDao.URI)).count();
@@ -577,7 +571,7 @@ public class LDASimilarityTaskTest {
                         .createDataFrame(centroidRows, SimilarityRow.class)
                         .write()
                         .format("org.apache.spark.sql.cassandra")
-                        .options(ImmutableMap.of("table", SimilaritiesDao.CENTROIDS_TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                        .options(ImmutableMap.of("table", SimilaritiesDao.CENTROIDS_TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                         .mode(SaveMode.Append)
                         .save();
 

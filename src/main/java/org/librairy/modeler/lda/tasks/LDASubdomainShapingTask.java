@@ -22,7 +22,6 @@ import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.metrics.aggregation.Bernoulli;
-import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.ShapeRow;
 import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.functions.RowToArray;
@@ -124,7 +123,7 @@ public class LDASubdomainShapingTask implements Runnable {
                             .option("inferSchema", "false") // Automatically infer data types
                             .option("charset", "UTF-8")
                             .option("mode", "DROPMALFORMED")
-                            .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                            .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                             .load();
 
 
@@ -135,7 +134,7 @@ public class LDASubdomainShapingTask implements Runnable {
                             .toJavaRDD()
                             .filter(row -> row.get(2) != null)
                             .map(new RowToArray())
-                            .cache()
+                            .persist(helper.getCacheModeHelper().getLevel());
                             ;
 
                     LOG.info("generating shape for subdomain: " + subdomainUri + " in domain: " + domainUri + " ..");

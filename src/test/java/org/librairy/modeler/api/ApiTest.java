@@ -20,13 +20,14 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.librairy.boot.model.domain.resources.Resource;
+import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.computing.cache.CacheModeHelper;
 import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
 import org.librairy.modeler.lda.api.ApiConfig;
 import org.librairy.modeler.lda.api.LDAModelerAPI;
-import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.api.model.Criteria;
 import org.librairy.modeler.lda.api.model.ScoredResource;
 import org.librairy.modeler.lda.api.model.ScoredTopic;
@@ -45,7 +46,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.time.Duration;
@@ -79,6 +79,9 @@ public class ApiTest {
 
     @Autowired
     ShortestPathService shortestPathService;
+
+    @Autowired
+    CacheModeHelper cacheModeHelper;
 
     @Test
     public void mostRelevantResources(){
@@ -236,10 +239,10 @@ public class ApiTest {
                 .option("inferSchema", "false") // Automatically infer data types
                 .option("charset", "UTF-8")
                 .option("mode", "DROPMALFORMED")
-                .options(ImmutableMap.of("table", ShapesDao.CENTROIDS_TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                .options(ImmutableMap.of("table", ShapesDao.CENTROIDS_TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                 .load()
                 .repartition(context.getRecommendedPartitions())
-                .cache()
+                .persist(cacheModeHelper.getLevel())
                 ;
         dataFrame.take(1);
 
@@ -260,7 +263,7 @@ public class ApiTest {
                         }
                 )
                 .repartition(context.getRecommendedPartitions())
-                .cache()
+                .persist(cacheModeHelper.getLevel())
                 ;
         similarities.take(1);
 
@@ -324,10 +327,10 @@ public class ApiTest {
                 .option("inferSchema", "false") // Automatically infer data types
                 .option("charset", "UTF-8")
                 .option("mode", "DROPMALFORMED")
-                .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                 .load()
                 .repartition(context.getRecommendedPartitions())
-                .cache()
+                .persist(cacheModeHelper.getLevel())
                 ;
         LOG.info("loading nodes...");
         nodes.take(1);
@@ -348,10 +351,10 @@ public class ApiTest {
                 .option("inferSchema", "false") // Automatically infer data types
                 .option("charset", "UTF-8")
                 .option("mode", "DROPMALFORMED")
-                .options(ImmutableMap.of("table", SimilaritiesDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                .options(ImmutableMap.of("table", SimilaritiesDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                 .load()
                 .repartition(context.getRecommendedPartitions())
-                .cache()
+                .persist(cacheModeHelper.getLevel())
                 ;
         LOG.info("loading edges...");
         edges.take(1);

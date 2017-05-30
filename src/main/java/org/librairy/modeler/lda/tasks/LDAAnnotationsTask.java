@@ -14,9 +14,9 @@ import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.modules.RoutingKey;
+import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
-import org.librairy.modeler.lda.api.SessionManager;
 import org.librairy.modeler.lda.dao.AnnotationRow;
 import org.librairy.modeler.lda.dao.AnnotationsDao;
 import org.librairy.modeler.lda.dao.DistributionsDao;
@@ -68,9 +68,7 @@ public class LDAAnnotationsTask implements Runnable {
                             .option("inferSchema", "false") // Automatically infer data types
                             .option("charset", "UTF-8")
                             .option("mode", "DROPMALFORMED")
-                            .options(ImmutableMap.of("table", DistributionsDao.TABLE, "keyspace", SessionManager
-                                    .getKeyspaceFromUri
-                                            (domainUri)))
+                            .options(ImmutableMap.of("table", DistributionsDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                             .load();
 
 
@@ -88,8 +86,7 @@ public class LDAAnnotationsTask implements Runnable {
                             .option("inferSchema", "false") // Automatically infer data types
                             .option("charset", "UTF-8")
                             .option("mode", "DROPMALFORMED")
-                            .options(ImmutableMap.of("table", TopicsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri
-                                    (domainUri)))
+                            .options(ImmutableMap.of("table", TopicsDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                             .load();
 
 
@@ -109,7 +106,7 @@ public class LDAAnnotationsTask implements Runnable {
                             .createDataFrame(rows, AnnotationRow.class)
                             .write()
                             .format("org.apache.spark.sql.cassandra")
-                            .options(ImmutableMap.of("table", AnnotationsDao.TABLE, "keyspace", SessionManager.getKeyspaceFromUri(domainUri)))
+                            .options(ImmutableMap.of("table", AnnotationsDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
                             .save();
                     LOG.info("annotation saved!");
 

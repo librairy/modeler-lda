@@ -11,10 +11,8 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.exceptions.InvalidQueryException;
 import org.librairy.boot.model.utils.TimeUtils;
 import org.librairy.boot.storage.generator.URIGenerator;
-import org.librairy.modeler.lda.api.SessionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -38,9 +36,6 @@ public class ShapesDao extends  AbstractDao{
     public static final String TABLE = "shapes";
 
     public static final String CENTROIDS_TABLE = "shapecentroids";
-
-    @Autowired
-    SessionManager sessionManager;
 
     public ShapesDao() {
         super(TABLE);
@@ -93,7 +88,7 @@ public class ShapesDao extends  AbstractDao{
                 .asISO() +"');";
 
         try{
-            ResultSet result = sessionManager.getSession(domainUri).execute(query);
+            ResultSet result = getSession(domainUri).execute(query);
             LOG.info("saved shape: '"+row.getUri()+"' from '"+domainUri+"' in " + table + " table");
             return result.wasApplied();
         }catch (InvalidQueryException e){
@@ -106,8 +101,8 @@ public class ShapesDao extends  AbstractDao{
     public void destroy(String domainUri){
         LOG.info("dropping existing LDA shapes table for domain: " + domainUri);
         try{
-            sessionManager.getSession(domainUri).execute("truncate "+table+";");
-            sessionManager.getSession(domainUri).execute("truncate "+CENTROIDS_TABLE+";");
+            getSession(domainUri).execute("truncate "+table+";");
+            getSession(domainUri).execute("truncate "+CENTROIDS_TABLE+";");
         }catch (InvalidQueryException e){
             LOG.warn(e.getMessage());
         }
@@ -116,7 +111,7 @@ public class ShapesDao extends  AbstractDao{
     public void destroyCentroids(String domainUri){
         LOG.info("dropping existing centroids shapes table for domain: " + domainUri);
         try{
-            sessionManager.getSession(domainUri).execute("truncate "+CENTROIDS_TABLE+";");
+            getSession(domainUri).execute("truncate "+CENTROIDS_TABLE+";");
         }catch (InvalidQueryException e){
             LOG.warn(e.getMessage());
         }

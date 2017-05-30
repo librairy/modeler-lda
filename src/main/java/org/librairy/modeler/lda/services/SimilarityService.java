@@ -57,12 +57,12 @@ public class SimilarityService {
                                          List<String> sectors, Double minScore, Integer maxLength, String domainUri, Integer maxResults) throws IllegalArgumentException{
         try{
             LOG.info("loading nodes..");
-            DataFrame shapesDF = loadShapes(context, domainUri, sectors, resTypes).cache();
+            DataFrame shapesDF = loadShapes(context, domainUri, sectors, resTypes).persist(helper.getCacheModeHelper().getLevel());
             long numNodes = shapesDF.count();
             LOG.info(numNodes + " nodes load!");
 
             LOG.info("loading similarities..");
-            DataFrame similaritiesDF = loadSimilarities(context, domainUri, sectors, minScore, resTypes).cache();
+            DataFrame similaritiesDF = loadSimilarities(context, domainUri, sectors, minScore, resTypes).persist(helper.getCacheModeHelper().getLevel());
             long numSim = similaritiesDF.count();
             LOG.info(numSim + " edges load!");
 
@@ -84,12 +84,12 @@ public class SimilarityService {
             minScore, Integer maxLength, String domainUri, Integer maxResults) throws IllegalArgumentException{
 
         LOG.info("loading nodes..");
-        DataFrame nodesDF = loadCentroids(context, domainUri).cache();
+        DataFrame nodesDF = loadCentroids(context, domainUri).persist(helper.getCacheModeHelper().getLevel());
         long numNodes = nodesDF.count();
         LOG.info(numNodes + " nodes load!");
 
         LOG.info("loading edges..");
-        DataFrame edgesDF = loadCentroidSimilarities(context, domainUri, minScore).cache();
+        DataFrame edgesDF = loadCentroidSimilarities(context, domainUri, minScore).persist(helper.getCacheModeHelper().getLevel());
         long numSim = edgesDF.count();
         LOG.info(numSim + " edges load!");
 

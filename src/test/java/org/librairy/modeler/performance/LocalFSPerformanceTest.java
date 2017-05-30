@@ -30,6 +30,7 @@ import org.librairy.computing.helper.ComputingHelper;
 import org.librairy.computing.helper.StorageHelper;
 import org.librairy.modeler.lda.dao.SimilaritiesDao;
 import org.librairy.modeler.lda.dao.SimilarityRow;
+import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,6 +67,9 @@ public class LocalFSPerformanceTest {
     @Autowired
     ComputingHelper computingHelper;
 
+    @Autowired
+    ModelingHelper helper;
+
     StructType edgeDataType = DataTypes
             .createStructType(new StructField[]{
                     DataTypes.createStructField(SimilaritiesDao.RESOURCE_URI_1, DataTypes.StringType, false),
@@ -99,8 +103,7 @@ public class LocalFSPerformanceTest {
                     return row1;
 
                 })
-                .cache()
-                ;
+                .persist(helper.getCacheModeHelper().getLevel());
         LOG.info("calculating similarities btw documents ");
         simRows.take(1);
 
@@ -113,7 +116,7 @@ public class LocalFSPerformanceTest {
         DataFrame dataframe = context
                 .getSqlContext()
                 .createDataFrame(rows, edgeDataType)
-                .cache();
+                .persist(helper.getCacheModeHelper().getLevel());
 
         dataframe.take(1);
 
