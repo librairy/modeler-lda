@@ -1,6 +1,6 @@
 # Modeler LDA
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/5e3e2fe9b1c242b6a4a13b7e6459b68e)](https://www.codacy.com/app/cbadenes/modeler-lda)
-[![Release Status](https://travis-ci.org/librairy/modeler-lda.svg?branch=master)](https://travis-ci.org/librairy/modeler-lda)
+[![Build Status](https://travis-ci.org/librairy/modeler-lda.svg?branch=master)](https://travis-ci.org/librairy/modeler-lda)
 
 Build probabilistic Topic Models based on Latent Dirichlet Allocation (LDA)
 
