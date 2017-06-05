@@ -45,6 +45,7 @@ public class LDATrainingTask implements Runnable {
 
         try{
             final ComputingContext context = helper.getComputingHelper().newContext("lda.training."+ URIGenerator.retrieveId(domainUri));
+            helper.getModelingService().disablePendingModelingFor(domainUri);
             helper.getComputingHelper().execute(context, () -> {
                 try{
                     LOG.info("Prepare workspace for domain: " + domainUri);
@@ -61,7 +62,10 @@ public class LDATrainingTask implements Runnable {
 
                     helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(ROUTING_KEY_ID));
                 }catch (Exception e){
-                    if (e instanceof InterruptedException) LOG.warn("Execution canceled");
+                    if (e instanceof InterruptedException) {
+                        LOG.warn("Execution canceled");
+                        helper.getModelingService().enablePendingModelingFor(domainUri);
+                    }
                     else LOG.error("Error on execution", e);
                 }
             });

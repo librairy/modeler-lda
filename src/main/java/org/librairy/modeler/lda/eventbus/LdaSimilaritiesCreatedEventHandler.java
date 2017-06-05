@@ -14,7 +14,6 @@ import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.services.ParallelExecutorService;
-import org.librairy.modeler.lda.tasks.LDAAnnotationsTask;
 import org.librairy.modeler.lda.tasks.LDASimilarityGraphTask;
 import org.librairy.modeler.lda.tasks.LDASimilarityTask;
 import org.slf4j.Logger;

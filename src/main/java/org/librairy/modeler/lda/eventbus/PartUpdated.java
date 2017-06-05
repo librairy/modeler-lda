@@ -60,8 +60,14 @@ public class PartUpdated implements EventBusSubscriber {
             // update domains containing item
             domainCache.getDomainsFrom(resource.getUri())
                     .forEach(domain ->{
-                        Long delay = delayCache.getDelay(domain.getUri());
-                        modelingService.train(domain.getUri(),delay);
+                                Long delay = delayCache.getDelay(domain.getUri());
+                                if (!modelingService.train(domain.getUri(),delay)){
+                                    //Individually update part
+                                    String domainUri    = domain.getUri();
+                                    String partUri      = resource.getUri();
+
+                                    //TODO
+                                }
                             }
                     );
 

@@ -16,6 +16,7 @@ import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.services.ParallelExecutorService;
 import org.librairy.modeler.lda.tasks.LDAComparisonTask;
 import org.librairy.modeler.lda.tasks.LDADomainTagTask;
+import org.librairy.modeler.lda.tasks.LDAShapingTask;
 import org.librairy.modeler.lda.tasks.LDATrainingTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,7 +57,8 @@ public class LdaDomainTagsGeneratedEventHandler implements EventBusSubscriber {
         try{
             String domainUri = event.to(String.class);
 
-            executor.execute(domainUri, 1000, new LDAComparisonTask(domainUri, helper));
+            //executor.execute(domainUri, 1000, new LDAComparisonTask(domainUri, helper));
+            executor.execute(domainUri, 1000, new LDAShapingTask(domainUri, helper));
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added

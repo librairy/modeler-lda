@@ -25,6 +25,7 @@ import org.librairy.modeler.lda.cache.OptimizerCache;
 import org.librairy.modeler.lda.cache.VocabularyCache;
 import org.librairy.modeler.lda.dao.*;
 import org.librairy.modeler.lda.optimizers.LDAOptimizerFactory;
+import org.librairy.modeler.lda.services.ModelingService;
 import org.librairy.modeler.lda.services.SimilarityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -44,6 +45,9 @@ public class ModelingHelper {
 
     @Autowired
     CacheModeHelper cacheModeHelper;
+
+    @Autowired
+    ModelingService modelingService;
 
     @Autowired
     LDABuilder ldaBuilder;
@@ -71,6 +75,9 @@ public class ModelingHelper {
 
     @Autowired
     ShapesDao shapesDao;
+
+    @Autowired
+    DistributionsDao distributionsDao;
 
     @Autowired
     CounterDao counterDao;
@@ -101,6 +108,12 @@ public class ModelingHelper {
 
     @Autowired
     LDAOptimizerFactory ldaOptimizerFactory;
+
+    @Autowired
+    CustomItemsDao itemsDao;
+
+    @Autowired
+    CustomPartsDao partsDao;
 
 
 }

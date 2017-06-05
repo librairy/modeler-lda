@@ -14,8 +14,8 @@ import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.services.ParallelExecutorService;
-import org.librairy.modeler.lda.tasks.LDAAnnotationsTask;
 import org.librairy.modeler.lda.tasks.LDADistributionsTask;
+import org.librairy.modeler.lda.tasks.LDASimilarityTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,7 +54,7 @@ public class LdaDistributionsCreatedEventHandler implements EventBusSubscriber {
         try{
             String domainUri = event.to(String.class);
 
-            executor.execute(domainUri, 1000, new LDAAnnotationsTask(domainUri,helper) );
+            executor.execute(domainUri, 1000, new LDASimilarityTask(domainUri,helper) );
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added

@@ -54,9 +54,13 @@ public class PartAddedEventHandler implements EventBusSubscriber {
         try{
             Relation relation = event.to(Relation.class);
 
-            Long delay = delayCache.getDelay(relation.getStartUri());
+            String domainUri = relation.getStartUri();
+            Long delay = delayCache.getDelay(domainUri);
 
-            modelingService.train(relation.getStartUri(), delay);
+            if (!modelingService.train(domainUri, delay)){
+                // individual processing of resource
+                // waiting for part updated event
+            }
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added

@@ -43,7 +43,7 @@ import org.librairy.modeler.lda.functions.RowToTupleVector;
 import org.librairy.modeler.lda.functions.RowToVector;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Centroid;
-import org.librairy.modeler.lda.tasks.LDAAnnotationsTask;
+import org.librairy.modeler.lda.tasks.LDADistributionsTask;
 import org.librairy.modeler.lda.tasks.LDASimilarityTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,7 +109,7 @@ public class LDASimilarityTaskTest {
 
         String domainUri = "http://librairy.org/domains/default";
 
-        helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(LDAAnnotationsTask.ROUTING_KEY_ID));
+        helper.getEventBus().post(Event.from(domainUri), RoutingKey.of(LDADistributionsTask.ROUTING_KEY_ID));
     }
 
 

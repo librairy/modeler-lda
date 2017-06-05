@@ -56,7 +56,11 @@ public class SubdomainAddedEventHandler implements EventBusSubscriber {
 
             Long delay = delayCache.getDelay(resource.getUri());
 
+
+            // Individually update subdomain
             service.shape(resource.getUri(), delay);
+
+            //TODO
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added

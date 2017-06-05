@@ -67,7 +67,7 @@ public class DealsBuilder {
                 .toJavaRDD()
                 .map(t -> RowFactory.create(t._1, TimeUtils.asISO(), Doubles.asList(t._2.toArray())))
                 .persist(helper.getCacheModeHelper().getLevel());
-                ;
+
 
         LOG.info("saving " + corpus.getSize() + " topic distributions of " + corpus.getTypes()+ " to " +
                 "database..");

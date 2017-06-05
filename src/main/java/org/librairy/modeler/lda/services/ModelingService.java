@@ -31,6 +31,8 @@ public class ModelingService {
 
     private ConcurrentHashMap<String,ScheduledFuture<?>> buildingTasks;
 
+    private ConcurrentHashMap<String,Boolean> pendingModeling;
+
     private ThreadPoolTaskScheduler threadpool;
 
     @Autowired
@@ -40,7 +42,8 @@ public class ModelingService {
 
     @PostConstruct
     public void setup(){
-        this.buildingTasks = new ConcurrentHashMap<>();
+        this.buildingTasks      = new ConcurrentHashMap<>();
+        this.pendingModeling    = new ConcurrentHashMap<>();
 
         this.threadpool = new ThreadPoolTaskScheduler();
         this.threadpool.setPoolSize(500);
@@ -49,7 +52,10 @@ public class ModelingService {
     }
 
 
-    public void train(String domainUri, long delay){
+    public boolean train(String domainUri, long delay){
+
+        if (!pendingModeling.contains(domainUri) || !pendingModeling.get(domainUri)) return false;
+
         LOG.info("Scheduled creation of a new topic model (LDA) for the domain: " + domainUri + " at " + timeFormatter
                 .format(new Date(System.currentTimeMillis() + delay)));
         ScheduledFuture<?> task = buildingTasks.get(domainUri);
@@ -59,8 +65,18 @@ public class ModelingService {
         }
         task = this.threadpool.schedule(new LDATrainingTask(domainUri, helper), new Date(System.currentTimeMillis() + delay));
         buildingTasks.put(domainUri,task);
-
+        return true;
     }
+
+
+    public void enablePendingModelingFor(String domainUri){
+        this.pendingModeling.put(domainUri, true);
+    }
+
+    public void disablePendingModelingFor(String domainUri){
+        this.pendingModeling.put(domainUri, false);
+    }
+
 
 
 }

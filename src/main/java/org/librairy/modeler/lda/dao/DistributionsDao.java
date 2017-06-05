@@ -7,7 +7,9 @@
 
 package org.librairy.modeler.lda.dao;
 
+import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.exceptions.InvalidQueryException;
+import org.librairy.boot.model.utils.TimeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -52,5 +54,19 @@ public class DistributionsDao extends  AbstractDao{
         }
     }
 
+    public boolean save(String domainUri, DistributionRow row){
+
+        String query = "insert into "+table+" ("+TOPIC_URI+","+SCORE +","+RESOURCE_URI+","+DATE+","+RESOURCE_TYPE+") " +
+                "values ('"+row.getTopic_uri()+"', " + row.getScore() +" , '"+ row.getResource_uri() + "', '" + row.getDate() +"', '" + row.getResource_type() +"');";
+
+        try{
+            ResultSet result = getSession(domainUri).execute(query);
+            LOG.debug("saved distribution: '"+row+"' from '"+domainUri+"' in " + table + " table");
+            return result.wasApplied();
+        }catch (InvalidQueryException e){
+            LOG.warn("Error on query execution: " + e.getMessage());
+            return false;
+        }
+    }
 
 }
