@@ -14,7 +14,7 @@ import org.junit.runner.RunWith;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.RoutingKey;
-import org.librairy.modeler.lda.Config;
+import org.librairy.modeler.lda.Application;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +26,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
  */
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = Config.class)
+@ContextConfiguration(classes = Application.class)
 public class LDAModelCreatedTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(LDAModelCreatedTest.class);

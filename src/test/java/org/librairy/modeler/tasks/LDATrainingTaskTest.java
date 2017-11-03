@@ -11,8 +11,10 @@ import es.cbadenes.lab.test.IntegrationTest;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
+import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.storage.exception.DataNotFound;
-import org.librairy.modeler.lda.Config;
+import org.librairy.boot.storage.generator.URIGenerator;
+import org.librairy.modeler.lda.Application;
 import org.librairy.modeler.lda.builder.WorkspaceBuilder;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.tasks.LDATrainingTask;
@@ -30,17 +32,8 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
  */
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = Config.class)
-@TestPropertySource(properties = {
-//        "librairy.lda.event.value = 60000",
-//        "librairy.eventbus.host = local",
-//        "librairy.computing.cluster = local[4]",
-//        "librairy.computing.cores = 8"
-//        "librairy.computing.cluster = spark://minetur.dia.fi.upm.es:7077",
-//        "librairy.computing.cores = 80",
-//        "librairy.computing.memory = 82",
-        "librairy.computing.fs = hdfs://minetur.dia.fi.upm.es:9000"
-})
+@ContextConfiguration(classes = Application.class)
+@TestPropertySource({"classpath:boot.properties","classpath:computing.properties", "classpath:application.properties"})
 public class LDATrainingTaskTest {
 
 
@@ -54,7 +47,7 @@ public class LDATrainingTaskTest {
 
     @Test
     public void execute() throws InterruptedException, DataNotFound {
-        String domainUri = "http://librairy.org/domains/eahb";
+        String domainUri = URIGenerator.fromId(Resource.Type.DOMAIN, "blueBottle");
 
         LDATrainingTask task = new LDATrainingTask(domainUri, helper);
 

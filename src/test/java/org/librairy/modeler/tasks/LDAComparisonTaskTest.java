@@ -11,17 +11,10 @@ import es.cbadenes.lab.test.IntegrationTest;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
-import org.librairy.boot.model.domain.resources.Domain;
-import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.metrics.distance.ExtendedKendallsTauSimilarity;
-import org.librairy.modeler.lda.Config;
-import org.librairy.modeler.lda.builder.CorpusBuilder;
-import org.librairy.modeler.lda.builder.DealsBuilder;
-import org.librairy.modeler.lda.builder.LDABuilder;
+import org.librairy.modeler.lda.Application;
 import org.librairy.modeler.lda.dao.TopicRank;
 import org.librairy.modeler.lda.helper.ModelingHelper;
-import org.librairy.modeler.lda.models.Comparison;
-import org.librairy.modeler.lda.models.Field;
 import org.librairy.modeler.lda.tasks.LDAComparisonTask;
 import org.librairy.modeler.lda.utils.LevenshteinSimilarity;
 import org.slf4j.Logger;
@@ -31,11 +24,7 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * Created on 27/06/16:
@@ -44,7 +33,7 @@ import java.util.stream.Collectors;
  */
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = Config.class)
+@ContextConfiguration(classes = Application.class)
 @TestPropertySource(properties = {
 //        "librairy.computing.cores = 120",
 //        "librairy.computing.memory = 84g",

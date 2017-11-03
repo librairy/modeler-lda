@@ -26,7 +26,7 @@ import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cache.CacheModeHelper;
 import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
-import org.librairy.modeler.lda.api.ApiConfig;
+import org.librairy.modeler.lda.Application;
 import org.librairy.modeler.lda.api.LDAModelerAPI;
 import org.librairy.modeler.lda.api.model.Criteria;
 import org.librairy.modeler.lda.api.model.ScoredResource;
@@ -60,10 +60,7 @@ import java.util.stream.Collectors;
  */
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = ApiConfig.class)
-//@TestPropertySource(properties = {
-////        "librairy.computing.fs = hdfs://minetur.dia.fi.upm.es:9000"
-//})
+@ContextConfiguration(classes = Application.class)
 public class ApiTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ApiTest.class);

@@ -12,12 +12,9 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.librairy.boot.storage.exception.DataNotFound;
-import org.librairy.modeler.lda.api.ApiConfig;
-import org.librairy.modeler.lda.api.FreeTextAPI;
+import org.librairy.modeler.lda.Application;
 import org.librairy.modeler.lda.api.ShortestPathAPI;
 import org.librairy.modeler.lda.models.Path;
-import org.librairy.modeler.lda.models.SimilarResource;
-import org.librairy.modeler.lda.models.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -36,7 +33,7 @@ import java.util.List;
  */
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = ApiConfig.class)
+@ContextConfiguration(classes = Application.class)
 @TestPropertySource(properties = {
         "librairy.computing.fs = hdfs://minetur.dia.fi.upm.es:9000",
         "librairy.computing.cluster = spark://minetur.dia.fi.upm.es:7077",

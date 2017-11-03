@@ -15,7 +15,7 @@ import org.librairy.metrics.data.Pair;
 import org.librairy.metrics.data.Ranking;
 import org.librairy.metrics.distance.ExtendedKendallsTauDistance;
 import org.librairy.metrics.utils.Permutations;
-import org.librairy.modeler.lda.api.ApiConfig;
+import org.librairy.modeler.lda.Application;
 import org.librairy.modeler.lda.api.LDAModelerAPI;
 import org.librairy.modeler.lda.api.model.Criteria;
 import org.librairy.modeler.lda.api.model.ScoredTopic;
@@ -35,7 +35,7 @@ import java.util.stream.Collectors;
  */
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = ApiConfig.class)
+@ContextConfiguration(classes = Application.class)
 @TestPropertySource(properties = {
         "librairy.columndb.host = zavijava.dia.fi.upm.es",
         "librairy.documentdb.host = zavijava.dia.fi.upm.es",

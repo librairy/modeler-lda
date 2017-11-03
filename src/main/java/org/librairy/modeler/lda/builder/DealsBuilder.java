@@ -69,8 +69,7 @@ public class DealsBuilder {
                 .persist(helper.getCacheModeHelper().getLevel());
 
 
-        LOG.info("saving " + corpus.getSize() + " topic distributions of " + corpus.getTypes()+ " to " +
-                "database..");
+        LOG.info("saving topic distributions to database..");
 
         // Define a schema
         StructType schema = DataTypes

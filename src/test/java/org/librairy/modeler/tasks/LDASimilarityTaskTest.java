@@ -33,7 +33,7 @@ import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
-import org.librairy.modeler.lda.Config;
+import org.librairy.modeler.lda.Application;
 import org.librairy.modeler.lda.builder.WorkspaceBuilder;
 import org.librairy.modeler.lda.dao.ClusterDao;
 import org.librairy.modeler.lda.dao.ShapesDao;
@@ -67,17 +67,8 @@ import java.util.stream.IntStream;
  */
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = Config.class)
-@TestPropertySource(properties = {
-//        "librairy.lda.event.value = 60000",
-//        "librairy.eventbus.host = local",
-//        "librairy.computing.cluster = local[4]",
-//        "librairy.computing.cores = 8"
-        "librairy.computing.cluster = spark://minetur.dia.fi.upm.es:7077",
-//        "librairy.computing.cores = 80",
-//        "librairy.computing.memory = 82",
-        "librairy.computing.fs = hdfs://minetur.dia.fi.upm.es:9000"
-})
+@ContextConfiguration(classes = Application.class)
+@TestPropertySource({"classpath:boot.properties","classpath:computing.properties", "classpath:application.properties"})
 public class LDASimilarityTaskTest {
 
 
@@ -91,9 +82,7 @@ public class LDASimilarityTaskTest {
 
     @Test
     public void execute() throws InterruptedException, DataNotFound {
-        String domainUri = "http://librairy.linkeddata.es/resources/domains/patentsNSGA";
-
-//        workspaceBuilder.initialize(domainUri);
+        String domainUri = "http://librairy.org/domains/blueBottle";
 
         LDASimilarityTask task = new LDASimilarityTask(domainUri, helper);
 
@@ -446,6 +435,7 @@ public class LDASimilarityTaskTest {
                 .write()
                 .format("org.apache.spark.sql.cassandra")
                 .options(ImmutableMap.of("table", SimilaritiesDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
+                .mode(SaveMode.Overwrite)
                 .save();
         LOG.info("similarities saved!");
 

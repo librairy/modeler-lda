@@ -13,7 +13,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.storage.generator.URIGenerator;
-import org.librairy.modeler.lda.Config;
+import org.librairy.modeler.lda.Application;
 import org.librairy.modeler.lda.builder.CorpusBuilder;
 import org.librairy.modeler.lda.builder.DealsBuilder;
 import org.librairy.modeler.lda.builder.LDABuilder;
@@ -37,7 +37,7 @@ import java.util.List;
  */
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = Config.class)
+@ContextConfiguration(classes = Application.class)
 //@TestPropertySource(properties = {
 //        "librairy.lda.event.value = 60000"
 //})

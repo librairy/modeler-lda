@@ -12,7 +12,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.librairy.boot.storage.exception.DataNotFound;
-import org.librairy.modeler.lda.Config;
+import org.librairy.modeler.lda.Application;
 import org.librairy.modeler.lda.dao.ClusterDao;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +27,7 @@ import java.util.List;
  */
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = Config.class)
+@ContextConfiguration(classes = Application.class)
 public class ClusterDaoTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ClusterDaoTest.class);

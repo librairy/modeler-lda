@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -45,13 +46,8 @@ public class DelayCache {
                 .build(
                         new CacheLoader<String, Long>() {
                             public Long load(String domainUri) {
-                                try {
-                                    String parameter = parametersDao.get(domainUri, "lda.delay");
-                                    return Long.valueOf(parameter);
-                                } catch (Exception dataNotFound) {
-                                    LOG.error("Error reading parameters from '" + domainUri + "'");
-                                    return value;
-                                }
+                                Optional<String> parameter = parametersDao.get(domainUri, "lda.delay");
+                                return (parameter.isPresent())? Long.valueOf(parameter.get()) : value;
                             }
                         });
     }

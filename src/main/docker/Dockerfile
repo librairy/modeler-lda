@@ -1,13 +1,8 @@
-FROM librairy/tomcat:1.0
+FROM frolvlad/alpine-oraclejdk8:slim
 MAINTAINER Librairy <librairy.framework@gmail.com>
-
 ENV LIBRAIRY_HOME /librairy
-
-WORKDIR /usr/local/tomcat
-
-ADD modeler-lda.war /usr/local/tomcat/webapps/modeler-lda.war
-
 VOLUME $LIBRAIRY_HOME
-
-EXPOSE 8080
-CMD ["catalina.sh", "run"]
+ADD modeler-lda.jar app.jar
+#RUN sh -c 'touch /app.jar'
+#ENTRYPOINT ["java","-Djava.security.egd=file:/dev/./urandom","-jar","/app.jar"]
+ENTRYPOINT exec java $JAVA_OPTS -server -jar /app.jar

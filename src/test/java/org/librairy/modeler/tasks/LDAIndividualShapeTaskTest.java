@@ -11,15 +11,15 @@ import es.cbadenes.lab.test.IntegrationTest;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
-import org.librairy.boot.model.domain.relations.Relation;
 import org.librairy.boot.storage.UDM;
 import org.librairy.boot.storage.exception.DataNotFound;
-import org.librairy.modeler.lda.Config;
+import org.librairy.modeler.lda.Application;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.tasks.LDAIndividualShapingTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -31,8 +31,10 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
  */
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = Config.class)
-@TestPropertySource(properties = {
+@ContextConfiguration(classes = Application.class)
+@TestPropertySource(
+        locations = {"classpath:application.properties"},
+        properties = {
 //        "librairy.lda.event.value = 60000",
 //        "librairy.computing.cluster = local[4]",
 //        "librairy.computing.cores = 8"

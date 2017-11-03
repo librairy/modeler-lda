@@ -51,9 +51,6 @@ public class WorkspaceBuilder {
     CounterDao counterDao;
 
     @Autowired
-    LDACounterDao ldaCounterDao;
-
-    @Autowired
     ComparisonsDao comparisonsDao;
 
     @Autowired
@@ -67,11 +64,17 @@ public class WorkspaceBuilder {
 
     public void initialize(String domainUri) throws InterruptedException {
 
+        String id = URIGenerator.retrieveId(domainUri);
+
         counterDao.reset(domainUri, Resource.Type.TOPIC.route());
         counterDao.reset(domainUri, Relation.Type.SIMILAR_TO_ITEMS.route());
 
         keyspaceDao.destroy(domainUri);
         keyspaceDao.initialize(domainUri);
+
+        // Clean previous model
+        String ldaPath = storageHelper.path(id, "lda");
+        storageHelper.deleteIfExists(ldaPath);
 
         topicsDao.initialize(domainUri);
 
@@ -82,8 +85,6 @@ public class WorkspaceBuilder {
         annotationsDao.initialize(domainUri);
 
         similaritiesDao.initialize(domainUri);
-
-        ldaCounterDao.initialize(domainUri);
 
         comparisonsDao.initialize(domainUri);
 

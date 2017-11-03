@@ -19,7 +19,7 @@ import org.librairy.boot.storage.dao.DBSessionManager;
 import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
-import org.librairy.modeler.lda.Config;
+import org.librairy.modeler.lda.Application;
 import org.librairy.modeler.lda.api.LDAModelerAPI;
 import org.librairy.modeler.lda.api.model.Criteria;
 import org.librairy.modeler.lda.dao.ShapesDao;
@@ -40,7 +40,7 @@ import java.util.List;
  */
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = Config.class)
+@ContextConfiguration(classes = Application.class)
 @TestPropertySource(properties = {
         "librairy.lda.optimizer = basic",
         "librairy.lda.maxevaluations = 10",

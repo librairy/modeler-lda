@@ -25,7 +25,7 @@ import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.metrics.similarity.JensenShannonSimilarity;
-import org.librairy.modeler.lda.api.ApiConfig;
+import org.librairy.modeler.lda.Application;
 import org.librairy.modeler.lda.api.ShortestPathAPI;
 import org.librairy.modeler.lda.dao.ShapesDao;
 import org.librairy.modeler.lda.dao.SimilaritiesDao;
@@ -54,7 +54,7 @@ import java.util.stream.Collectors;
  */
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = ApiConfig.class)
+@ContextConfiguration(classes = Application.class)
 @TestPropertySource(properties = {
         "librairy.computing.fs = hdfs://minetur.dia.fi.upm.es:9000",
         "librairy.eventbus.host = local"

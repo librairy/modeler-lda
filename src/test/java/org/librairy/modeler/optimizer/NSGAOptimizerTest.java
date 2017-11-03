@@ -14,7 +14,7 @@ import org.junit.runner.RunWith;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.computing.helper.ComputingHelper;
-import org.librairy.modeler.lda.Config;
+import org.librairy.modeler.lda.Application;
 import org.librairy.modeler.lda.builder.CorpusBuilder;
 import org.librairy.modeler.lda.models.Corpus;
 import org.librairy.modeler.lda.optimizers.LDAOptimizer;
@@ -35,7 +35,7 @@ import java.util.Arrays;
  */
 @Category(IntegrationTest.class)
 @RunWith(SpringJUnit4ClassRunner.class)
-@ContextConfiguration(classes = Config.class)
+@ContextConfiguration(classes = Application.class)
 @TestPropertySource(properties = {
         "librairy.columndb.host = wiener.dia.fi.upm.es",
         "librairy.columndb.port = 5011",
