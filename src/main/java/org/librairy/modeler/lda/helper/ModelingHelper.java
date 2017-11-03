@@ -21,6 +21,7 @@ import org.librairy.modeler.lda.builder.CorpusBuilder;
 import org.librairy.modeler.lda.builder.DealsBuilder;
 import org.librairy.modeler.lda.builder.LDABuilder;
 import org.librairy.modeler.lda.builder.WorkspaceBuilder;
+import org.librairy.modeler.lda.cache.ModelsCache;
 import org.librairy.modeler.lda.cache.OptimizerCache;
 import org.librairy.modeler.lda.cache.VocabularyCache;
 import org.librairy.modeler.lda.dao.*;
@@ -115,5 +116,6 @@ public class ModelingHelper {
     @Autowired
     CustomPartsDao partsDao;
 
-
+    @Autowired
+    ModelsCache modelsCache;
 }

@@ -21,8 +21,6 @@ public class RelationBuilder implements Serializable{
 
         Relation relation;
         switch(type){
-            case DOCUMENT: relation = Relation.newSimilarToDocuments(uri1,uri2,domainUri);
-                break;
             case ITEM: relation = Relation.newSimilarToItems(uri1,uri2,domainUri);
                 break;
             case PART: relation = Relation.newSimilarToParts(uri1,uri2,domainUri);

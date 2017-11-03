@@ -8,12 +8,24 @@
 package org.librairy.modeler.lda.dao;
 
 import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.Row;
 import com.datastax.driver.core.exceptions.InvalidQueryException;
+import org.librairy.boot.model.Event;
+import org.librairy.boot.model.domain.relations.Relation;
+import org.librairy.boot.model.modules.EventBus;
+import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.boot.model.utils.TimeUtils;
+import org.librairy.boot.storage.exception.DataNotFound;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
@@ -36,6 +48,9 @@ public class ShapesDao extends  AbstractDao{
     public static final String TABLE = "shapes";
 
     public static final String CENTROIDS_TABLE = "shapecentroids";
+
+    @Autowired
+    EventBus eventBus;
 
     public ShapesDao() {
         super(TABLE);
@@ -90,6 +105,13 @@ public class ShapesDao extends  AbstractDao{
         try{
             ResultSet result = getSession(domainUri).execute(query);
             LOG.info("saved shape: '"+row.getUri()+"' from '"+domainUri+"' in " + table + " table");
+
+            // publish event
+            Relation relation = new Relation();
+            relation.setStartUri(row.getUri());
+            relation.setEndUri(domainUri);
+            eventBus.post(Event.from(relation), RoutingKey.of("shape.created"));
+
             return result.wasApplied();
         }catch (InvalidQueryException e){
             LOG.warn("Error on query execution: " + e.getMessage());
@@ -114,6 +136,55 @@ public class ShapesDao extends  AbstractDao{
             getSession(domainUri).execute("truncate "+CENTROIDS_TABLE+";");
         }catch (InvalidQueryException e){
             LOG.warn(e.getMessage());
+        }
+    }
+
+    public List<ShapeRow> get(String domainUri, Optional<Integer> size, Optional<Long> id) throws DataNotFound {
+
+        StringBuilder query = new StringBuilder().append("select id, uri, vector from " + table);
+
+        if (id.isPresent()){
+            query.append(" where token(id) > token(" + id.get() + ")");
+        }
+
+        query.append(" limit ").append((size.isPresent())? size.get().intValue() : 20);
+
+        query.append(" ;");
+        try{
+            ResultSet result = getSession(domainUri).execute(query.toString());
+            List<Row> rows = result.all();
+            if ((rows == null) || (rows.isEmpty())) return Collections.emptyList();
+            return rows.stream().map( row -> {
+                ShapeRow shape = new ShapeRow();
+                shape.setId(row.getLong(0));
+                shape.setUri(row.getString(1));
+                shape.setVector(row.getList(2, Double.class));
+                return shape;
+            }).collect(Collectors.toList());
+
+        }catch (InvalidQueryException e){
+            LOG.warn("Error on query execution: " + e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    public ShapeRow get(String domainUri, String uri) throws DataNotFound {
+
+        StringBuilder query = new StringBuilder().append("select id, uri, vector from " + table + " where uri='" + uri +"';");
+
+        try{
+            ResultSet result = getSession(domainUri).execute(query.toString());
+            Row row = result.one();
+            if ((row == null)) throw new RuntimeException("No found by uri: " + uri);
+            ShapeRow shape = new ShapeRow();
+            shape.setId(row.getLong(0));
+            shape.setUri(row.getString(1));
+            shape.setVector(row.getList(2, Double.class));
+            return shape;
+
+        }catch (InvalidQueryException e){
+            LOG.warn("Error on query execution: " + e.getMessage());
+            throw new RuntimeException("No found by uri: " + uri);
         }
     }
 

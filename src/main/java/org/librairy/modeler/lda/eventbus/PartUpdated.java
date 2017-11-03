@@ -15,7 +15,11 @@ import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.cache.DelayCache;
 import org.librairy.modeler.lda.cache.DomainCache;
+import org.librairy.modeler.lda.cache.ModelsCache;
+import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.services.ModelingService;
+import org.librairy.modeler.lda.services.ShapeService;
+import org.librairy.modeler.lda.tasks.LDAIndividualShapingTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +47,12 @@ public class PartUpdated implements EventBusSubscriber {
     @Autowired
     DelayCache delayCache;
 
+    @Autowired
+    ModelingHelper helper;
+
+    @Autowired
+    ShapeService shapeService;
+
     @PostConstruct
     public void init(){
         BindingKey bindingKey = BindingKey.of(RoutingKey.of(Resource.Type.PART, Resource.State.UPDATED ), "modeler.lda.part.updated");
@@ -61,12 +71,11 @@ public class PartUpdated implements EventBusSubscriber {
             domainCache.getDomainsFrom(resource.getUri())
                     .forEach(domain ->{
                                 Long delay = delayCache.getDelay(domain.getUri());
-                                if (!modelingService.train(domain.getUri(),delay)){
+                                if (!modelingService.train(domain.getUri(),delay) ){
                                     //Individually update part
                                     String domainUri    = domain.getUri();
                                     String partUri      = resource.getUri();
-
-                                    //TODO
+                                    shapeService.process(domainUri, partUri, 5000);
                                 }
                             }
                     );

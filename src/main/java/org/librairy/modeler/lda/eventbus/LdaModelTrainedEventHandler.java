@@ -16,6 +16,7 @@ import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.builder.CorpusBuilder;
 import org.librairy.modeler.lda.builder.DealsBuilder;
 import org.librairy.modeler.lda.builder.LDABuilder;
+import org.librairy.modeler.lda.cache.ModelsCache;
 import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.models.Corpus;
 import org.librairy.modeler.lda.models.TopicModel;
@@ -49,6 +50,9 @@ public class LdaModelTrainedEventHandler implements EventBusSubscriber {
 
     private ParallelExecutorService executor;
 
+    @Autowired
+    ModelsCache modelsCache;
+
     @PostConstruct
     public void init(){
         BindingKey bindingKey = BindingKey.of(RoutingKey.of(LDATrainingTask.ROUTING_KEY_ID), "modeler.lda.model.trained");
@@ -63,6 +67,8 @@ public class LdaModelTrainedEventHandler implements EventBusSubscriber {
         LOG.info("lda model trained event received: " + event);
         try{
             String domainUri = event.to(String.class);
+
+            modelsCache.update(domainUri);
 
             executor.execute(domainUri, 1000, new LDADomainTagTask(domainUri, helper));
 

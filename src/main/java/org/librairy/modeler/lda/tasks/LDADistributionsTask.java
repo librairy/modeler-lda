@@ -10,6 +10,7 @@ package org.librairy.modeler.lda.tasks;
 import com.google.common.collect.ImmutableMap;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.sql.SaveMode;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.Event;
@@ -109,6 +110,7 @@ public class LDADistributionsTask implements Runnable {
                             .write()
                             .format("org.apache.spark.sql.cassandra")
                             .options(ImmutableMap.of("table", DistributionsDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",URIGenerator.retrieveId(domainUri))))
+                            .mode(SaveMode.Overwrite)
                             .save();
                     LOG.info("topic distributions saved!");
 

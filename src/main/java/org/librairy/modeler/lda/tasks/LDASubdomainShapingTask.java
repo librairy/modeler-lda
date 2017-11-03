@@ -7,9 +7,6 @@
 
 package org.librairy.modeler.lda.tasks;
 
-import com.datastax.driver.core.ResultSet;
-import com.datastax.driver.core.Row;
-import com.datastax.driver.core.exceptions.InvalidQueryException;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Doubles;
 import org.apache.spark.api.java.JavaRDD;
@@ -17,8 +14,11 @@ import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructField;
 import org.librairy.boot.model.Event;
+import org.librairy.boot.model.domain.resources.Domain;
+import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.boot.storage.dao.DBSessionManager;
+import org.librairy.boot.storage.dao.DomainsDao;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.metrics.aggregation.Bernoulli;
@@ -29,8 +29,8 @@ import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
-import java.util.Iterator;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Created on 12/08/16:
@@ -60,12 +60,20 @@ public class LDASubdomainShapingTask implements Runnable {
         try{
             LOG.info("generating shapes for sub-domains of: '" + domainUri + "' ..");
 
-            Iterator<Row> subdomains = getsubdomains();
-            // for each ->
-            while(subdomains.hasNext()){
+            Integer size = 100;
+            Optional<String> offset = Optional.empty();
 
-                String subdomainUri = subdomains.next().getString(0);
-                shapeSubdomain(subdomainUri, domainUri);
+            while(true){
+
+                List<Domain> subdomains = helper.getDomainsDao().listSubdomains(domainUri, size, offset, false);
+
+                for(Domain subdomain: subdomains){
+                    shapeSubdomain(subdomain.getUri(), domainUri);
+                }
+
+                if (subdomains.size() < size) break;
+
+                offset = Optional.of(subdomains.get(size-1).getUri());
             }
 
             LOG.info("subdomain shapes created from: '" + domainUri + "' ..");
@@ -74,19 +82,6 @@ public class LDASubdomainShapingTask implements Runnable {
             LOG.error("Unexpected error", e);
         }
 
-    }
-
-
-    private Iterator<Row> getsubdomains(){
-        String query = "select uri from subdomains;";
-
-        try{
-            ResultSet result = helper.getDbSessionManager().getSessionByUri(domainUri).execute(query.toString());
-            return result.iterator();
-        }catch (InvalidQueryException e){
-            LOG.warn("Error on query: " + query, e.getMessage());
-            return Collections.emptyIterator();
-        }
     }
 
 
@@ -103,13 +98,18 @@ public class LDASubdomainShapingTask implements Runnable {
                             .format("org.apache.spark.sql.cassandra")
                             .schema(DataTypes
                                     .createStructType(new StructField[]{
-                                            DataTypes.createStructField("uri", DataTypes.StringType, false)
+                                            DataTypes.createStructField("resource", DataTypes.StringType, false),
+                                            DataTypes.createStructField("domain", DataTypes.StringType, false),
+                                            DataTypes.createStructField("type", DataTypes.StringType, false)
+
                                     }))
                             .option("inferSchema", "false") // Automatically infer data types
                             .option("charset", "UTF-8")
                             .option("mode", "DROPMALFORMED")
-                            .options(ImmutableMap.of("table", "items", "keyspace", DBSessionManager.getKeyspaceFromUri(subdomainUri)))
-                            .load();
+                            .options(ImmutableMap.of("table", DomainsDao.TABLE_NAME, "keyspace", DBSessionManager.getCommonKeyspaceId()))
+                            .load()
+                            .where("domain='"+subdomainUri+"' and type='"+ Resource.Type.ITEM.key() + "'")
+                            ;
 
 
                     DataFrame shapesDF = context.getCassandraSQLContext()
@@ -128,11 +128,11 @@ public class LDASubdomainShapingTask implements Runnable {
 
 
                     DataFrame distTopicsDF = itemsDF
-                            .join(shapesDF, itemsDF.col("uri").equalTo(shapesDF.col(ShapesDao.RESOURCE_URI)));
+                            .join(shapesDF, itemsDF.col("resource").equalTo(shapesDF.col(ShapesDao.RESOURCE_URI)));
 
                     JavaRDD<double[]> rows = distTopicsDF
                             .toJavaRDD()
-                            .filter(row -> row.get(2) != null)
+                            .filter(row -> row.get(4) != null)
                             .map(new RowToArray())
                             .persist(helper.getCacheModeHelper().getLevel());
                             ;

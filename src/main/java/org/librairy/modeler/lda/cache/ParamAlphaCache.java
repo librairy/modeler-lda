@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -45,13 +46,8 @@ public class ParamAlphaCache {
                 .build(
                         new CacheLoader<String, Double>() {
                             public Double load(String domainUri) {
-                                try {
-                                    String parameter = parametersDao.get(domainUri, "lda.alpha");
-                                    return Double.valueOf(parameter);
-                                } catch (Exception dataNotFound) {
-                                    LOG.error("Error reading parameters from '" + domainUri + "'");
-                                    return value;
-                                }
+                                Optional<String> parameter = parametersDao.get(domainUri, "lda.alpha");
+                                return parameter.isPresent()? Double.valueOf(parameter.get()) : value;
                             }
                         });
     }

@@ -25,7 +25,7 @@ public class RowToArray implements Serializable, Function<Row, double[]> {
     @Override
     public double[] call(Row row) throws Exception {
 
-        List<Double> list   = row.getList(2);
+        List<Double> list   = row.getList(4);
         double[] array      = Doubles.toArray(list);
         return array;
     }

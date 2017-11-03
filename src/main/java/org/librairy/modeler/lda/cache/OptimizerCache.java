@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -45,12 +46,8 @@ public class OptimizerCache {
                 .build(
                         new CacheLoader<String, String>() {
                             public String load(String domainUri) {
-                                try {
-                                    return parametersDao.get(domainUri, "lda.optimizer");
-                                } catch (Exception dataNotFound) {
-                                    LOG.error("Error reading parameters from '" + domainUri + "'");
-                                    return value;
-                                }
+                                Optional<String> parameter = parametersDao.get(domainUri, "lda.optimizer");
+                                return parameter.isPresent()? parameter.get() : value;
                             }
                         });
     }

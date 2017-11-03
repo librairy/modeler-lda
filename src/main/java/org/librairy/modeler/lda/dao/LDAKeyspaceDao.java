@@ -30,7 +30,7 @@ public class LDAKeyspaceDao {
         LOG.info("creating a new LDA workspace for domain: " + domainUri);
         try{
             sessionManager.getSession().execute("create keyspace if not exists "+DBSessionManager.getSpecificKeyspaceId("lda", URIGenerator.retrieveId(domainUri))+
-                    " with replication = {'class' : 'SimpleStrategy', 'replication_factor' : 1};");
+                    " with replication = {'class' : 'SimpleStrategy', 'replication_factor' : 1} and DURABLE_WRITES = true;");
         }catch (InvalidQueryException e){
             LOG.warn(e.getMessage());
         }

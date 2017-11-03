@@ -13,6 +13,7 @@ import org.librairy.boot.model.modules.BindingKey;
 import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
+import org.librairy.modeler.lda.cache.DelayCache;
 import org.librairy.modeler.lda.services.ModelingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,8 @@ public class DomainPendingEventHandler implements EventBusSubscriber {
     @Autowired
     ModelingService modelingService;
 
+    @Autowired
+    DelayCache delayCache;
 
     @PostConstruct
     public void init(){
@@ -52,7 +55,9 @@ public class DomainPendingEventHandler implements EventBusSubscriber {
         try{
             Resource resource = event.to(Resource.class);
 
-           modelingService.train(resource.getUri(), 500);
+            modelingService.enablePendingModelingFor(resource.getUri());
+            Long delay = delayCache.getDelay(resource.getUri());
+            modelingService.train(resource.getUri(), delay);
 
         } catch (Exception e){
             LOG.error("Error scheduling a new W2V model in domain: " + event, e);

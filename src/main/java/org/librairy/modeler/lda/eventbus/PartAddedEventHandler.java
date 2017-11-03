@@ -7,6 +7,7 @@
 
 package org.librairy.modeler.lda.eventbus;
 
+import com.google.common.base.Strings;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.domain.relations.Relation;
 import org.librairy.boot.model.modules.BindingKey;
@@ -14,7 +15,13 @@ import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.cache.DelayCache;
+import org.librairy.modeler.lda.cache.ModelsCache;
+import org.librairy.modeler.lda.dao.CustomItemsDao;
+import org.librairy.modeler.lda.dao.CustomPartsDao;
+import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.services.ModelingService;
+import org.librairy.modeler.lda.services.ShapeService;
+import org.librairy.modeler.lda.tasks.LDAIndividualShapingTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,6 +46,12 @@ public class PartAddedEventHandler implements EventBusSubscriber {
     @Autowired
     DelayCache delayCache;
 
+    @Autowired
+    ShapeService shapeService;
+
+    @Autowired
+    ModelingHelper helper;
+
     @PostConstruct
     public void init(){
         BindingKey bindingKey = BindingKey.of(RoutingKey.of(Relation.Type.CONTAINS_TO_PART, Relation.State.CREATED), "modeler.lda.part.added");
@@ -58,8 +71,8 @@ public class PartAddedEventHandler implements EventBusSubscriber {
             Long delay = delayCache.getDelay(domainUri);
 
             if (!modelingService.train(domainUri, delay)){
-                // individual processing of resource
-                // waiting for part updated event
+                String partUri      = relation.getEndUri();
+                shapeService.process(domainUri, partUri, 5000);
             }
 
         } catch (Exception e){

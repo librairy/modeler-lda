@@ -27,6 +27,7 @@ import org.apache.spark.sql.types.StructType;
 import org.librairy.boot.model.domain.resources.Item;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.storage.dao.DBSessionManager;
+import org.librairy.boot.storage.dao.DomainsDao;
 import org.librairy.boot.storage.generator.URIGenerator;
 import org.librairy.computing.cluster.ComputingContext;
 import org.librairy.modeler.lda.dao.ShapeRow;
@@ -72,6 +73,12 @@ public class Corpus {
         this.domainUri = URIGenerator.fromId(Resource.Type.DOMAIN, id);
         this.helper = helper;
         this.types = types;
+
+        this.size = 0l;
+
+        for(Resource.Type type: types){
+            this.size += helper.getCounterDao().getValue(domainUri, type.route());
+        }
     }
 
     public void clean(){
@@ -101,7 +108,7 @@ public class Corpus {
         // Define a schema
         StructType schema = DataTypes
                 .createStructType(new StructField[] {
-                        DataTypes.createStructField(Resource.URI, DataTypes.StringType, false),
+                        DataTypes.createStructField("resource", DataTypes.StringType, false),
                         DataTypes.createStructField(Item.TOKENS, DataTypes.StringType, false)
                 });
 
@@ -116,12 +123,12 @@ public class Corpus {
                 .map(type -> readElements(domainUri, type))
                 .reduce((df1, df2) -> df1.unionAll(df2))
                 .get()
-                .persist(helper.getCacheModeHelper().getLevel());
+//                .persist(helper.getCacheModeHelper().getLevel());
                 ;
 
-        docsDF.take(1);
+//        docsDF.take(1);
 
-        this.size = docsDF.count();
+//        this.size = docsDF.count();
 
         // Initialize SHAPE table in database;
         JavaRDD<ShapeRow> rows = docsDF
@@ -133,7 +140,7 @@ public class Corpus {
                     return shapeRow;
                 });
 
-        LOG.info("saving "+this.size+" elements id to database..");
+        LOG.info("saving elements id to database..");
         context.getSqlContext()
                 .createDataFrame(rows, ShapeRow.class)
                 .write()
@@ -147,12 +154,13 @@ public class Corpus {
 //                join(resourcesDF, containsDF.col("enduri").equalTo(resourcesDF.col("uri")));
 
         this.df = process(docsDF)
-                .persist(helper.getCacheModeHelper().getLevel());
+//                .persist(helper.getCacheModeHelper().getLevel());
+                ;
 
-        docsDF.unpersist();
+//        docsDF.unpersist();
 
         LOG.info("processing documents ..");
-        this.df.take(1);
+//        this.df.take(1);
 
     }
 
@@ -164,14 +172,18 @@ public class Corpus {
                 .format("org.apache.spark.sql.cassandra")
                 .schema(DataTypes
                         .createStructType(new StructField[] {
-                                DataTypes.createStructField("uri", DataTypes.StringType, false),
-                                DataTypes.createStructField("tokens", DataTypes.StringType, false)
+                                DataTypes.createStructField("resource", DataTypes.StringType, false),
+                                DataTypes.createStructField("tokens", DataTypes.StringType, false),
+                                DataTypes.createStructField("domain", DataTypes.StringType, false),
+                                DataTypes.createStructField("type", DataTypes.StringType, false)
+
                         }))
                 .option("inferSchema", "false") // Automatically infer data types
                 .option("charset", "UTF-8")
                 .option("mode","DROPMALFORMED")
-                .options(ImmutableMap.of("table", type.route(), "keyspace", DBSessionManager.getKeyspaceFromUri(domainUri)))
+                .options(ImmutableMap.of("table", DomainsDao.TABLE_NAME, "keyspace", DBSessionManager.getCommonKeyspaceId()))
                 .load()
+                .where("domain='" + domainUri+"' and type='" + type.key()+"'")
                 .repartition(partitions)
 //                .cache()
                 ;
@@ -229,7 +241,7 @@ public class Corpus {
         final Integer partitions = context.getRecommendedPartitions();
          bow = countVectorizerModel
                 .transform(df)
-                .select("uri", "features")
+                .select("resource", "features")
                 .repartition(partitions)
                 .map(new RowToPair(), ClassTag$.MODULE$.<Tuple2<Object, Vector>>apply(tuple.getClass()))
                  .persist(helper.getCacheModeHelper().getLevel());

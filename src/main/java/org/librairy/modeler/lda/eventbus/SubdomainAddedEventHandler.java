@@ -8,13 +8,17 @@
 package org.librairy.modeler.lda.eventbus;
 
 import org.librairy.boot.model.Event;
+import org.librairy.boot.model.domain.relations.Relation;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.modules.BindingKey;
 import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.cache.DelayCache;
+import org.librairy.modeler.lda.helper.ModelingHelper;
+import org.librairy.modeler.lda.services.ModelingService;
 import org.librairy.modeler.lda.services.SubdomainShapingService;
+import org.librairy.modeler.lda.tasks.LDAIndividualShapingTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,10 +38,10 @@ public class SubdomainAddedEventHandler implements EventBusSubscriber {
     protected EventBus eventBus;
 
     @Autowired
-    SubdomainShapingService service;
+    ModelingHelper helper;
 
     @Autowired
-    DelayCache delayCache;
+    ModelingService modelingService;
 
     @PostConstruct
     public void init(){
@@ -52,15 +56,15 @@ public class SubdomainAddedEventHandler implements EventBusSubscriber {
 
         LOG.debug("Subdomain added event received: " + event);
         try{
-            Resource resource = event.to(Resource.class);
+            Relation relation = event.to(Relation.class);
 
-            Long delay = delayCache.getDelay(resource.getUri());
+            String domainUri    = relation.getStartUri();
+            String subDomainUri = relation.getEndUri();
 
-
-            // Individually update subdomain
-            service.shape(resource.getUri(), delay);
-
-            //TODO
+            if (!modelingService.isPendingModeling(domainUri)){
+                // Individually update subdomain
+                new LDAIndividualShapingTask(domainUri, subDomainUri, helper).run();
+            }
 
         } catch (Exception e){
             // TODO Notify to event-bus when source has not been added

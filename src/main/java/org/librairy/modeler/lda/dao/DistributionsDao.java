@@ -49,6 +49,7 @@ public class DistributionsDao extends  AbstractDao{
                     DATE+" text, " +
                     "primary key ("+TOPIC_URI+", "+SCORE+","+RESOURCE_URI+"))" +
                     "with clustering order by ("+SCORE+" DESC, "+RESOURCE_URI+" ASC"+ ");");
+            getSession(domainUri).execute("create index if not exists on "+table+" (" +RESOURCE_TYPE+");");
         }catch (InvalidQueryException e){
             LOG.warn(e.getMessage());
         }

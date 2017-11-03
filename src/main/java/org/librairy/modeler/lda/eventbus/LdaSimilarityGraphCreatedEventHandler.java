@@ -29,6 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.util.Optional;
 
 /**
  * Created by cbadenes on 11/01/16.
@@ -63,13 +64,18 @@ public class LdaSimilarityGraphCreatedEventHandler implements EventBusSubscriber
         try{
             String domainUri = event.to(String.class);
 
-            Domain domain = helper.getDomainsDao().get(domainUri);
+            Optional<Domain> domain = helper.getDomainsDao().get(domainUri);
+
+            if (!domain.isPresent()) {
+                LOG.warn("Event received from unknown domain: " + domainUri);
+                return;
+            }
 
             LOG.info("Domain '"+domainUri+"' updated with a new LDA Model!!");
-            eventBus.post(Event.from(domain), RoutingKey.of(Resource.Type.DOMAIN, Resource.State.UPDATED));
+            eventBus.post(Event.from(domain.get().asDomain()), RoutingKey.of(Resource.Type.DOMAIN, Resource.State.UPDATED));
 
             EventMessage eventMessage = new EventMessage();
-            eventMessage.setName(domain.getName());
+            eventMessage.setName(domain.get().asDomain().getName());
             eventMessage.setId(URIGenerator.retrieveId(domainUri));
             eventMessage.setTime(TimeUtils.asISO());
 

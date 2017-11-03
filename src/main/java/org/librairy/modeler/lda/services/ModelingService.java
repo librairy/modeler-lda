@@ -54,7 +54,7 @@ public class ModelingService {
 
     public boolean train(String domainUri, long delay){
 
-        if (!pendingModeling.contains(domainUri) || !pendingModeling.get(domainUri)) return false;
+        if (!isPendingModeling(domainUri)) return false;
 
         LOG.info("Scheduled creation of a new topic model (LDA) for the domain: " + domainUri + " at " + timeFormatter
                 .format(new Date(System.currentTimeMillis() + delay)));
@@ -70,13 +70,18 @@ public class ModelingService {
 
 
     public void enablePendingModelingFor(String domainUri){
+        LOG.info("Enable topic model creation for domain: " + domainUri);
         this.pendingModeling.put(domainUri, true);
     }
 
     public void disablePendingModelingFor(String domainUri){
+        LOG.info("Disable topic model creation for domain: " + domainUri);
         this.pendingModeling.put(domainUri, false);
     }
 
 
+    public Boolean isPendingModeling(String domainUri){
+        return pendingModeling.containsKey(domainUri) && pendingModeling.get(domainUri);
+    }
 
 }

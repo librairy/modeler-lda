@@ -50,15 +50,15 @@ public class LdaDistributionsCreatedEventHandler implements EventBusSubscriber {
 
     @Override
     public void handle(Event event) {
-        LOG.info("lda distributions created event received: " + event);
-        try{
-            String domainUri = event.to(String.class);
-
-            executor.execute(domainUri, 1000, new LDASimilarityTask(domainUri,helper) );
-
-        } catch (Exception e){
-            // TODO Notify to event-bus when source has not been added
-            LOG.error("Error scheduling annotations in domain: " + event, e);
-        }
+//        LOG.info("lda distributions created event received: " + event);
+//        try{
+//            String domainUri = event.to(String.class);
+//
+//            executor.execute(domainUri, 1000, new LDASimilarityTask(domainUri,helper) );
+//
+//        } catch (Exception e){
+//            // TODO Notify to event-bus when source has not been added
+//            LOG.error("Error scheduling annotations in domain: " + event, e);
+//        }
     }
 }

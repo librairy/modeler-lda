@@ -15,7 +15,11 @@ import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
 import org.librairy.modeler.lda.cache.DelayCache;
 import org.librairy.modeler.lda.cache.DomainCache;
+import org.librairy.modeler.lda.cache.ModelsCache;
+import org.librairy.modeler.lda.helper.ModelingHelper;
 import org.librairy.modeler.lda.services.ModelingService;
+import org.librairy.modeler.lda.services.ShapeService;
+import org.librairy.modeler.lda.tasks.LDAIndividualShapingTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,7 +45,16 @@ public class ItemUpdated implements EventBusSubscriber {
     ModelingService modelingService;
 
     @Autowired
+    ShapeService shapeService;
+
+    @Autowired
     DelayCache delayCache;
+
+    @Autowired
+    ModelingHelper helper;
+
+    @Autowired
+    ModelsCache modelsCache;
 
     @PostConstruct
     public void init(){
@@ -66,8 +79,7 @@ public class ItemUpdated implements EventBusSubscriber {
                                 String itemUri      = resource.getUri();
                                 String domainUri    = domain.getUri();
 
-                                //TODO
-
+                                shapeService.process(domainUri, itemUri, 5000);
                             }
                         }
                     );

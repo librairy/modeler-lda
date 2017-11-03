@@ -16,6 +16,7 @@ import org.apache.spark.mllib.clustering.LocalLDAModel;
 import org.apache.spark.mllib.clustering.OnlineLDAOptimizer;
 import org.apache.spark.mllib.linalg.Vector;
 import org.apache.spark.rdd.RDD;
+import org.apache.spark.sql.SaveMode;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.utils.TimeUtils;
 import org.librairy.boot.storage.dao.DBSessionManager;
@@ -103,6 +104,7 @@ public class LDABuildTask {
                 .write()
                 .format("org.apache.spark.sql.cassandra")
                 .options(ImmutableMap.of("table", TopicsDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",corpusId)))
+                .mode(SaveMode.Overwrite)
                 .save()
         ;
 
@@ -121,6 +123,11 @@ public class LDABuildTask {
 
         String domainUri = URIGenerator.fromId(Resource.Type.DOMAIN, corpus.getId());
 
+        RDD<Tuple2<Object, Vector>> documents = corpus.getBagOfWords()
+                .persist(helper.getCacheModeHelper().getLevel());
+
+        documents.take(1); // force cache
+
         String optimizerId = helper.getOptimizerCache().getOptimizer(domainUri);
 
         LOG.info("LDA Optimizer for '"+domainUri +"' is " + optimizerId);
@@ -134,7 +141,7 @@ public class LDABuildTask {
         helper.getCounterDao().increment(domainUri, Resource.Type.TOPIC.route(), Long.valueOf(ldaParameters.getK()));
 
         // LDA parametrization
-        RDD<Tuple2<Object, Vector>> documents = corpus.getBagOfWords();
+//        RDD<Tuple2<Object, Vector>> documents = corpus.getBagOfWords();
         LDA lda = new LDA()
                 .setOptimizer(new OnlineLDAOptimizer().setMiniBatchFraction(0.8))
                 .setK(ldaParameters.getK())
@@ -151,7 +158,6 @@ public class LDABuildTask {
         Instant endModel    = Instant.now();
         LOG.info("LDA Model created in: "       + ChronoUnit.MINUTES.between(startModel,endModel) + "min " + (ChronoUnit
                 .SECONDS.between(startModel,endModel)%60) + "secs");
-
 
         LocalLDAModel localLDAModel = (LocalLDAModel) ldaModel;
 
