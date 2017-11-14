@@ -9,10 +9,7 @@ package org.librairy.modeler.lda.helper;
 
 import lombok.Data;
 import org.librairy.boot.model.modules.EventBus;
-import org.librairy.boot.storage.dao.CounterDao;
-import org.librairy.boot.storage.dao.DBSessionManager;
-import org.librairy.boot.storage.dao.DomainsDao;
-import org.librairy.boot.storage.dao.ParametersDao;
+import org.librairy.boot.storage.dao.*;
 import org.librairy.computing.cache.CacheModeHelper;
 import org.librairy.computing.cluster.Partitioner;
 import org.librairy.computing.helper.ComputingHelper;
@@ -27,6 +24,7 @@ import org.librairy.modeler.lda.cache.VocabularyCache;
 import org.librairy.modeler.lda.dao.*;
 import org.librairy.modeler.lda.optimizers.LDAOptimizerFactory;
 import org.librairy.modeler.lda.services.ModelingService;
+import org.librairy.modeler.lda.services.ShapeService;
 import org.librairy.modeler.lda.services.SimilarityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -111,11 +109,20 @@ public class ModelingHelper {
     LDAOptimizerFactory ldaOptimizerFactory;
 
     @Autowired
-    CustomItemsDao itemsDao;
+    CustomItemsDao customItemsDao;
 
     @Autowired
-    CustomPartsDao partsDao;
+    ItemsDao itemsDao;
+
+    @Autowired
+    CustomPartsDao customPartsDao;
+
+    @Autowired
+    PartsDao partsDao;
 
     @Autowired
     ModelsCache modelsCache;
+
+    @Autowired
+    ShapeService shapeService;
 }

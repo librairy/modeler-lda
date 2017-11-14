@@ -13,6 +13,7 @@ import org.librairy.boot.model.modules.BindingKey;
 import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
 import org.librairy.boot.model.modules.RoutingKey;
+import org.librairy.boot.storage.dao.DomainsDao;
 import org.librairy.modeler.lda.cache.DelayCache;
 import org.librairy.modeler.lda.cache.DomainCache;
 import org.librairy.modeler.lda.cache.ModelsCache;
@@ -53,6 +54,9 @@ public class PartUpdated implements EventBusSubscriber {
     @Autowired
     ShapeService shapeService;
 
+    @Autowired
+    DomainsDao domainsDao;
+
     @PostConstruct
     public void init(){
         BindingKey bindingKey = BindingKey.of(RoutingKey.of(Resource.Type.PART, Resource.State.UPDATED ), "modeler.lda.part.updated");
@@ -70,12 +74,13 @@ public class PartUpdated implements EventBusSubscriber {
             // update domains containing item
             domainCache.getDomainsFrom(resource.getUri())
                     .forEach(domain ->{
+                                domainsDao.updateDomainTokens(domain.getUri(), resource.getUri(), null);
                                 Long delay = delayCache.getDelay(domain.getUri());
                                 if (!modelingService.train(domain.getUri(),delay) ){
                                     //Individually update part
                                     String domainUri    = domain.getUri();
                                     String partUri      = resource.getUri();
-                                    shapeService.process(domainUri, partUri, 5000);
+                                    shapeService.process(domainUri, partUri, delay);
                                 }
                             }
                     );

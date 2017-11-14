@@ -47,4 +47,19 @@ public class CorpusBuilder {
 
     }
 
+
+    public Corpus build(ComputingContext context, String domainUri, List<Resource.Type> types, List<String> resources){
+
+        // Reading Uris
+        LOG.info("Creating a corpus from domain: " + domainUri + " with: " + resources.size() + " elements");
+        String domainId = URIGenerator.retrieveId(domainUri);
+
+        // Train model
+        Corpus corpus = new Corpus(context, domainId, types, helper);
+        corpus.loadResources(domainUri,resources);
+
+        return corpus;
+
+    }
+
 }

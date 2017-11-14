@@ -32,7 +32,7 @@ import javax.annotation.PostConstruct;
 /**
  * Created by cbadenes on 11/01/16.
  */
-@Component
+//@Component
 public class PartAddedEventHandler implements EventBusSubscriber {
 
     private static final Logger LOG = LoggerFactory.getLogger(PartAddedEventHandler.class);
@@ -72,7 +72,7 @@ public class PartAddedEventHandler implements EventBusSubscriber {
 
             if (!modelingService.train(domainUri, delay)){
                 String partUri      = relation.getEndUri();
-                shapeService.process(domainUri, partUri, 5000);
+                shapeService.process(domainUri, partUri, delay);
             }
 
         } catch (Exception e){

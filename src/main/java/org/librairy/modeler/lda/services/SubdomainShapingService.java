@@ -44,9 +44,9 @@ public class SubdomainShapingService {
         this.buildingTasks = new ConcurrentHashMap<>();
 
         this.threadpool = new ThreadPoolTaskScheduler();
-        this.threadpool.setPoolSize(500);
-
+        this.threadpool.setPoolSize(20);
         this.threadpool.initialize();
+        this.threadpool.getScheduledThreadPoolExecutor().setRemoveOnCancelPolicy(true);
     }
 
 
@@ -56,7 +56,6 @@ public class SubdomainShapingService {
         ScheduledFuture<?> task = buildingTasks.get(domainUri);
         if (task != null) {
             task.cancel(true);
-//            this.threadpool.getScheduledThreadPoolExecutor().purge();
         }
         task = this.threadpool.schedule(new LDASubdomainShapingTask(domainUri, helper), new Date(System.currentTimeMillis() + delay));
         buildingTasks.put(domainUri,task);

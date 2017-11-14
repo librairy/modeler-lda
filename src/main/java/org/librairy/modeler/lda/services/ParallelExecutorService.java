@@ -38,9 +38,9 @@ public class ParallelExecutorService {
         this.buildingTasks = new ConcurrentHashMap<>();
 
         this.threadpool = new ThreadPoolTaskScheduler();
-        this.threadpool.setPoolSize(500);
-
+        this.threadpool.setPoolSize(20);
         this.threadpool.initialize();
+        this.threadpool.getScheduledThreadPoolExecutor().setRemoveOnCancelPolicy(true);
     }
 
 

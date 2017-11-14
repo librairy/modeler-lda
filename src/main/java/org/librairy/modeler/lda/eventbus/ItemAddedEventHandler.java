@@ -10,6 +10,7 @@ package org.librairy.modeler.lda.eventbus;
 import com.google.common.base.Strings;
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.domain.relations.Relation;
+import org.librairy.boot.model.domain.resources.Part;
 import org.librairy.boot.model.modules.BindingKey;
 import org.librairy.boot.model.modules.EventBus;
 import org.librairy.boot.model.modules.EventBusSubscriber;
@@ -28,6 +29,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Created by cbadenes on 11/01/16.
@@ -72,7 +75,12 @@ public class ItemAddedEventHandler implements EventBusSubscriber {
 
             if (!modelingService.train(domainUri, delay)){
                 String itemUri      = relation.getEndUri();
-                shapeService.process(domainUri, itemUri, 5000);
+                if (shapeService.process(domainUri, itemUri, delay)){
+                    // get parts
+                    helper.getItemsDao().listParts(itemUri, 100, Optional.empty(), false).stream().forEach(p -> shapeService.process(domainUri, p.getUri(), delay));
+                }
+
+
             }
 
         } catch (Exception e){

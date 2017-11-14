@@ -7,6 +7,10 @@
 
 package org.librairy.modeler.lda.models;
 
+import com.datastax.driver.core.PreparedStatement;
+import com.datastax.driver.core.ResultSet;
+import com.datastax.driver.core.ResultSetFuture;
+import com.datastax.driver.core.Session;
 import com.google.common.collect.ImmutableMap;
 import lombok.Data;
 import org.apache.spark.api.java.JavaRDD;
@@ -39,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 import scala.reflect.ClassTag$;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -117,6 +122,44 @@ public class Corpus {
         this.df = process(df);
     }
 
+    public void loadResources(String domainUri, List<String> uris){
+
+        DataFrame docsDF = readElements(domainUri,uris);
+
+        // Initialize SHAPE table in database;
+        JavaRDD<ShapeRow> rows = docsDF
+                .toJavaRDD()
+                .map(row -> {
+                    ShapeRow shapeRow = new ShapeRow();
+                    shapeRow.setUri(row.getString(0));
+                    shapeRow.setId(RowToPair.from(row.getString(0)));
+                    return shapeRow;
+                });
+
+        LOG.info("saving elements id to database..");
+        context.getSqlContext()
+                .createDataFrame(rows, ShapeRow.class)
+                .write()
+                .format("org.apache.spark.sql.cassandra")
+                .options(ImmutableMap.of("table", ShapesDao.TABLE, "keyspace", DBSessionManager.getSpecificKeyspaceId("lda",id)))
+                .mode(SaveMode.Overwrite)
+                .save();
+        LOG.info("saved!");
+
+//        DataFrame resourcesInDomaindf = containsDF.
+//                join(resourcesDF, containsDF.col("enduri").equalTo(resourcesDF.col("uri")));
+
+        this.df = process(docsDF)
+//                .persist(helper.getCacheModeHelper().getLevel());
+        ;
+
+//        docsDF.unpersist();
+
+        LOG.info("processing documents ..");
+//        this.df.take(1);
+
+    }
+
     public void loadDomain(String domainUri){
 
         DataFrame docsDF = types.stream()
@@ -187,6 +230,55 @@ public class Corpus {
                 .repartition(partitions)
 //                .cache()
                 ;
+    }
+
+    private DataFrame readElements(String domainUri, List<String> uris){
+
+        Session session = helper.getDbSessionManager().getCommonSession();
+
+        PreparedStatement statement = session.prepare("select resource, tokens, domain, type from librairy.resources_by_domain where domain='"+domainUri+"' and type = ? and resource = ?");
+        List<ResultSetFuture> futures = new ArrayList<>();
+        List<com.datastax.driver.core.Row> results = new ArrayList<>();
+        for (int i=0;i<uris.size();i++){
+            String uri = uris.get(i);
+            Resource.Type type = URIGenerator.typeFrom(uri);
+            ResultSetFuture resultSetFuture = session.executeAsync(statement.bind(type.key(), uri));
+            futures.add(resultSetFuture);
+            if (i%100 == 0){
+                for (ResultSetFuture future : futures){
+                    ResultSet rows = future.getUninterruptibly();
+                    com.datastax.driver.core.Row row = rows.one();
+                    results.add(row);
+                }
+                futures.clear();
+            }
+        }
+
+//        for (String uri: uris) {
+//            Resource.Type type = URIGenerator.typeFrom(uri);
+//            ResultSetFuture resultSetFuture = session.executeAsync(statement.bind(type.key(), uri));
+//            futures.add(resultSetFuture);
+//        }
+
+        for (ResultSetFuture future : futures){
+            ResultSet rows = future.getUninterruptibly();
+            com.datastax.driver.core.Row row = rows.one();
+
+            results.add(row);
+        }
+        LOG.info(results.size() + " elements read from resources_by_domain");
+        //create dataframe
+        StructType schema = DataTypes
+                .createStructType(new StructField[]{
+                        DataTypes.createStructField("resource", DataTypes.StringType, false),
+                        DataTypes.createStructField("tokens", DataTypes.StringType, false),
+                        DataTypes.createStructField("domain", DataTypes.StringType, false),
+                        DataTypes.createStructField("type", DataTypes.StringType, false)
+
+                });
+        List<Row> data = results.parallelStream().map(r -> RowFactory.create(r.getString(0), r.getString(1), r.getString(2), r.getString(3))).collect(Collectors.toList());
+
+        return context.getCassandraSQLContext().createDataFrame(data,schema);
     }
 
 

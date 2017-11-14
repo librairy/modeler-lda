@@ -46,26 +46,29 @@ public class ModelingService {
         this.pendingModeling    = new ConcurrentHashMap<>();
 
         this.threadpool = new ThreadPoolTaskScheduler();
-        this.threadpool.setPoolSize(500);
-
+        this.threadpool.setPoolSize(20);
         this.threadpool.initialize();
+        this.threadpool.getScheduledThreadPoolExecutor().setRemoveOnCancelPolicy(true);
     }
 
 
     public boolean train(String domainUri, long delay){
 
-        if (!isPendingModeling(domainUri)) return false;
-
-        LOG.info("Scheduled creation of a new topic model (LDA) for the domain: " + domainUri + " at " + timeFormatter
-                .format(new Date(System.currentTimeMillis() + delay)));
-        ScheduledFuture<?> task = buildingTasks.get(domainUri);
-        if (task != null) {
-            task.cancel(true);
-//            this.threadpool.getScheduledThreadPoolExecutor().purge();
+        try{
+            if (!isPendingModeling(domainUri)) return false;
+            LOG.info("Scheduled creation of a new topic model (LDA) for the domain: " + domainUri + " at " + timeFormatter
+                    .format(new Date(System.currentTimeMillis() + delay)));
+            ScheduledFuture<?> task = buildingTasks.get(domainUri);
+            if (task != null) {
+                task.cancel(true);
+            }
+            task = this.threadpool.schedule(new LDATrainingTask(domainUri, helper), new Date(System.currentTimeMillis() + delay));
+            buildingTasks.put(domainUri,task);
+            return true;
+        }catch (Exception e){
+            LOG.error("Error scheduling a new model for domain: " + domainUri, e);
+            return true;
         }
-        task = this.threadpool.schedule(new LDATrainingTask(domainUri, helper), new Date(System.currentTimeMillis() + delay));
-        buildingTasks.put(domainUri,task);
-        return true;
     }
 
 

@@ -24,6 +24,9 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
+import java.util.Arrays;
+import java.util.TreeSet;
+
 /**
  * Created on 27/06/16:x
  *
@@ -63,7 +66,7 @@ public class LDAIndividualShapeTaskTest {
 
 //        udm.save(Relation.newContains(domainUri, documentUri));
 
-        LDAIndividualShapingTask task = new LDAIndividualShapingTask(domainUri, documentUri, helper);
+        LDAIndividualShapingTask task = new LDAIndividualShapingTask(domainUri, helper, new TreeSet<>(Arrays.asList(new String[]{documentUri})));
 
         task.run();
 

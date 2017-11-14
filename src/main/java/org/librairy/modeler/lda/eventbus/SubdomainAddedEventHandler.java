@@ -9,6 +9,7 @@ package org.librairy.modeler.lda.eventbus;
 
 import org.librairy.boot.model.Event;
 import org.librairy.boot.model.domain.relations.Relation;
+import org.librairy.boot.model.domain.resources.Item;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.modules.BindingKey;
 import org.librairy.boot.model.modules.EventBus;
@@ -25,6 +26,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Created by cbadenes on 11/01/16.
@@ -63,7 +66,19 @@ public class SubdomainAddedEventHandler implements EventBusSubscriber {
 
             if (!modelingService.isPendingModeling(domainUri)){
                 // Individually update subdomain
-                new LDAIndividualShapingTask(domainUri, subDomainUri, helper).run();
+                Optional<String> offset = Optional.empty();
+                Integer size = 100;
+                Boolean finished = false;
+                // documents
+                Set<String> uris = new TreeSet<>();
+                while(!finished) {
+                    List<Item> docs = helper.getDomainsDao().listItems(subDomainUri, size, offset, false);
+                    if (docs.isEmpty()) break;
+                    uris.addAll(docs.stream().map(i -> i.getUri()).collect(Collectors.toList()));
+                    finished = (docs.size() < size);
+                    if (!finished) offset = Optional.of(docs.get(size - 1).getUri());
+                }
+                new LDAIndividualShapingTask(domainUri, helper, uris).run();
             }
 
         } catch (Exception e){
