@@ -22,7 +22,7 @@ import java.util.stream.Collectors;
 /**
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
  */
-@Component
+@Component("ldaTopicsDao")
 public class TopicsDao extends AbstractDao{
 
     public static final Logger LOG = LoggerFactory.getLogger(TopicsDao.class);

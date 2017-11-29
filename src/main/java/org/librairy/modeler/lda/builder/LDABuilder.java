@@ -49,13 +49,6 @@ public class LDABuilder {
     @Autowired
     ModelingHelper helper;
 
-
-    @Autowired
-    ParametersDao parametersDao;
-
-    @Autowired
-    CounterDao counterDao;
-
     @Value("#{environment['LIBRAIRY_LDA_WORDS_PER_TOPIC']?:${librairy.lda.topic.words}}")
     Integer maxWords;
 

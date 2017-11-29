@@ -11,6 +11,7 @@ import com.datastax.driver.core.PreparedStatement;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.ResultSetFuture;
 import com.datastax.driver.core.Session;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import lombok.Data;
 import org.apache.spark.api.java.JavaRDD;
@@ -43,10 +44,7 @@ import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 import scala.reflect.ClassTag$;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
@@ -210,11 +208,11 @@ public class Corpus {
 
     private DataFrame readElements(String domainUri, Resource.Type type){
         final Integer partitions = context.getRecommendedPartitions();
-        return context.getCassandraSQLContext()
+        DataFrame pdf = context.getCassandraSQLContext()
                 .read()
                 .format("org.apache.spark.sql.cassandra")
                 .schema(DataTypes
-                        .createStructType(new StructField[] {
+                        .createStructType(new StructField[]{
                                 DataTypes.createStructField("resource", DataTypes.StringType, false),
                                 DataTypes.createStructField("tokens", DataTypes.StringType, false),
                                 DataTypes.createStructField("domain", DataTypes.StringType, false),
@@ -223,13 +221,19 @@ public class Corpus {
                         }))
                 .option("inferSchema", "false") // Automatically infer data types
                 .option("charset", "UTF-8")
-                .option("mode","DROPMALFORMED")
+                .option("mode", "DROPMALFORMED")
                 .options(ImmutableMap.of("table", DomainsDao.TABLE_NAME, "keyspace", DBSessionManager.getCommonKeyspaceId()))
                 .load()
-                .where("domain='" + domainUri+"' and type='" + type.key()+"'")
-                .repartition(partitions)
-//                .cache()
+                .where("domain='" + domainUri + "' and type='" + type.key() + "'")
+                .repartition(partitions);//                .cache()
                 ;
+
+        List<Row> emptyTokens = pdf.javaRDD().filter(row -> row.getString(1) == null || row.getString(1).trim().equalsIgnoreCase("")).collect();
+        LOG.warn("Empty tokens in " + emptyTokens.size() + " " + type.name());
+        emptyTokens.forEach( row -> {
+            helper.getDomainsDao().updateDomainTokens(domainUri, row.getString(0),"");
+        });
+        return pdf;
     }
 
     private DataFrame readElements(String domainUri, List<String> uris){
@@ -291,16 +295,20 @@ public class Corpus {
                 .setOutputCol("words")
                 .transform(df);
 
-        String stopwordPath = helper.getStorageHelper().path(id,"stopwords.txt");
-        List<String> stopwords = helper.getStorageHelper().exists(stopwordPath)?
-                context.getSparkContext()
-                        .textFile(helper.getStorageHelper().absolutePath(stopwordPath))
-                        .collect() : Collections.EMPTY_LIST;
+
+
+        List<String> stopwords = new ArrayList<>();
+
+        Optional<String> stopwordsExpression = helper.getParametersDao().get(domainUri, "lda.stopwords");
+        if (stopwordsExpression.isPresent() && !Strings.isNullOrEmpty(stopwordsExpression.get())){
+            stopwords = Arrays.asList(stopwordsExpression.get().split(","));
+        }
+
         LOG.info("Filtering by stopwords ["+stopwords.size()+"]");
         DataFrame filteredWords = new StopWordsRemover()
                 .setInputCol("words")
                 .setOutputCol("filtered")
-                .setStopWords(stopwords.toArray(new String[]{}))
+                .setStopWords(stopwords.toArray(new String[stopwords.size()]))
                 .setCaseSensitive(false)
                 .transform(words);
 

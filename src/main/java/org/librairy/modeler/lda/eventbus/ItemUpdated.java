@@ -8,6 +8,7 @@
 package org.librairy.modeler.lda.eventbus;
 
 import org.librairy.boot.model.Event;
+import org.librairy.boot.model.domain.resources.Domain;
 import org.librairy.boot.model.domain.resources.Resource;
 import org.librairy.boot.model.modules.BindingKey;
 import org.librairy.boot.model.modules.EventBus;
@@ -27,6 +28,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * @author Badenes Olmedo, Carlos <cbadenes@fi.upm.es>
@@ -75,7 +78,8 @@ public class ItemUpdated implements EventBusSubscriber {
             Resource resource = event.to(Resource.class);
 
             // update domains containing item
-            domainCache.getDomainsFrom(resource.getUri())
+            List<Domain> domains = domainCache.getDomainsFrom(resource.getUri());
+            domains
                     .forEach(domain ->{
                             domainsDao.updateDomainTokens(domain.getUri(), resource.getUri(), null);
                             Long delay = delayCache.getDelay(domain.getUri());

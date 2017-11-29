@@ -22,6 +22,7 @@ import org.librairy.modeler.lda.cache.ModelsCache;
 import org.librairy.modeler.lda.cache.OptimizerCache;
 import org.librairy.modeler.lda.cache.VocabularyCache;
 import org.librairy.modeler.lda.dao.*;
+import org.librairy.modeler.lda.dao.TopicsDao;
 import org.librairy.modeler.lda.optimizers.LDAOptimizerFactory;
 import org.librairy.modeler.lda.services.ModelingService;
 import org.librairy.modeler.lda.services.ShapeService;

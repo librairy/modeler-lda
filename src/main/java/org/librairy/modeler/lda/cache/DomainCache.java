@@ -81,4 +81,8 @@ public class DomainCache {
         }
     }
 
+    public void update(String uri){
+        this.cache.refresh(uri);
+    }
+
 }
